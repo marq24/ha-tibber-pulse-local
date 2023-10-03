@@ -68,7 +68,7 @@ SENSOR_TYPES = [
     # aktuelle Wirkleistung
     SensorEntityDescription(
         key="0100100700ff",
-        name="aktuelle Wirkleistung",
+        name="Power (actual)",
         native_unit_of_measurement=POWER_WATT,
         icon="mdi:meter-electric",
         device_class=SensorDeviceClass.ENERGY,
@@ -77,7 +77,7 @@ SENSOR_TYPES = [
     # Wirkleistung L1
     SensorEntityDescription(
         key="0100240700ff",
-        name="Wirkleistung L1",
+        name="Power L1",
         native_unit_of_measurement=POWER_WATT,
         icon="mdi:meter-electric",
         device_class=SensorDeviceClass.ENERGY,
@@ -86,7 +86,7 @@ SENSOR_TYPES = [
     # Wirkleistung L2
     SensorEntityDescription(
         key="0100380700ff",
-        name="Wirkleistung L2",
+        name="Power L2",
         native_unit_of_measurement=POWER_WATT,
         icon="mdi:meter-electric",
         device_class=SensorDeviceClass.ENERGY,
@@ -95,7 +95,7 @@ SENSOR_TYPES = [
     # Wirkleistung L3
     SensorEntityDescription(
         key="01004c0700ff",
-        name="Wirkleistung L3",
+        name="Power L3",
         native_unit_of_measurement=POWER_WATT,
         icon="mdi:meter-electric",
         device_class=SensorDeviceClass.ENERGY,
@@ -172,6 +172,7 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="0100510701ff",
         name="Potential Phase deviation L1/L2",
+        suggested_display_precision = 1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
         device_class=SensorDeviceClass.POWER,
@@ -181,6 +182,7 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="0100510702ff",
         name="Potential Phase deviation L1/L3",
+        suggested_display_precision = 1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
         device_class=SensorDeviceClass.POWER,
@@ -191,6 +193,7 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="0100510704ff",
         name="Current/Potential L1 Phase deviation",
+        suggested_display_precision = 1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
         device_class=SensorDeviceClass.ENERGY,
@@ -200,6 +203,7 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="010051070fff",
         name="Current/Potential L2 Phase deviation",
+        suggested_display_precision = 1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
         device_class=SensorDeviceClass.ENERGY,
@@ -209,6 +213,7 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="010051071aff",
         name="Current/Potential L3 Phase deviation",
+        suggested_display_precision = 1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
         device_class=SensorDeviceClass.ENERGY,
