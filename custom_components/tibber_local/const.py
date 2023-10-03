@@ -70,8 +70,8 @@ SENSOR_TYPES = [
         key="0100100700ff",
         name="aktuelle Wirkleistung",
         native_unit_of_measurement=POWER_WATT,
-        icon="mdi:home-export-outline",
-        device_class=SensorDeviceClass.POWER,
+        icon="mdi:meter-electric",
+        device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Wirkleistung L1
@@ -79,8 +79,8 @@ SENSOR_TYPES = [
         key="0100240700ff",
         name="Wirkleistung L1",
         native_unit_of_measurement=POWER_WATT,
-        icon="mdi:home-export-outline",
-        device_class=SensorDeviceClass.POWER,
+        icon="mdi:meter-electric",
+        device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Wirkleistung L2
@@ -88,8 +88,8 @@ SENSOR_TYPES = [
         key="0100380700ff",
         name="Wirkleistung L2",
         native_unit_of_measurement=POWER_WATT,
-        icon="mdi:home-export-outline",
-        device_class=SensorDeviceClass.POWER,
+        icon="mdi:meter-electric",
+        device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Wirkleistung L3
@@ -97,8 +97,8 @@ SENSOR_TYPES = [
         key="01004c0700ff",
         name="Wirkleistung L3",
         native_unit_of_measurement=POWER_WATT,
-        icon="mdi:home-export-outline",
-        device_class=SensorDeviceClass.POWER,
+        icon="mdi:meter-electric",
+        device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.MEASUREMENT,
     ),
 
