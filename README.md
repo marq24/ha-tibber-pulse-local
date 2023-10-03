@@ -1,6 +1,7 @@
 # Tibber Pulse LOCAL
 If you like to access the data of your Tibber Pulse directly (instead via the detour through the cloud), then there is quite
-a simple approach to read the data directly from the Tibber Pulse Bridge.
+a simple approach to read the data directly from the Tibber Pulse Bridge. Thanks to [@ProfDrYoMan](https://github.com/ProfDrYoMan) for
+providing the initial idea.
 
 ## Know Inssues
 - No Logo/Icons (Tibber) for the integration (yet)
