@@ -1,0 +1,34 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Integration ist bereits eingereichtet"
+        },
+        "error": {
+            "login_failed": "Login fehlgeschlagen - bitte Benutzername und/oder Passwort prüfen",
+            "cannot_connect": "Keine Verbindung möglich",
+            "unknown": "Unbekannter Fehler"
+        },
+        "step": {
+            "user": {
+                "description": "Bitte wähle die Version Deines SENEC.Home Systems das Du einbinden möchtest.\n\n\nZusätzliche Informationen zur Einrichtung findest Du hier: https://github.com/marq24/ha-senec-v3",
+                "data": {
+                    "host": "IP oder Hostname des SENEC.Home V3 Systems bzw des Inverters",
+                    "password": "Dein 'mein-senec.de' Passwort - [You find the Password on the TibberBridge - below the QR-Code]",
+                    "scan_interval":"Aktualisierungsintervall in Sekunden"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "user": {
+                "description": "Wenn Du Hilfe benötigst, findest du sie hier: https://github.com/marq24/ha-senec-v3",
+                "data": {
+                    "host": "IP oder Hostname des SENEC.Home V3 Systems bzw des Inverters",
+                    "password": "Dein 'mein-senec.de' Passwort - [You find the Password on the TibberBridge - below the QR-Code]",
+                    "scan_interval":"Aktualisierungsintervall in Sekunden"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,34 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Integration is already configured"
+        },
+        "error": {
+            "login_failed": "Login failed - please check username and/or password",
+            "cannot_connect": "Failed to connect",
+            "unknown": "Unknown error"
+        },
+        "step": {
+            "user": {
+                "description": "Please select the version of your SENEC.Home System you would like to add.\n\n\nIf you need help with the configuration have a look at: https://github.com/marq24/ha-senec-v3",
+                "data": {
+                    "host": "IP or hostname of the SENEC.Home V3 System OR the Inverter",
+                    "password": "Your 'mein-senec.de' password - [You find the Password on the TibberBridge - below the QR-Code]",
+                    "scan_interval":"Polling Interval in seconds"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "user": {
+                "description": "If you need help with the configuration have a look here: https://github.com/marq24/ha-senec-v3",
+                "data": {
+                    "host": "IP or hostname of the SENEC.Home V3 System OR the Inverter",
+                    "password": "Your 'mein-senec.de' password - [You find the Password on the TibberBridge - below the QR-Code]",
+                    "scan_interval":"Polling Interval in seconds"
+                }
+            }
+        }
+    }
+}

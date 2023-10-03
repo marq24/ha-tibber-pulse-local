@@ -1,0 +1,14 @@
+{
+  "domain": "tibber_local",
+  "name": "Local Tibber Pulse polling",
+  "codeowners": [
+    "@marq24"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/marq24/ha-tibber-pulse-local/blob/master/README.md",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/marq24/ha-tibber-pulse-local/issues",
+  "requirements": ["smllib==1.2"],
+  "version": "1.0.0"
+}
