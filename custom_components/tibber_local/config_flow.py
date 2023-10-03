@@ -6,11 +6,12 @@ from requests.exceptions import HTTPError, Timeout
 from aiohttp import ClientResponseError
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD
+from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant, callback
 
 from .const import (
     DOMAIN,
+    DEFAULT_NAME,
     DEFAULT_HOST,
     DEFAULT_PWD,
     DEFAULT_SCAN_INTERVAL,
@@ -49,6 +50,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             bridge = TibberLocalBridge(host=host, pwd=pwd, websession=websession)
             await bridge.update()
             self._data_available = len(bridge._obis_values.keys()) > 0
+            self._serial = bridge.serial
             _LOGGER.info("Successfully connect to local Tibber Pulse Bridge at %s", host)
             return True
         except (OSError, HTTPError, Timeout, ClientResponseError):
@@ -68,7 +70,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if host.startswith('https://'):
                 host = host.replace("https://", "")
 
-            name = user_input.get(CONF_NAME, f"TibberLocal_{host}")
+            name = user_input.get(CONF_NAME, f"ltibber_{host}")
             pwd = user_input.get(CONF_PASSWORD, "")
             scan = user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
@@ -80,7 +82,8 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     a_data = {CONF_NAME: name,
                               CONF_HOST: host,
                               CONF_PASSWORD: pwd,
-                              CONF_SCAN_INTERVAL: scan}
+                              CONF_SCAN_INTERVAL: scan,
+                              CONF_ID: self._serial}
 
                     return self.async_create_entry(title=name, data=a_data)
 
@@ -88,6 +91,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     _LOGGER.error("Could not connect to Tibber Pulse Bridge at %s, check host ip address", host)
         else:
             user_input = {}
+            user_input[CONF_NAME] = DEFAULT_NAME
             user_input[CONF_HOST] = DEFAULT_HOST
             user_input[CONF_PASSWORD] = DEFAULT_PWD
             user_input[CONF_SCAN_INTERVAL] = DEFAULT_SCAN_INTERVAL
@@ -96,9 +100,9 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    #vol.Required(
-                    #    CONF_NAME, default=user_input.get(CONF_NAME, DEFAULT_NAME)
-                    #): str,
+                    vol.Required(
+                        CONF_NAME, default=user_input.get(CONF_NAME, DEFAULT_NAME)
+                    ): str,
                     vol.Required(
                         CONF_HOST, default=user_input.get(CONF_HOST, DEFAULT_HOST)
                     ): str,
@@ -162,6 +166,9 @@ class TibberLocalOptionsFlowHandler(config_entries.OptionsFlow):
 
         dataSchema = vol.Schema(
             {
+                vol.Required(
+                    CONF_NAME, default=self.options.get(CONF_NAME, self.data.get(CONF_NAME, DEFAULT_NAME)),
+                ): str,  # pylint: disable=line-too-long
                 vol.Required(
                     CONF_HOST, default=self.options.get(CONF_HOST, self.data.get(CONF_HOST, DEFAULT_HOST)),
                 ): str,  # pylint: disable=line-too-long

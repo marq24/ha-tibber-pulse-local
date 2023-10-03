@@ -1,6 +1,6 @@
 {
   "domain": "tibber_local",
-  "name": "Local Tibber Pulse polling",
+  "name": "Tibber Pulse Local (polling)",
   "codeowners": [
     "@marq24"
   ],

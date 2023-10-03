@@ -45,7 +45,11 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
         key = self.entity_description.key.lower()
         name = self.entity_description.name
         self.entity_id = f"sensor.{slugify(title)}_{key}"
-        self._attr_name = f"{title} {name}"
+        self._attr_name = f"{name}"
+        if hasattr(description, 'suggested_display_precision') and description.suggested_display_precision is not None:
+            self._attr_suggested_display_precision = description.suggested_display_precision
+        else:
+            self._attr_suggested_display_precision = 2
 
     @property
     def state(self):
@@ -53,7 +57,7 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
         value = getattr(self.coordinator.bridge, 'get'+self.entity_description.key)
         if type(value) != type(False):
             try:
-                rounded_value = round(float(value), 2)
+                rounded_value = round(float(value), self._attr_suggested_display_precision)
                 return rounded_value
             except (ValueError, TypeError):
                 return value

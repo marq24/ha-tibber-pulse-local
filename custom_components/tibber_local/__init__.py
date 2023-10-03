@@ -6,7 +6,7 @@ from datetime import timedelta
 from smllib import SmlStreamReader
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD
+from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant, Event
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -124,9 +124,9 @@ class TibberLocalEntity(Entity):
         # "hw_version": self.coordinator._config_entry.options.get(CONF_DEV_NAME, self.coordinator._config_entry.data.get(CONF_DEV_NAME)),
         return {
             "identifiers": {(DOMAIN, self.coordinator._host, self._name)},
-            "name": "Tibber Pulse local polling Bridge",
+            "name": "Tibber Pulse Bridge local polling",
             "model": "Tibber Pulse+Bridge",
-            "sw_version": "001",
+            "sw_version": self.coordinator._config_entry.data.get(CONF_ID, "-unknown-"),
             "manufacturer": MANUFACTURE,
         }
 
@@ -182,17 +182,18 @@ class TibberLocalBridge:
             else:
                 _LOGGER.warning(f"access to bridge failed with code {res.status}")
 
-    def _get_value_internal(self, key):
+    def _get_value_internal(self, key, devisor:int = 1):
         if key in self._obis_values:
             a_obis = self._obis_values.get(key)
             if hasattr(a_obis, 'scaler'):
-                return a_obis.value * 10 ** int(a_obis.scaler)
+                return a_obis.value * 10 ** int(a_obis.scaler) / devisor
             else:
-                return a_obis.value
+                return a_obis.value / devisor
 
     def _get_str_internal(self, key):
         if key in self._obis_values:
             return self._obis_values.get(key).value
+
 
     # obis: https://www.promotic.eu/en/pmdoc/Subsystems/Comm/PmDrivers/IEC62056_OBIS.htm
     # units: https://github.com/spacemanspiff2007/SmlLib/blob/master/src/smllib/const.py
@@ -221,6 +222,10 @@ class TibberLocalBridge:
     #<obis: 0100605a0201, value: 123a4567>
 
     @property
+    def serial(self) -> str: # XYZ-123a4567
+        return f"{self.get010060320101}-{self.get0100605a0201}"
+
+    @property
     def get010060320101(self) -> str: # XYZ
         return self._get_str_internal('010060320101')
     @property
@@ -230,12 +235,18 @@ class TibberLocalBridge:
     def get0100010800ff(self) -> float:
         return self._get_value_internal('0100010800ff')
     @property
+    def get0100010800ff_in_k(self) -> float:
+        return self._get_value_internal('0100010800ff', devisor=1000)
+    @property
     def get0100010800ff_status(self) -> float:
         if '0100010800ff' in self._obis_values and hasattr(self._obis_values.get('0100010800ff'), 'status'):
             return self._obis_values.get('0100010800ff').status
     @property
     def get0100020800ff(self) -> float:
         return self._get_value_internal('0100020800ff')
+    @property
+    def get0100020800ff_in_k(self) -> float:
+        return self._get_value_internal(key='0100020800ff', devisor=1000)
     @property
     def get0100100700ff(self) -> float:
         return self._get_value_internal('0100100700ff')

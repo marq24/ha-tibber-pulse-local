@@ -4,16 +4,17 @@
             "already_configured": "Integration ist bereits eingereichtet"
         },
         "error": {
-            "login_failed": "Login fehlgeschlagen - bitte Benutzername und/oder Passwort prüfen",
+            "login_failed": "Login fehlgeschlagen - bitte Host und/oder Passwort prüfen",
             "cannot_connect": "Keine Verbindung möglich",
             "unknown": "Unbekannter Fehler"
         },
         "step": {
             "user": {
-                "description": "Bitte wähle die Version Deines SENEC.Home Systems das Du einbinden möchtest.\n\n\nZusätzliche Informationen zur Einrichtung findest Du hier: https://github.com/marq24/ha-senec-v3",
+                "description": "Bitte gib die lokalen Verbindungsdaten zu Deiner Tibber Pulse Bridge an.\n\n\nDu musst zuvor das 'webserver_force_enable' Flag aktiviert haben!\n\n\nZusätzliche Informationen zur Einrichtung findest Du hier: https://github.com/marq24/ha-tibber-pulse-local",
                 "data": {
-                    "host": "IP oder Hostname des SENEC.Home V3 Systems bzw des Inverters",
-                    "password": "Dein 'mein-senec.de' Passwort - [You find the Password on the TibberBridge - below the QR-Code]",
+                    "name": "Anzeige Name",
+                    "host": "IP oder Hostname der Tibber Pulse Bridge",
+                    "password": "Das Bridge Passwort - [Du findest das Passwort of der Tibber Bridge - unter dem QR-Code]",
                     "scan_interval":"Aktualisierungsintervall in Sekunden"
                 }
             }
@@ -22,10 +23,11 @@
     "options": {
         "step": {
             "user": {
-                "description": "Wenn Du Hilfe benötigst, findest du sie hier: https://github.com/marq24/ha-senec-v3",
+                "description": "Wenn Du Hilfe benötigst, findest du sie hier: https://github.com/marq24/ha-tibber-pulse-local",
                 "data": {
-                    "host": "IP oder Hostname des SENEC.Home V3 Systems bzw des Inverters",
-                    "password": "Dein 'mein-senec.de' Passwort - [You find the Password on the TibberBridge - below the QR-Code]",
+                    "name": "Anzeige Name",
+                    "host": "IP oder Hostname der Tibber Pulse Bridge",
+                    "password": "Das Bridge Passwort - [Du findest das Passwort of der Tibber Bridge - unter dem QR-Code]",
                     "scan_interval":"Aktualisierungsintervall in Sekunden"
                 }
             }
