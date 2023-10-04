@@ -1,4 +1,3 @@
-"""Platform for Senec sensors."""
 import logging
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
@@ -14,10 +13,12 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+_LANG = None
 
 async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigEntry, async_add_entities):
-    """Initialize sensor platform from config entry."""
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
+    global _LANG
+    _LANG = coordinator.lang
     entities = []
     for description in SENSOR_TYPES:
         entity = TibberLocalSensor(coordinator, description)
@@ -27,8 +28,6 @@ async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigEntry, 
 
 
 class TibberLocalSensor(TibberLocalEntity, SensorEntity):
-    """Sensor for the single values (e.g. pv power, ac power)."""
-
     def __init__(
             self,
             coordinator: TibberLocalDataUpdateCoordinator,
@@ -45,7 +44,12 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
         key = self.entity_description.key.lower()
         name = self.entity_description.name
         self.entity_id = f"sensor.{slugify(title)}_{key}"
-        self._attr_name = f"{name}"
+        if key in _LANG:
+            self._attr_name = _LANG[key]
+        else:
+            _LOGGER.warning(str(key)+" Sensor not found in translation")
+            self._attr_name = f"{name}"
+
         if hasattr(description, 'suggested_display_precision') and description.suggested_display_precision is not None:
             self._attr_suggested_display_precision = description.suggested_display_precision
         else:

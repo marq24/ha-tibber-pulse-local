@@ -29,7 +29,7 @@ SENSOR_TYPES = [
     # Zählerstand Total
     SensorEntityDescription(
         key="0100010800ff",
-        name="Home import",
+        name="Import total",
         entity_registry_enabled_default = False,
         native_unit_of_measurement=ENERGY_WATT_HOUR,
         icon="mdi:home-import-outline",
@@ -39,7 +39,7 @@ SENSOR_TYPES = [
     # Wirkenergie Total
     SensorEntityDescription(
         key="0100020800ff",
-        name="Home export",
+        name="Export total",
         entity_registry_enabled_default = False,
         native_unit_of_measurement=ENERGY_WATT_HOUR,
         icon="mdi:home-export-outline",
@@ -48,7 +48,7 @@ SENSOR_TYPES = [
     ),
     SensorEntityDescription(
         key="0100010800ff_in_k",
-        name="Home import (kWh)",
+        name="Import total (kWh)",
         suggested_display_precision = 5,
         native_unit_of_measurement=ENERGY_KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
@@ -57,7 +57,7 @@ SENSOR_TYPES = [
     ),
     SensorEntityDescription(
         key="0100020800ff_in_k",
-        name="Home export (kWh)",
+        name="Export total (kWh)",
         suggested_display_precision = 5,
         native_unit_of_measurement=ENERGY_KILO_WATT_HOUR,
         icon="mdi:home-export-outline",

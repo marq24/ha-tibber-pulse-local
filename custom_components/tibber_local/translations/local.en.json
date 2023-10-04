@@ -1,0 +1,22 @@
+{
+  "0100010800ff": "Import total",
+  "0100020800ff": "Export total",
+  "0100010800ff_in_k": "Import total (kWh)",
+  "0100020800ff_in_k": "Export total (kWh)",
+  "0100100700ff": "Power (actual)",
+  "0100240700ff": "Power L1",
+  "0100380700ff": "Power L2",
+  "01004c0700ff": "Power L3",
+  "0100200700ff": "Potential L1",
+  "0100340700ff": "Potential L2",
+  "0100480700ff": "Potential L3",
+  "01001f0700ff": "Current L1",
+  "0100330700ff": "Current L2",
+  "0100470700ff": "Current L3",
+  "01000e0700ff": "Net frequency",
+  "0100510701ff": "Potential Phase deviation L1/L2",
+  "0100510702ff": "Potential Phase deviation L1/L3",
+  "0100510704ff": "Current/Potential L1 Phase deviation",
+  "010051070fff": "Current/Potential L2 Phase deviation",
+  "010051071aff": "Current/Potential L3 Phase deviation"
+}

@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import json
+
 import voluptuous as vol
 
 from datetime import timedelta
@@ -22,6 +24,7 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+_LANG = None
 SCAN_INTERVAL = timedelta(seconds=10)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
@@ -40,10 +43,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
                                                                                      DEFAULT_SCAN_INTERVAL)))
 
     _LOGGER.info("Starting TibberLocal with interval: " + str(SCAN_INTERVAL))
-
+    load_translation(hass)
     session = async_get_clientsession(hass)
 
-    coordinator = TibberLocalDataUpdateCoordinator(hass, session, config_entry)
+    coordinator = TibberLocalDataUpdateCoordinator(hass, session, config_entry, lang=_LANG)
 
     await coordinator.async_refresh()
 
@@ -60,14 +63,27 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     return True
 
 
+def load_translation(hass):
+    """Load correct language file or default to english"""
+    global _LANG  # pylint: disable=global-statement
+    basepath = __file__[:-11]
+    file = f"{basepath}translations/local.{hass.config.language.lower()}.json"
+    try:
+        with open(file) as f:  # pylint: disable=unspecified-encoding,invalid-name
+            _LANG = json.load(f)
+    except:  # pylint: disable=unspecified-encoding,bare-except,invalid-name
+        with open(f"{basepath}translations/local.en.json") as f:
+            _LANG = json.load(f)
+
+
 class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass: HomeAssistant, session, config_entry):
+    def __init__(self, hass: HomeAssistant, session, config_entry, lang=None):
         self._host = config_entry.options.get(CONF_HOST, config_entry.data[CONF_HOST])
         the_pwd = config_entry.options.get(CONF_PASSWORD, config_entry.data[CONF_PASSWORD])
         self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=session, options=None)
         self.name = config_entry.title
         self._config_entry = config_entry
-        self._statistics_available = False
+        self.lang = lang
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
 
     # Callable[[Event], Any]

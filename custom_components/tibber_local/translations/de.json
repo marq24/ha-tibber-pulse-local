@@ -15,7 +15,7 @@
                 "data": {
                     "name": "Anzeige Name",
                     "host": "IP oder Hostname der Tibber Pulse Bridge",
-                    "password": "Das Bridge Passwort - [Du findest das Passwort of der Tibber Bridge - unter dem QR-Code]",
+                    "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
                     "scan_interval":"Aktualisierungsintervall in Sekunden"
                 }
             }
@@ -28,7 +28,7 @@
                 "data": {
                     "name": "Anzeige Name",
                     "host": "IP oder Hostname der Tibber Pulse Bridge",
-                    "password": "Das Bridge Passwort - [Du findest das Passwort of der Tibber Bridge - unter dem QR-Code]",
+                    "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
                     "scan_interval":"Aktualisierungsintervall in Sekunden"
                 }
             }

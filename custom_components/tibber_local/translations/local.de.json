@@ -1,0 +1,22 @@
+{
+  "0100010800ff": "Zählerstand Total",
+  "0100020800ff": "Wirkenergie Total",
+  "0100010800ff_in_k": "Zählerstand Total (kWh)",
+  "0100020800ff_in_k": "Wirkenergie Total (kWh)",
+  "0100100700ff": "aktuelle Wirkleistung",
+  "0100240700ff": "Wirkleistung L1",
+  "0100380700ff": "Wirkleistung L2",
+  "01004c0700ff": "Wirkleistung L3",
+  "0100200700ff": "Spannung L1",
+  "0100340700ff": "Spannung L2",
+  "0100480700ff": "Spannung L3",
+  "01001f0700ff": "Strom L1",
+  "0100330700ff": "Strom L2",
+  "0100470700ff": "Strom L3",
+  "01000e0700ff": "Netz Frequenz",
+  "0100510701ff": "Phasenabweichung Spannungen L1/L2",
+  "0100510702ff": "Phasenabweichung Spannungen L1/L3",
+  "0100510704ff": "Phasenabweichung Strom/Spannung L1",
+  "010051070fff": "Phasenabweichung Strom/Spannung L2",
+  "010051071aff": "Phasenabweichung Strom/Spannung L3"
+}
