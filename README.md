@@ -1,14 +1,25 @@
 # Tibber Pulse LOCAL
-If you like to access the data of your Tibber Pulse directly (instead via the detour through the cloud), then there is quite
-a simple approach to read the data directly from the Tibber Pulse Bridge. Thanks to [@ProfDrYoMan](https://github.com/ProfDrYoMan) for
-providing the initial idea.
+If you like to access the data of your Tibber Pulse directly (instead via the detour through the cloud), then there is
+a simple approach to read the data directly from the Tibber Pulse Bridge. There are alternative solutions via an
+additional MQTT - but why should the data go through such a proxy, if it can be read directly.
 
-## Know Inssues
+## Know Issues
+ 
+- Sometimes the Pulse deliver a data-package that can't be read with the [python SML-Lib](https://github.com/spacemanspiff2007/SmlLib)
+  and you will find the HA-log some `CRC while parse data` messages
+- Sometimes the Pulse does not deliver any data and so you will find in the HA-log some `Bytes missing` messages 
 - No Logo/Icons (Tibber) for the integration (yet)
 
-## Preparation - enabling the web frontend of the Tibber Pulse Bridge
+## Kudos
 
-To enable the web frontend continuously, one variable needs to be set in the web frontend. But to get into the web
+- [@spacemanspiff2007](https://github.com/spacemanspiff2007) for providing a Python SML lib that makes reading the
+  data of the pulse almost effortless
+- [@ProfDrYoMan](https://github.com/ProfDrYoMan) for providing the initial idea. I failed to setup the ESP32 stuff, so
+  I took the approach writing this custom integration 
+
+## Preparation: Enabling the web frontend of the Tibber Pulse Bridge [*Required*]
+
+To enable the web frontend permanently, one local variable needs to be set in the web frontend. But to get into the web
 frontend for the first time you need to start the Tibber Pulse Bridge in AccessPoint mode. This can be done by the
 following steps:
 
@@ -30,9 +41,9 @@ NOW the LED on the tibber bridge should now light up green and not light blue an
 
 ### Connect to the Pulse Bridge WiFi AccessPoint
 
-Now use any device (laptop, pad, phone) to connect to the WiFi network `Tibber Bridge`.  The password for the WiFi
-is the nine characters printed on the tibber bridge - it's important to inlclude the dash. The password should look
-like this: `AD56-54BA`.
+Now use any device (laptop, tablet, phone) to connect to the `Tibber Bridge` WiFi network.  The password for the WiFi
+is the nine characters printed on the tibber bridge - it's important to include the dash. The password should have the
+pattern like this example one: `AD56-54BA`.
 
 ![img|160x90](images/bridge-pwd-location.png)
 
@@ -61,9 +72,9 @@ Since you have set the `webserver_force_enable` to `true` the web frontend shoul
 Pulse Bridge in your Router. Personally I have configured my router in a way, that the Pulse Bridge gets allways the
 same IP assigned. I just can recommend to do the same.
 
-When you open the web frontend of the bridge, you have to provide always the user `admin` and the password.
+When you open the web frontend of the bridge, you have to provide the user `admin` and the password always.
 
-Now all is setup, that you can install and use this `Tibber Local Polling` integration
+Now (when the frontend works for you) all is prepared, so you can install and use this `Tibber Local Polling` integration
 
 ## Installation
 
@@ -98,5 +109,5 @@ Add custom integration using the web interface and follow instruction on screen.
   - Provide display name for the device
   - Provide the address (hostname or IP) of the Pulse Bridge
   - Provide the password of the Pulse Bridge
-  - Provide the update intervall (can be 2 Seconds)
-  - Provide area where the battery is located
+  - Provide the update interval (can be 2 Seconds)
+  - Provide area where the Tibber Pule Bridge is located

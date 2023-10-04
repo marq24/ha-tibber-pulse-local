@@ -3,7 +3,7 @@
   "0100020800ff": "Wirkenergie Total",
   "0100010800ff_in_k": "Zählerstand Total (kWh)",
   "0100020800ff_in_k": "Wirkenergie Total (kWh)",
-  "0100100700ff": "aktuelle Wirkleistung",
+  "0100100700ff": "Wirkleistung aktuell",
   "0100240700ff": "Wirkleistung L1",
   "0100380700ff": "Wirkleistung L2",
   "01004c0700ff": "Wirkleistung L3",
