@@ -6,7 +6,8 @@
         "error": {
             "login_failed": "Login failed - please check host and/or password",
             "cannot_connect": "Failed to connect",
-            "unknown": "Unknown error"
+            "unknown": "Unknown error",
+            "no_data": "Could not read any data from device"
         },
         "step": {
             "user": {

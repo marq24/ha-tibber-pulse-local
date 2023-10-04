@@ -1,4 +1,6 @@
 import logging
+import time
+
 import voluptuous as vol
 
 from custom_components.tibber_local import TibberLocalBridge
@@ -43,20 +45,34 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return False
 
     async def _test_connection_tibber_local(self, host, pwd):
-        """Check if we can connect to the Senec device."""
         self._errors = {}
         websession = self.hass.helpers.aiohttp_client.async_get_clientsession()
         try:
             bridge = TibberLocalBridge(host=host, pwd=pwd, websession=websession)
             await bridge.update()
             self._data_available = len(bridge._obis_values.keys()) > 0
-            self._serial = bridge.serial
-            _LOGGER.info("Successfully connect to local Tibber Pulse Bridge at %s", host)
-            return True
+            if self._data_available:
+                self._serial = bridge.serial
+                _LOGGER.info("Successfully connect to local Tibber Pulse Bridge at %s", host)
+                return True
+            else:
+                # yes this will cause a WARNING in the LOG - but right now I have no clue how I
+                # could implement a retry after a short while...
+                time.sleep(2)
+                await bridge.update()
+                self._data_available = len(bridge._obis_values.keys()) > 0
+                if self._data_available:
+                    self._serial = bridge.serial
+                    _LOGGER.info("Successfully connect to local Tibber Pulse Bridge at %s", host)
+                    return True
+                else:
+                    _LOGGER.warning("No data from Tibber Pulse Bridge at %s", host)
+                    self._errors[CONF_HOST] = "no_data"
+                    return False
+
         except (OSError, HTTPError, Timeout, ClientResponseError):
-            # _LOGGER.exception("Please Report @ https://github.com/marq24/ha-senec-v3/issues:")
             self._errors[CONF_HOST] = "cannot_connect"
-            _LOGGER.warning("Could not connect to local Tibber Pulse Bridge at %s, check host ip address",host)
+            _LOGGER.warning("Could not connect to local Tibber Pulse Bridge at %s, check host/ip address", host)
         return False
 
 

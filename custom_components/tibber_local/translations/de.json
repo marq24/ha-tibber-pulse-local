@@ -6,7 +6,8 @@
         "error": {
             "login_failed": "Login fehlgeschlagen - bitte Host und/oder Passwort prüfen",
             "cannot_connect": "Keine Verbindung möglich",
-            "unknown": "Unbekannter Fehler"
+            "unknown": "Unbekannter Fehler",
+            "no_data": "Es konnten keine Daten abgerufen werden"
         },
         "step": {
             "user": {

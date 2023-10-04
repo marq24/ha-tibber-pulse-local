@@ -12,6 +12,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import EntityDescription, Entity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from smllib.errors import CrcError
 
 from .const import (
     DOMAIN,
@@ -25,6 +26,7 @@ SCAN_INTERVAL = timedelta(seconds=10)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS = ["sensor"]
+
 
 async def async_setup(hass: HomeAssistant, config: dict):
     return True
@@ -154,6 +156,7 @@ class TibberLocalEntity(Entity):
         """Entities do not individually poll."""
         return False
 
+
 class TibberLocalBridge:
 
     def __init__(self, host, pwd, websession, options: dict = None):
@@ -172,17 +175,22 @@ class TibberLocalBridge:
             if res.status == 200:
                 stream = SmlStreamReader()
                 stream.add(await res.content.read())
-                sml_frame = stream.get_frame()
-                if sml_frame is None:
-                    _LOGGER.warning("Bytes missing")
-                else:
-                    # Shortcut to extract all values without parsing the whole frame
-                    for entry in sml_frame.get_obis():
-                        self._obis_values[entry.obis] = entry
+                try:
+                    sml_frame = stream.get_frame()
+                    if sml_frame is None:
+                        _LOGGER.warning("Bytes missing")
+                    else:
+                        # Shortcut to extract all values without parsing the whole frame
+                        for entry in sml_frame.get_obis():
+                            self._obis_values[entry.obis] = entry
+                except CrcError as crc:
+                    _LOGGER.warning(f"CRC while parse data: {crc}")
+                except Exception as exc:
+                    _LOGGER.warning(f"Exception while parse data: {exc}")
             else:
                 _LOGGER.warning(f"access to bridge failed with code {res.status}")
 
-    def _get_value_internal(self, key, devisor:int = 1):
+    def _get_value_internal(self, key, devisor: int = 1):
         if key in self._obis_values:
             a_obis = self._obis_values.get(key)
             if hasattr(a_obis, 'scaler'):
@@ -194,110 +202,134 @@ class TibberLocalBridge:
         if key in self._obis_values:
             return self._obis_values.get(key).value
 
-
     # obis: https://www.promotic.eu/en/pmdoc/Subsystems/Comm/PmDrivers/IEC62056_OBIS.htm
     # units: https://github.com/spacemanspiff2007/SmlLib/blob/master/src/smllib/const.py
 
-    #<obis: 010060320101, value: XYZ>
-    #<obis: 0100600100ff, value: 0a123b4c567890d12e34>
-    #<obis: 0100010800ff, status: 1861892, unit: 30, scaler: -1, value: 36061128>
-    #<obis: 0100020800ff, unit: 30, scaler: -1, value: 86194714>
-    #<obis: 0100100700ff, unit: 27, scaler: 0, value: -49>
-    #<obis: 0100240700ff, unit: 27, scaler: 0, value: 511>
-    #<obis: 0100380700ff, unit: 27, scaler: 0, value: -415>
-    #<obis: 01004c0700ff, unit: 27, scaler: 0, value: -146>
-    #<obis: 0100200700ff, unit: 35, scaler: -1, value: 2390>
-    #<obis: 0100340700ff, unit: 35, scaler: -1, value: 2394>
-    #<obis: 0100480700ff, unit: 35, scaler: -1, value: 2397>
-    #<obis: 01001f0700ff, unit: 33, scaler: -2, value: 215>
-    #<obis: 0100330700ff, unit: 33, scaler: -2, value: 170>
-    #<obis: 0100470700ff, unit: 33, scaler: -2, value: 67>
-    #<obis: 0100510701ff, unit: 8, scaler: -1, value: 2390>
-    #<obis: 0100510702ff, unit: 8, scaler: -1, value: 1204>
-    #<obis: 0100510704ff, unit: 8, scaler: -1, value: 8>
-    #<obis: 010051070fff, unit: 8, scaler: -1, value: 1779>
-    #<obis: 010051071aff, unit: 8, scaler: -1, value: 1856>
-    #<obis: 01000e0700ff, unit: 44, scaler: -1, value: 500>
-    #<obis: 010000020000, value: 01>
-    #<obis: 0100605a0201, value: 123a4567>
+    # <obis: 010060320101, value: XYZ>
+    # <obis: 0100600100ff, value: 0a123b4c567890d12e34>
+    # <obis: 0100010800ff, status: 1861892, unit: 30, scaler: -1, value: 36061128>
+    # <obis: 0100020800ff, unit: 30, scaler: -1, value: 86194714>
+    # <obis: 0100100700ff, unit: 27, scaler: 0, value: -49>
+    # <obis: 0100240700ff, unit: 27, scaler: 0, value: 511>
+    # <obis: 0100380700ff, unit: 27, scaler: 0, value: -415>
+    # <obis: 01004c0700ff, unit: 27, scaler: 0, value: -146>
+    # <obis: 0100200700ff, unit: 35, scaler: -1, value: 2390>
+    # <obis: 0100340700ff, unit: 35, scaler: -1, value: 2394>
+    # <obis: 0100480700ff, unit: 35, scaler: -1, value: 2397>
+    # <obis: 01001f0700ff, unit: 33, scaler: -2, value: 215>
+    # <obis: 0100330700ff, unit: 33, scaler: -2, value: 170>
+    # <obis: 0100470700ff, unit: 33, scaler: -2, value: 67>
+    # <obis: 0100510701ff, unit: 8, scaler: -1, value: 2390>
+    # <obis: 0100510702ff, unit: 8, scaler: -1, value: 1204>
+    # <obis: 0100510704ff, unit: 8, scaler: -1, value: 8>
+    # <obis: 010051070fff, unit: 8, scaler: -1, value: 1779>
+    # <obis: 010051071aff, unit: 8, scaler: -1, value: 1856>
+    # <obis: 01000e0700ff, unit: 44, scaler: -1, value: 500>
+    # <obis: 010000020000, value: 01>
+    # <obis: 0100605a0201, value: 123a4567>
 
     @property
-    def serial(self) -> str: # XYZ-123a4567
-        return f"{self.get010060320101}-{self.get0100605a0201}"
+    def serial(self) -> str:  # XYZ-123a4567
+        if self.get010060320101 is not None:
+            return f"{self.get010060320101}-{self.get0100605a0201}"
 
     @property
-    def get010060320101(self) -> str: # XYZ
+    def get010060320101(self) -> str:  # XYZ
         return self._get_str_internal('010060320101')
+
     @property
-    def get0100600100ff(self) -> str: # 0a123b4c567890d12e34
+    def get0100600100ff(self) -> str:  # 0a123b4c567890d12e34
         return self._get_str_internal('0100600100ff')
+
     @property
     def get0100010800ff(self) -> float:
         return self._get_value_internal('0100010800ff')
+
     @property
     def get0100010800ff_in_k(self) -> float:
         return self._get_value_internal('0100010800ff', devisor=1000)
+
     @property
     def get0100010800ff_status(self) -> float:
         if '0100010800ff' in self._obis_values and hasattr(self._obis_values.get('0100010800ff'), 'status'):
             return self._obis_values.get('0100010800ff').status
+
     @property
     def get0100020800ff(self) -> float:
         return self._get_value_internal('0100020800ff')
+
     @property
     def get0100020800ff_in_k(self) -> float:
         return self._get_value_internal(key='0100020800ff', devisor=1000)
+
     @property
     def get0100100700ff(self) -> float:
         return self._get_value_internal('0100100700ff')
+
     @property
     def get0100240700ff(self) -> float:
         return self._get_value_internal('0100240700ff')
+
     @property
     def get0100380700ff(self) -> float:
         return self._get_value_internal('0100380700ff')
+
     @property
     def get01004c0700ff(self) -> float:
         return self._get_value_internal('01004c0700ff')
+
     @property
     def get0100200700ff(self) -> float:
         return self._get_value_internal('0100200700ff')
+
     @property
     def get0100340700ff(self) -> float:
         return self._get_value_internal('0100340700ff')
+
     @property
     def get0100480700ff(self) -> float:
         return self._get_value_internal('0100480700ff')
+
     @property
     def get01001f0700ff(self) -> float:
         return self._get_value_internal('01001f0700ff')
+
     @property
     def get0100330700ff(self) -> float:
         return self._get_value_internal('0100330700ff')
+
     @property
     def get0100470700ff(self) -> float:
         return self._get_value_internal('0100470700ff')
+
     @property
     def get0100510701ff(self) -> float:
         return self._get_value_internal('0100510701ff')
+
     @property
     def get0100510702ff(self) -> float:
         return self._get_value_internal('0100510702ff')
+
     @property
     def get0100510704ff(self) -> float:
         return self._get_value_internal('0100510704ff')
+
     @property
     def get010051070fff(self) -> float:
         return self._get_value_internal('010051070fff')
+
     @property
     def get010051071aff(self) -> float:
         return self._get_value_internal('010051071aff')
+
     @property
     def get01000e0700ff(self) -> float:
         return self._get_value_internal('01000e0700ff')
+
     @property
-    def get010000020000(self) -> str: # 01
+    def get010000020000(self) -> str:  # 01
         return self._get_str_internal('010000020000')
+
     @property
-    def get0100605a0201(self) -> str: # 123a4567
+    def get0100605a0201(self) -> str:  # 123a4567
         return self._get_str_internal('0100605a0201')
