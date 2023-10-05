@@ -4,14 +4,17 @@ a simple approach to read the data directly from the Tibber Pulse Bridge. There 
 additional MQTT - but why should the data go through such a proxy, if it can be read directly.
 
 ## Know Issues
+
+- No Logo/Icons (Tibber) for the integration (yet)
  
 - Sometimes the Pulse deliver a data-package that does not contain valid data (looks like the build in webserver have a
-  response buffer issue?) - with that this package can't be read with the [python SML-Lib](https://github.com/spacemanspiff2007/SmlLib)
-  and you will find in the HA-log some `Bytes missing...` or `CRC while parse data...` messages. These messages are logged
-  on INFO level - and if they happen the code will just try to load the data again for one time. Together with the message
-  the actual payload (data that has been read from the Tibber Pulse Bridge) will also be logged. So you can verify that
-  the data is indeed invalid.
-- No Logo/Icons (Tibber) for the integration (yet)
+  response buffer issue?). These invalid packages can't be read with the [python SML-Lib](https://github.com/spacemanspiff2007/SmlLib)
+  and you will find then in the HA-log some `Bytes missing...` or `CRC while parse data...` messages. (when logging on
+  INFO Level)
+  
+  If they happen the code will just try to load the data again for one time. Together with the message the actual payload
+  (data that has been read from the Tibber Pulse Bridge) will also be logged. So you can verify that the data is indeed
+  invalid.
 
 ## Kudos
 
@@ -26,7 +29,7 @@ To enable the web frontend permanently, one local variable needs to be set in th
 frontend for the first time you need to start the Tibber Pulse Bridge in AccessPoint mode. This can be done by the
 following steps:
 
-### Start AP-Mode
+### 1. Start AP-Mode
 * Unplug the tibber bridge.
 * After three seconds, plug the tibber bridge.
 * After three seconds, unplug the tibber bridge.
@@ -42,7 +45,7 @@ If this is not the case, then try this alternative:
 
 NOW the LED on the tibber bridge should now light up green and not light blue anymore.
 
-### Connect to the Pulse Bridge WiFi AccessPoint
+### 2. Connect to the Pulse Bridge WiFi AccessPoint
 
 Now use any device (laptop, tablet, phone) to connect to the `Tibber Bridge` WiFi network.  The password for the WiFi
 is the nine characters printed on the tibber bridge - it's important to include the dash. The password should have the
@@ -50,7 +53,7 @@ pattern like this example one: `AD56-54BA`.
 
 ![img|160x90](images/bridge-pwd-location.png)
 
-### Set `webserver_force_enable` to `true` in the web frontend
+### 3. Set `webserver_force_enable` to `true` in the web frontend
 
 After you are connected to the WiFi that have been created by the Pulse Bridge with your laptop/phone, use a web browser
 on that device to connect to <http://10.133.70.1/>. You will be prompted for a user and a password (BasicAuth).
@@ -63,12 +66,12 @@ After setting and saving the value, remember to press *"Store params to flash"* 
 
 __Please do not modify and other values in the params__
 
-### Bring your Pulse & Bridge back to normal operation 
+### 4. Bring your Pulse & Bridge back to normal operation 
 
 Unplug the tibber bridge, wait __ten seconds__ and plug it back again. Now it should connect back to your previously
 configured WiFi and should work as before (submit the data to tibber) - the LED should light up light blue again.
 
-### Final testing
+### 5. Final testing
 
 Since you have set the `webserver_force_enable` to `true` the web frontend should now be accessible via
 <http://tibber_bridge/>. If this is not going to work for you, you might like to check the IP-Address of your Tibber
@@ -76,6 +79,8 @@ Pulse Bridge in your Router. Personally I have configured my router in a way, th
 same IP assigned. I just can recommend to do the same.
 
 When you open the web frontend of the bridge, you have to provide the user `admin` and the password always.
+
+![img|160x90](images/web-frontend.png)
 
 Now (when the frontend works for you) all is prepared, so you can install and use this `Tibber Local Polling` integration
 
