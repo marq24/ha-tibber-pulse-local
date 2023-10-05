@@ -190,19 +190,20 @@ class TibberLocalBridge:
             res.raise_for_status()
             if res.status == 200:
                 stream = SmlStreamReader()
-                stream.add(await res.content.read())
+                payload = await res.read()
+                stream.add(payload)
                 try:
                     sml_frame = stream.get_frame()
                     if sml_frame is None:
-                        _LOGGER.warning("Bytes missing")
+                        _LOGGER.warning(f"Bytes missing - payload: {payload}")
                     else:
                         # Shortcut to extract all values without parsing the whole frame
                         for entry in sml_frame.get_obis():
                             self._obis_values[entry.obis] = entry
                 except CrcError as crc:
-                    _LOGGER.warning(f"CRC while parse data: {crc}")
+                    _LOGGER.warning(f"CRC while parse data - payload: {payload}")
                 except Exception as exc:
-                    _LOGGER.warning(f"Exception while parse data: {exc}")
+                    _LOGGER.warning(f"Exception while parse data - payload: {payload}")
             else:
                 _LOGGER.warning(f"access to bridge failed with code {res.status}")
 
