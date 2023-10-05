@@ -5,15 +5,18 @@ additional MQTT - but why should the data go through such a proxy, if it can be 
 
 ## Know Issues
  
-- Sometimes the Pulse deliver a data-package that can't be read with the [python SML-Lib](https://github.com/spacemanspiff2007/SmlLib)
-  and you will find the HA-log some `CRC while parse data` messages
-- Sometimes the Pulse does not deliver any data and so you will find in the HA-log some `Bytes missing` messages 
+- Sometimes the Pulse deliver a data-package that does not contain valid data (looks like the build in webserver have a
+  response buffer issue?) - with that this package can't be read with the [python SML-Lib](https://github.com/spacemanspiff2007/SmlLib)
+  and you will find in the HA-log some `Bytes missing...` or `CRC while parse data...` messages. These messages are logged
+  on INFO level - and if they happen the code will just try to load the data again for one time. Together with the message
+  the actual payload (data that has been read from the Tibber Pulse Bridge) will also be logged. So you can verify that
+  the data is indeed invalid.
 - No Logo/Icons (Tibber) for the integration (yet)
 
 ## Kudos
 
 - [@spacemanspiff2007](https://github.com/spacemanspiff2007) for providing a Python SML lib that makes reading the
-  data of the pulse almost effortless
+  data from the Pulse almost effortless for a python noob like me
 - [@ProfDrYoMan](https://github.com/ProfDrYoMan) for providing the initial idea. I failed to setup the ESP32 stuff, so
   I took the approach writing this custom integration 
 

@@ -182,38 +182,46 @@ class TibberLocalBridge:
         self._obis_values = {}
 
     async def update(self):
-        await self.read_tibber_local()
+        await self.read_tibber_local(retry=True)
 
-    async def read_tibber_local(self):
-        self._obis_values = {}
+    async def read_tibber_local(self, retry:bool):
         async with self.websession.get(self.url, ssl=False) as res:
             res.raise_for_status()
+            self._obis_values = {}
             if res.status == 200:
-                stream = SmlStreamReader()
                 payload = await res.read()
+                # for what ever reason the data that can be read from the TibberPulse Webserver is
+                # not always valid! [I guess there is a issue with an internal buffer in the webserver
+                # implementation] - in any case the bytes received contain sometimes invalid characters
+                # so the 'stream.get_frame()' method will not be able to parse the data...
+                stream = SmlStreamReader()
                 stream.add(payload)
                 try:
                     sml_frame = stream.get_frame()
                     if sml_frame is None:
-                        _LOGGER.warning(f"Bytes missing - payload: {payload}")
+                        _LOGGER.info(f"Bytes missing - payload: {payload}")
+                        if retry:
+                            await self.read_tibber_local(retry=False)
                     else:
                         # Shortcut to extract all values without parsing the whole frame
                         for entry in sml_frame.get_obis():
                             self._obis_values[entry.obis] = entry
                 except CrcError as crc:
-                    _LOGGER.warning(f"CRC while parse data - payload: {payload}")
+                    _LOGGER.info(f"CRC while parse data - payload: {payload}")
+                    if retry:
+                        await self.read_tibber_local(retry=False)
                 except Exception as exc:
                     _LOGGER.warning(f"Exception while parse data - payload: {payload}")
             else:
                 _LOGGER.warning(f"access to bridge failed with code {res.status}")
 
-    def _get_value_internal(self, key, devisor: int = 1):
+    def _get_value_internal(self, key, divisor: int = 1):
         if key in self._obis_values:
             a_obis = self._obis_values.get(key)
             if hasattr(a_obis, 'scaler'):
-                return a_obis.value * 10 ** int(a_obis.scaler) / devisor
+                return a_obis.value * 10 ** int(a_obis.scaler) / divisor
             else:
-                return a_obis.value / devisor
+                return a_obis.value / divisor
 
     def _get_str_internal(self, key):
         if key in self._obis_values:
@@ -264,7 +272,7 @@ class TibberLocalBridge:
 
     @property
     def get0100010800ff_in_k(self) -> float:
-        return self._get_value_internal('0100010800ff', devisor=1000)
+        return self._get_value_internal('0100010800ff', divisor=1000)
 
     @property
     def get0100010800ff_status(self) -> float:
@@ -277,7 +285,7 @@ class TibberLocalBridge:
 
     @property
     def get0100020800ff_in_k(self) -> float:
-        return self._get_value_internal(key='0100020800ff', devisor=1000)
+        return self._get_value_internal(key='0100020800ff', divisor=1000)
 
     @property
     def get0100100700ff(self) -> float:
