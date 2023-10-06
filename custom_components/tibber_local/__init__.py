@@ -212,6 +212,8 @@ class TibberLocalBridge:
                         await self.read_tibber_local(retry=False)
                 except Exception as exc:
                     _LOGGER.warning(f"Exception while parse data - payload: {payload}")
+                    if retry:
+                        await self.read_tibber_local(retry=False)
             else:
                 _LOGGER.warning(f"access to bridge failed with code {res.status}")
 
