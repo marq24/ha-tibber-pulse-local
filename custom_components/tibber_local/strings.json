@@ -19,5 +19,69 @@
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
     }
+  },
+  "entity": {
+    "sensor": {
+      "0100010800ff": {
+        "name": "Import total"
+      },
+      "0100020800ff": {
+        "name": "Export total"
+      },
+      "0100010800ff_in_k": {
+        "name": "Import total (kWh)"
+      },
+      "0100020800ff_in_k": {
+        "name": "Export total (kWh)"
+      },
+      "0100100700ff": {
+        "name": "Power (actual)"
+      },
+      "0100240700ff": {
+        "name": "Power L1"
+      },
+      "0100380700ff": {
+        "name": "Power L2"
+      },
+      "01004c0700ff": {
+        "name": "Power L3"
+      },
+      "0100200700ff": {
+        "name": "Potential L1"
+      },
+      "0100340700ff": {
+        "name": "Potential L2"
+      },
+      "0100480700ff": {
+        "name": "Potential L3"
+      },
+      "01001f0700ff": {
+        "name": "Current L1"
+      },
+      "0100330700ff": {
+        "name": "Current L2"
+      },
+      "0100470700ff": {
+        "name": "Current L3"
+      },
+      "01000e0700ff": {
+        "name": "Net frequency"
+      },
+      "0100510701ff": {
+        "name": "Potential Phase deviation L1/L2"
+      },
+      "0100510702ff": {
+        "name": "Potential Phase deviation L1/L3"
+      },
+      "0100510704ff": {
+        "name": "Current/Potential L1 Phase deviation"
+      },
+      "010051070fff": {
+        "name": "Current/Potential L2 Phase deviation"
+      },
+      "010051071aff": {
+        "name": "Current/Potential L3 Phase deviation"
+      }
+    }
   }
 }

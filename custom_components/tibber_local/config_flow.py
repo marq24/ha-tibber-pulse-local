@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 
@@ -56,9 +57,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.info("Successfully connect to local Tibber Pulse Bridge at %s", host)
                 return True
             else:
-                # yes this will cause a WARNING in the LOG - but right now I have no clue how I
-                # could implement a retry after a short while...
-                time.sleep(2)
+                await asyncio.sleep(2)
                 await bridge.update()
                 self._data_available = len(bridge._obis_values.keys()) > 0
                 if self._data_available:

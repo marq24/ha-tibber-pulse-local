@@ -1,37 +1,37 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Integration is already configured"
-        },
-        "error": {
-            "login_failed": "Login failed - please check host and/or password",
-            "cannot_connect": "Failed to connect",
-            "unknown": "Unknown error",
-            "no_data": "Could not read any data from device"
-        },
-        "step": {
-            "user": {
-                "description": "Please specify the local connection information for your Tibber Pulse Bridge.\n\n\nYou must have enabled the 'webserver_force_enable' flag!\n\n\nIf you need help with the configuration have a look at: https://github.com/marq24/ha-tibber-pulse-local",
-                "data": {
-                    "name": "Display name",
-                    "host": "IP or hostname of the Tibber Pulse Bridge",
-                    "password": "Your bridge password - [You find the password on the Tibber Bridge - below the QR-Code]",
-                    "scan_interval":"Polling Interval in seconds"
-                }
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Integration is already configured"
     },
-    "options": {
-        "step": {
-            "user": {
-                "description": "If you need help with the configuration have a look here: https://github.com/marq24/ha-tibber-pulse-local",
-                "data": {
-                    "name": "Display name",
-                    "host": "IP or hostname of the Tibber Pulse Bridge",
-                    "password": "Your bridge password - [You find the password on the Tibber Bridge - below the QR-Code]",
-                    "scan_interval":"Polling Interval in seconds"
-                }
-            }
+    "error": {
+      "login_failed": "Login failed - please check host and/or password",
+      "cannot_connect": "Failed to connect",
+      "unknown": "Unknown error",
+      "no_data": "Could not read any data from device"
+    },
+    "step": {
+      "user": {
+        "description": "Please specify the local connection information for your Tibber Pulse Bridge.\n\n\nYou must have enabled the 'webserver_force_enable' flag!\n\n\nIf you need help with the configuration have a look at: https://github.com/marq24/ha-tibber-pulse-local",
+        "data": {
+          "name": "Display name",
+          "host": "IP or hostname of the Tibber Pulse Bridge",
+          "password": "Your bridge password - [You find the password on the Tibber Bridge - below the QR-Code]",
+          "scan_interval": "Polling Interval in seconds"
         }
+      }
     }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "description": "If you need help with the configuration have a look here: https://github.com/marq24/ha-tibber-pulse-local",
+        "data": {
+          "name": "Display name",
+          "host": "IP or hostname of the Tibber Pulse Bridge",
+          "password": "Your bridge password - [You find the password on the Tibber Bridge - below the QR-Code]",
+          "scan_interval": "Polling Interval in seconds"
+        }
+      }
+    }
+  }
 }

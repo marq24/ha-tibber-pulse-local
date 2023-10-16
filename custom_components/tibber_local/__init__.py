@@ -6,6 +6,7 @@ import voluptuous as vol
 
 from datetime import timedelta
 from smllib import SmlStreamReader
+from smllib.errors import CrcError
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD
@@ -14,7 +15,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import EntityDescription, Entity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from smllib.errors import CrcError
+
 
 from .const import (
     DOMAIN,
@@ -24,7 +25,6 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-_LANG = None
 SCAN_INTERVAL = timedelta(seconds=10)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
@@ -43,10 +43,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
                                                                                      DEFAULT_SCAN_INTERVAL)))
 
     _LOGGER.info("Starting TibberLocal with interval: " + str(SCAN_INTERVAL))
-    load_translation(hass)
     session = async_get_clientsession(hass)
 
-    coordinator = TibberLocalDataUpdateCoordinator(hass, session, config_entry, lang=_LANG)
+    coordinator = TibberLocalDataUpdateCoordinator(hass, session, config_entry)
 
     await coordinator.async_refresh()
 
@@ -63,19 +62,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     return True
 
 
-def load_translation(hass):
-    """Load correct language file or default to english"""
-    global _LANG  # pylint: disable=global-statement
-    basepath = __file__[:-11]
-    file = f"{basepath}translations/local.{hass.config.language.lower()}.json"
-    try:
-        with open(file) as f:  # pylint: disable=unspecified-encoding,invalid-name
-            _LANG = json.load(f)
-    except:  # pylint: disable=unspecified-encoding,bare-except,invalid-name
-        with open(f"{basepath}translations/local.en.json") as f:
-            _LANG = json.load(f)
-
-
 class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, session, config_entry, lang=None):
         self._host = config_entry.options.get(CONF_HOST, config_entry.data[CONF_HOST])
@@ -83,7 +69,6 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=session, options=None)
         self.name = config_entry.title
         self._config_entry = config_entry
-        self.lang = lang
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
 
     # Callable[[Event], Any]
@@ -134,14 +119,14 @@ class TibberLocalEntity(Entity):
     ) -> None:
         self.coordinator = coordinator
         self.entity_description = description
-        self._name = coordinator._config_entry.title
+        self._stitle = coordinator._config_entry.title
         self._state = None
 
     @property
     def device_info(self) -> dict:
         # "hw_version": self.coordinator._config_entry.options.get(CONF_DEV_NAME, self.coordinator._config_entry.data.get(CONF_DEV_NAME)),
         return {
-            "identifiers": {(DOMAIN, self.coordinator._host, self._name)},
+            "identifiers": {(DOMAIN, self.coordinator._host, self._stitle)},
             "name": "Tibber Pulse Bridge local polling",
             "model": "Tibber Pulse+Bridge",
             "sw_version": self.coordinator._config_entry.data.get(CONF_ID, "-unknown-"),
@@ -157,7 +142,7 @@ class TibberLocalEntity(Entity):
     def unique_id(self):
         """Return a unique ID to use for this entity."""
         sensor = self.entity_description.key
-        return f"{self._name}_{sensor}"
+        return f"{self._stitle}_{sensor}"
 
     async def async_added_to_hass(self):
         """Connect to dispatcher listening for entity data notifications."""
@@ -184,7 +169,7 @@ class TibberLocalBridge:
     async def update(self):
         await self.read_tibber_local(retry=True)
 
-    async def read_tibber_local(self, retry:bool):
+    async def read_tibber_local(self, retry: bool):
         async with self.websession.get(self.url, ssl=False) as res:
             res.raise_for_status()
             self._obis_values = {}

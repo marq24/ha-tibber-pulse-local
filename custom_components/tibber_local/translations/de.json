@@ -1,37 +1,101 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Integration ist bereits eingereichtet"
-        },
-        "error": {
-            "login_failed": "Login fehlgeschlagen - bitte Host und/oder Passwort prüfen",
-            "cannot_connect": "Keine Verbindung möglich",
-            "unknown": "Unbekannter Fehler",
-            "no_data": "Es konnten keine Daten abgerufen werden"
-        },
-        "step": {
-            "user": {
-                "description": "Bitte gib die lokalen Verbindungsdaten zu Deiner Tibber Pulse Bridge an.\n\n\nDu musst zuvor das 'webserver_force_enable' Flag aktiviert haben!\n\n\nZusätzliche Informationen zur Einrichtung findest Du hier: https://github.com/marq24/ha-tibber-pulse-local",
-                "data": {
-                    "name": "Anzeige Name",
-                    "host": "IP oder Hostname der Tibber Pulse Bridge",
-                    "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
-                    "scan_interval":"Aktualisierungsintervall in Sekunden"
-                }
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Integration ist bereits eingereichtet"
     },
-    "options": {
-        "step": {
-            "user": {
-                "description": "Wenn Du Hilfe benötigst, findest du sie hier: https://github.com/marq24/ha-tibber-pulse-local",
-                "data": {
-                    "name": "Anzeige Name",
-                    "host": "IP oder Hostname der Tibber Pulse Bridge",
-                    "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
-                    "scan_interval":"Aktualisierungsintervall in Sekunden"
-                }
-            }
+    "error": {
+      "login_failed": "Login fehlgeschlagen - bitte Host und/oder Passwort prüfen",
+      "cannot_connect": "Keine Verbindung möglich",
+      "unknown": "Unbekannter Fehler",
+      "no_data": "Es konnten keine Daten abgerufen werden"
+    },
+    "step": {
+      "user": {
+        "description": "Bitte gib die lokalen Verbindungsdaten zu Deiner Tibber Pulse Bridge an.\n\n\nDu musst zuvor das 'webserver_force_enable' Flag aktiviert haben!\n\n\nZusätzliche Informationen zur Einrichtung findest Du hier: https://github.com/marq24/ha-tibber-pulse-local",
+        "data": {
+          "name": "Anzeige Name",
+          "host": "IP oder Hostname der Tibber Pulse Bridge",
+          "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
+          "scan_interval": "Aktualisierungsintervall in Sekunden"
         }
+      }
     }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "description": "Wenn Du Hilfe benötigst, findest du sie hier: https://github.com/marq24/ha-tibber-pulse-local",
+        "data": {
+          "name": "Anzeige Name",
+          "host": "IP oder Hostname der Tibber Pulse Bridge",
+          "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
+          "scan_interval": "Aktualisierungsintervall in Sekunden"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "0100010800ff": {
+        "name": "Zählerstand Total"
+      },
+      "0100020800ff": {
+        "name": "Wirkenergie Total"
+      },
+      "0100010800ff_in_k": {
+        "name": "Zählerstand Total (kWh)"
+      },
+      "0100020800ff_in_k": {
+        "name": "Wirkenergie Total (kWh)"
+      },
+      "0100100700ff": {
+        "name": "Wirkleistung aktuell"
+      },
+      "0100240700ff": {
+        "name": "Wirkleistung L1"
+      },
+      "0100380700ff": {
+        "name": "Wirkleistung L2"
+      },
+      "01004c0700ff": {
+        "name": "Wirkleistung L3"
+      },
+      "0100200700ff": {
+        "name": "Spannung L1"
+      },
+      "0100340700ff": {
+        "name": "Spannung L2"
+      },
+      "0100480700ff": {
+        "name": "Spannung L3"
+      },
+      "01001f0700ff": {
+        "name": "Strom L1"
+      },
+      "0100330700ff": {
+        "name": "Strom L2"
+      },
+      "0100470700ff": {
+        "name": "Strom L3"
+      },
+      "01000e0700ff": {
+        "name": "Netz Frequenz"
+      },
+      "0100510701ff": {
+        "name": "Phasenabweichung Spannungen L1/L2"
+      },
+      "0100510702ff": {
+        "name": "Phasenabweichung Spannungen L1/L3"
+      },
+      "0100510704ff": {
+        "name": "Phasenabweichung Strom/Spannung L1"
+      },
+      "010051070fff": {
+        "name": "Phasenabweichung Strom/Spannung L2"
+      },
+      "010051071aff": {
+        "name": "Phasenabweichung Strom/Spannung L3"
+      }
+    }
+  }
 }

@@ -30,7 +30,7 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="0100010800ff",
         name="Import total",
-        entity_registry_enabled_default = False,
+        entity_registry_enabled_default=False,
         native_unit_of_measurement=ENERGY_WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
@@ -40,7 +40,7 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="0100020800ff",
         name="Export total",
-        entity_registry_enabled_default = False,
+        entity_registry_enabled_default=False,
         native_unit_of_measurement=ENERGY_WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
@@ -49,7 +49,7 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="0100010800ff_in_k",
         name="Import total (kWh)",
-        suggested_display_precision = 5,
+        suggested_display_precision=5,
         native_unit_of_measurement=ENERGY_KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
@@ -58,7 +58,7 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="0100020800ff_in_k",
         name="Export total (kWh)",
-        suggested_display_precision = 5,
+        suggested_display_precision=5,
         native_unit_of_measurement=ENERGY_KILO_WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
@@ -168,52 +168,52 @@ SENSOR_TYPES = [
         state_class=SensorStateClass.MEASUREMENT,
     ),
 
-    #Phasenabweichung Spannungen L1/L2
+    # Phasenabweichung Spannungen L1/L2
     SensorEntityDescription(
         key="0100510701ff",
         name="Potential Phase deviation L1/L2",
-        suggested_display_precision = 1,
+        suggested_display_precision=1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
     ),
-    #Phasenabweichung Spannungen L1/L3
+    # Phasenabweichung Spannungen L1/L3
     SensorEntityDescription(
         key="0100510702ff",
         name="Potential Phase deviation L1/L3",
-        suggested_display_precision = 1,
+        suggested_display_precision=1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
     ),
 
-    #Phasenabweichung Strom/Spannung L1
+    # Phasenabweichung Strom/Spannung L1
     SensorEntityDescription(
         key="0100510704ff",
         name="Current/Potential L1 Phase deviation",
-        suggested_display_precision = 1,
+        suggested_display_precision=1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.MEASUREMENT,
     ),
-    #Phasenabweichung Strom/Spannung L2
+    # Phasenabweichung Strom/Spannung L2
     SensorEntityDescription(
         key="010051070fff",
         name="Current/Potential L2 Phase deviation",
-        suggested_display_precision = 1,
+        suggested_display_precision=1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.MEASUREMENT,
     ),
-    #Phasenabweichung Strom/Spannung L3
+    # Phasenabweichung Strom/Spannung L3
     SensorEntityDescription(
         key="010051071aff",
         name="Current/Potential L3 Phase deviation",
-        suggested_display_precision = 1,
+        suggested_display_precision=1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
         device_class=SensorDeviceClass.ENERGY,
