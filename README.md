@@ -73,9 +73,12 @@ configured WiFi and should work as before (submit the data to Tibber) - the LED 
 
 ### 5. Final testing [do not continue if you did not completed this final step]
 
-After you have successfully reset the Tibber bridge, and you have set the `webserver_force_enable` to `true` the web
-frontend should now be accessible via <http://tibber_bridge/>. If this is not going to work for you, you might like to
-check the IP-Address of your Tibber Pulse Bridge in your Router - The IP __is not__ the `10.133.70.1` any longer!
+After you have successfully reset the Tibber bridge (AP mode is OFF and you are back in normal operation mode). Since you
+have set the `webserver_force_enable` to `true` the web frontend should now be still accessible via the following URL:
+<http://tibber_bridge/>.
+
+If the hostname 'tibber-bridge' is not going to work for you in your LAN, you might like to check the IP-Address of your
+Tibber Pulse Bridge in your Router. __The IP *is not* the `10.133.70.1` any longer!__
 
 Personally I have configured my router in a way, that the Pulse Bridge gets allways the same IP assigned. I just can
 recommend to do the same.

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import time
 
 import voluptuous as vol
 
@@ -38,7 +37,6 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self):
         self._errors = {}
-        self._data_available = False
 
     def _host_in_configuration_exists(self, host) -> bool:
         if host in tibber_local_entries(self.hass):
@@ -51,16 +49,16 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         try:
             bridge = TibberLocalBridge(host=host, pwd=pwd, websession=websession)
             await bridge.update()
-            self._data_available = len(bridge._obis_values.keys()) > 0
-            if self._data_available:
+            _data_available = len(bridge._obis_values.keys()) > 0
+            if _data_available:
                 self._serial = bridge.serial
                 _LOGGER.info("Successfully connect to local Tibber Pulse Bridge at %s", host)
                 return True
             else:
                 await asyncio.sleep(2)
                 await bridge.update()
-                self._data_available = len(bridge._obis_values.keys()) > 0
-                if self._data_available:
+                _data_available = len(bridge._obis_values.keys()) > 0
+                if _data_available:
                     self._serial = bridge.serial
                     _LOGGER.info("Successfully connect to local Tibber Pulse Bridge at %s", host)
                     return True
