@@ -7,7 +7,8 @@
       "login_failed": "Login fehlgeschlagen - bitte Host und/oder Passwort prüfen",
       "cannot_connect": "Keine Verbindung möglich",
       "unknown": "Unbekannter Fehler",
-      "no_data": "Es konnten keine Daten abgerufen werden"
+      "no_data": "Es konnten keine Daten abgerufen werden",
+      "unknown_mode": "Der Tibber Pulse kommuniziert über ein noch-nicht-implementiertes Protokoll – bitte öffne ein Issue@github – ich benötige Beispieldaten – TIA"
     },
     "step": {
       "user": {

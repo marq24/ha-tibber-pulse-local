@@ -14,7 +14,8 @@
       "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
       "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
       "unknown": "[%key:common::config_flow::error::unknown%]",
-      "no_data": "[%key:common::config_flow::error::no_data%]"
+      "no_data": "[%key:common::config_flow::error::no_data%]",
+      "unknown_mode": "[%key:common::config_flow::error::unknown_mode%]"
     },
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"

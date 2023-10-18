@@ -24,6 +24,19 @@ DEFAULT_HOST = "tibber-bridge"
 DEFAULT_PWD = ""
 DEFAULT_SCAN_INTERVAL = 10
 
+MODE_UNKNOWN = -1
+MODE_0_AutoScanMode = 0
+MODE_1_IEC_62056_21 = 1
+MODE_2_Logarex = 2
+MODE_3_SML_1_04 = 3
+MODE_10_ImpressionsAmbient = 10
+MODE_11_ImpressionsIR = 11
+MODE_99_PLAINTEXT = 99
+ENUM_MODES = [MODE_0_AutoScanMode, MODE_1_IEC_62056_21, MODE_2_Logarex, MODE_3_SML_1_04, MODE_10_ImpressionsAmbient,
+              MODE_11_ImpressionsIR]
+
+ENUM_IMPLEMENTATIONS = [MODE_3_SML_1_04, MODE_99_PLAINTEXT]
+
 SENSOR_TYPES = [
 
     # Zählerstand Total

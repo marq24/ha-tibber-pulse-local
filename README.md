@@ -3,10 +3,27 @@ If you like to access the data of your Tibber Pulse directly (instead via the de
 a simple approach to read the data directly from the Tibber Pulse Bridge. There are alternative solutions via an
 additional MQTT - but why should the data go through such a proxy, if it can be read directly.
 
+## Tibber Invitation link
+If you want to join Tibber (become a customer), you might consider using my personal invitation link. When you use this
+link, Tibber will we grant you and me a Bonus of 50,-€ for each of us, that then can be used in the Tibber store (not
+for your power bill) - e.g. to but a Tibber Bridge. I am fully aware, that when you are here in this repository the
+chances are very high, that you are already a Tibber customer and have already a Tibber Pulse. But I was asked by a user
+if I could provide my link - so I do:
+
+[My personal Tibber invitation link](https://invite.tibber.com/6o0kqvzf)
+
 ## Know Issues
 
 - No Logo/Icons (Tibber) for the integration (yet)
  
+- The Tibber Pulse Bridge supporting different communication modes (when fetching data from electricity meter). Here
+  I need your help! Obviously I have one electricity meter here at home. This meter is communicating via a protocol 
+  called SML 1.04 and this is currently the __only__ one that is supported/implemented. 
+
+  The Tibber Bridge supporting also the modes: AutoScanMode, IEC-62056.21, Logarex and Impressions (Blinks / kwh) using
+  ambient or IR sensors. In order to support these other modes I would need sample data from you. If your Tibber Pulse
+  using one of these communications protocols, please be so kind and create here an issue in github - TIA!
+
 - Sometimes the Pulse deliver a data-package that does not contain valid data (looks like the build in webserver have a
   response buffer issue?). These invalid packages can't be read with the [python SML-Lib](https://github.com/spacemanspiff2007/SmlLib)
   and you will find then in the HA-log some `Bytes missing...` or `CRC while parse data...` messages. (when logging on

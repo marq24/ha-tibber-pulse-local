@@ -1,26 +1,32 @@
 import asyncio
 import logging
+import re
 
 import voluptuous as vol
 
 from datetime import timedelta
 from smllib import SmlStreamReader
 from smllib.errors import CrcError
+from smllib.sml import SmlListEntry, ObisCode
+from smllib.const import UNITS
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD
-from homeassistant.core import HomeAssistant, Event
+from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import EntityDescription, Entity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-
 from .const import (
     DOMAIN,
     MANUFACTURE,
     DEFAULT_HOST,
-    DEFAULT_SCAN_INTERVAL
+    DEFAULT_SCAN_INTERVAL,
+    ENUM_MODES,
+    MODE_UNKNOWN,
+    MODE_3_SML_1_04,
+    MODE_99_PLAINTEXT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,7 +51,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     session = async_get_clientsession(hass)
 
     coordinator = TibberLocalDataUpdateCoordinator(hass, session, config_entry)
-
     await coordinator.async_refresh()
 
     if not coordinator.last_update_success:
@@ -62,10 +67,15 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
 
 class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass: HomeAssistant, session, config_entry, lang=None):
+    def __init__(self, hass: HomeAssistant, session, config_entry):
         self._host = config_entry.options.get(CONF_HOST, config_entry.data[CONF_HOST])
         the_pwd = config_entry.options.get(CONF_PASSWORD, config_entry.data[CONF_PASSWORD])
-        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=session, options=None)
+
+        # the communication_mode is not "adjustable" via the options - it will be only set during the
+        # initial configuration phase - so we read it from the config_entry.data ONLY!
+        com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
+
+        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=session, com_mode=com_mode, options=None)
         self.name = config_entry.title
         self._config_entry = config_entry
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
@@ -157,52 +167,161 @@ class TibberLocalEntity(Entity):
         return False
 
 
+class IntBasedObisCode:
+    # This is for sure a VERY STUPID Python class - but I am a NOOB - would be cool, if someone could teach me
+    # how I could fast convert my number array to the required format...
+    def __init__(self, obis_src: list):
+        _a = int(obis_src[1])
+        _b = int(obis_src[2])
+        _c = int(obis_src[3])
+        _d = int(obis_src[4])
+        _e = int(obis_src[5])
+        _f = int(obis_src[6])
+        # self.obis_code = f'{_a}-{_b}:{_c}.{_d}.{_e}*{_f}'
+        # self.obis_short = f'{_c}.{_d}.{_e}'
+        self.obis_hex = f'{self.get_as_two_digit_hex(_a)}{self.get_as_two_digit_hex(_b)}{self.get_as_two_digit_hex(_c)}{self.get_as_two_digit_hex(_d)}{self.get_as_two_digit_hex(_e)}{self.get_as_two_digit_hex(_f)}'
+
+    @staticmethod
+    def get_as_two_digit_hex(input: int) -> str:
+        out = f'{input:x}'
+        if len(out) == 1:
+            return '0' + out
+        else:
+            return out;
+
 class TibberLocalBridge:
 
-    def __init__(self, host, pwd, websession, options: dict = None):
-        _LOGGER.info(f"restarting TibberLocalBridge integration... for host: '{host}' with options: {options}")
-        self.websession = websession
-        self.url = f"http://admin:{pwd}@{host}/data.json?node_id=1"
+    # _communication_mode 'MODE_3_SML_1_04' is the initial implemented mode (reading binary sml data)...
+    # 'all' other modes have to be implemented... also it could be, that the bridge does
+    # not return a value for param_id=27
+    def __init__(self, host, pwd, websession, com_mode: int = MODE_3_SML_1_04, options: dict = None):
+        if websession is not None:
+            _LOGGER.info(f"restarting TibberLocalBridge integration... for host: '{host}' with options: {options}")
+            self.websession = websession
+            self.url_data = f"http://admin:{pwd}@{host}/data.json?node_id=1"
+            self.url_mode = f"http://admin:{pwd}@{host}/node_params.json?node_id=1"
+        self._com_mode = com_mode
         self._obis_values = {}
 
-    async def update(self):
-        await self.read_tibber_local(retry=True)
+    async def detect_com_mode(self):
+        await self.detect_com_mode_from_node_param27()
+        # if we can't read the mode from the properties (or the mode is not in the ENUM_MODES)
+        # we want to check, if we can read plaintext?!
+        if self._com_mode == MODE_UNKNOWN:
+            await self.read_tibber_local(MODE_99_PLAINTEXT, False)
+            if len(self._obis_values) > 0:
+                self._com_mode = MODE_99_PLAINTEXT
 
-    async def read_tibber_local(self, retry: bool):
-        async with self.websession.get(self.url, ssl=False) as res:
+    async def detect_com_mode_from_node_param27(self):
+        # {'param_id': 27, 'name': 'meter_mode', 'size': 1, 'type': 'uint8', 'help': '0:IEC 62056-21, 1:Count impressions', 'value': [3]}
+        self._com_mode = MODE_UNKNOWN
+        async with self.websession.get(self.url_mode, ssl=False) as res:
+            res.raise_for_status()
+            if res.status == 200:
+                json_resp = await res.json()
+                for a_parm_obj in json_resp:
+                    if 'param_id' in a_parm_obj and a_parm_obj['param_id'] == 27 or \
+                            'name' in a_parm_obj and a_parm_obj['name'] == 'meter_mode':
+                        if 'value' in a_parm_obj:
+                            self._com_mode = a_parm_obj['value'][0]
+                            # check for known modes in the UI (http://YOUR-IP-HERE/nodes/1/config)
+                            if self._com_mode not in ENUM_MODES:
+                                self._com_mode = MODE_UNKNOWN
+                            break
+
+    async def update(self):
+        await self.read_tibber_local(mode=self._com_mode, retry=True)
+
+    async def read_tibber_local(self, mode: int, retry: bool):
+        async with self.websession.get(self.url_data, ssl=False) as res:
             res.raise_for_status()
             self._obis_values = {}
             if res.status == 200:
-                payload = await res.read()
-                # for what ever reason the data that can be read from the TibberPulse Webserver is
-                # not always valid! [I guess there is a issue with an internal buffer in the webserver
-                # implementation] - in any case the bytes received contain sometimes invalid characters
-                # so the 'stream.get_frame()' method will not be able to parse the data...
-                stream = SmlStreamReader()
-                stream.add(payload)
-                try:
-                    sml_frame = stream.get_frame()
-                    if sml_frame is None:
-                        _LOGGER.info(f"Bytes missing - payload: {payload}")
-                        if retry:
-                            await asyncio.sleep(1.5)
-                            await self.read_tibber_local(retry=False)
-                    else:
-                        # Shortcut to extract all values without parsing the whole frame
-                        for entry in sml_frame.get_obis():
-                            self._obis_values[entry.obis] = entry
-                except CrcError as crc:
-                    _LOGGER.info(f"CRC while parse data - payload: {payload}")
-                    if retry:
-                        await asyncio.sleep(1.5)
-                        await self.read_tibber_local(retry=False)
-                except Exception as exc:
-                    _LOGGER.warning(f"Exception {exc} while parse data - payload: {payload}")
-                    if retry:
-                        await asyncio.sleep(1.5)
-                        await self.read_tibber_local(retry=False)
+                if mode == MODE_3_SML_1_04:
+                    await self.read_sml(await res.read(), retry)
+                elif mode == MODE_99_PLAINTEXT:
+                    await self.read_plaintext(await res.text(), retry)
             else:
                 _LOGGER.warning(f"access to bridge failed with code {res.status}")
+
+    async def read_plaintext(self, plaintext: str, retry: bool):
+        try:
+            for a_line in plaintext.splitlines():
+                # obis pattern is 'a-b:c.d.e*f'
+                parts = re.split('(.*?)-(.*?):(.*?)\\.(.*?)\\.(.*?)\\*(.*?)\\((.*?)\\)', a_line)
+                if len(parts) == 9:
+                    int_obc = IntBasedObisCode(parts)
+                    value = parts[7]
+                    unit = None
+                    if '*' in value:
+                        val_with_unit = value.split("*")
+                        if '.' in val_with_unit[0]:
+                            value = float(val_with_unit[0])
+                            # converting any "kilo" unit to base unit...
+                            # so kWh will be converted to Wh - or kV will be V
+                            if val_with_unit[1].lower()[0] == 'k':
+                                value = value * 1000;
+                                val_with_unit[1] = val_with_unit[1][1:]
+                        unit = self.find_unit_int_from_string(val_with_unit[1])
+
+                    # creating finally the "right" object from the parsed information
+                    entry = SmlListEntry()
+                    entry.obis = ObisCode(int_obc.obis_hex)
+                    entry.value = value
+                    entry.unit = unit
+
+                    self._obis_values[int_obc.obis_hex] = entry
+                else:
+                    if parts[0] == '!':
+                        break;
+                    elif parts[0][0] != '/':
+                        print('unknown:' + parts[0])
+                    # else:
+                    #    print('ignore '+ parts[0])
+
+        except Exception as exc:
+            _LOGGER.warning(f"Exception {exc} while process data - plaintext: {plaintext}")
+            if retry:
+                await asyncio.sleep(1.5)
+                await self.read_tibber_local(mode=MODE_99_PLAINTEXT, retry=False)
+
+    @staticmethod
+    def find_unit_int_from_string(unit_str: str):
+        for aUnit in UNITS.items():
+            if aUnit[1] == unit_str:
+                return aUnit[0]
+        return None
+
+    async def read_sml(self, payload: bytes, retry: bool):
+        # for what ever reason the data that can be read from the TibberPulse Webserver is
+        # not always valid! [I guess there is a issue with an internal buffer in the webserver
+        # implementation] - in any case the bytes received contain sometimes invalid characters
+        # so the 'stream.get_frame()' method will not be able to parse the data...
+        stream = SmlStreamReader()
+        stream.add(payload)
+        try:
+            sml_frame = stream.get_frame()
+            if sml_frame is None:
+                _LOGGER.info(f"Bytes missing - payload: {payload}")
+                if retry:
+                    await asyncio.sleep(1.5)
+                    await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
+            else:
+                # Shortcut to extract all values without parsing the whole frame
+                for entry in sml_frame.get_obis():
+                    self._obis_values[entry.obis] = entry
+
+        except CrcError as crc:
+            _LOGGER.info(f"CRC while parse data - payload: {payload}")
+            if retry:
+                await asyncio.sleep(1.5)
+                await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
+
+        except Exception as exc:
+            _LOGGER.warning(f"Exception {exc} while parse data - payload: {payload}")
+            if retry:
+                await asyncio.sleep(1.5)
+                await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
 
     def _get_value_internal(self, key, divisor: int = 1):
         if key in self._obis_values:
@@ -246,6 +365,8 @@ class TibberLocalBridge:
     def serial(self) -> str:  # XYZ-123a4567
         if self.get010060320101 is not None:
             return f"{self.get010060320101}-{self.get0100605a0201}"
+        elif self.get0100600100ff is not None:
+            return f"{self.get0100600100ff}"
 
     @property
     def get010060320101(self) -> str:  # XYZ

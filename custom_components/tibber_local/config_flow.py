@@ -8,7 +8,7 @@ from requests.exceptions import HTTPError, Timeout
 from aiohttp import ClientResponseError
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD
+from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant, callback
 
 from .const import (
@@ -17,6 +17,7 @@ from .const import (
     DEFAULT_HOST,
     DEFAULT_PWD,
     DEFAULT_SCAN_INTERVAL,
+    ENUM_IMPLEMENTATIONS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,6 +49,20 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         websession = self.hass.helpers.aiohttp_client.async_get_clientsession()
         try:
             bridge = TibberLocalBridge(host=host, pwd=pwd, websession=websession)
+            await bridge.detect_com_mode()
+            if bridge._com_mode in ENUM_IMPLEMENTATIONS:
+                self._con_mode = bridge._com_mode
+                return await self._test_data_available(bridge, host)
+            else:
+                self._errors[CONF_HOST] = "unknown_mode"
+
+        except (OSError, HTTPError, Timeout, ClientResponseError):
+            self._errors[CONF_HOST] = "cannot_connect"
+            _LOGGER.warning("Could not connect to local Tibber Pulse Bridge at %s, check host/ip address", host)
+        return False
+
+    async def _test_data_available(self, bridge:TibberLocalBridge, host:str) -> bool:
+        try:
             await bridge.update()
             _data_available = len(bridge._obis_values.keys()) > 0
             if _data_available:
@@ -69,9 +84,8 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         except (OSError, HTTPError, Timeout, ClientResponseError):
             self._errors[CONF_HOST] = "cannot_connect"
-            _LOGGER.warning("Could not connect to local Tibber Pulse Bridge at %s, check host/ip address", host)
+            _LOGGER.warning("Could not read data from local Tibber Pulse Bridge at %s, check host/ip address", host)
         return False
-
 
     async def async_step_user(self, user_input=None):
         self._errors = {}
@@ -96,7 +110,8 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                               CONF_HOST: host,
                               CONF_PASSWORD: pwd,
                               CONF_SCAN_INTERVAL: scan,
-                              CONF_ID: self._serial}
+                              CONF_ID: self._serial,
+                              CONF_MODE: self._con_mode}
 
                     return self.async_create_entry(title=name, data=a_data)
 

@@ -16,9 +16,18 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigEntry, async_add_entities):
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
     entities = []
+
+    available_sensors = None
+    if hasattr(coordinator, 'bridge' ):
+        if hasattr(coordinator.bridge, '_obis_values'):
+            if len(coordinator.bridge._obis_values) > 0:
+                available_sensors = coordinator.bridge._obis_values.keys()
+                _LOGGER.info(f"available sensors found: {available_sensors}")
+
     for description in SENSOR_TYPES:
-        entity = TibberLocalSensor(coordinator, description)
-        entities.append(entity)
+        if available_sensors is None or description.key in available_sensors:
+            entity = TibberLocalSensor(coordinator, description)
+            entities.append(entity)
 
     async_add_entities(entities)
 
