@@ -186,6 +186,7 @@ class TibberLocalBridge:
                     if sml_frame is None:
                         _LOGGER.info(f"Bytes missing - payload: {payload}")
                         if retry:
+                            await asyncio.sleep(1.5)
                             await self.read_tibber_local(retry=False)
                     else:
                         # Shortcut to extract all values without parsing the whole frame
@@ -194,10 +195,12 @@ class TibberLocalBridge:
                 except CrcError as crc:
                     _LOGGER.info(f"CRC while parse data - payload: {payload}")
                     if retry:
+                        await asyncio.sleep(1.5)
                         await self.read_tibber_local(retry=False)
                 except Exception as exc:
-                    _LOGGER.warning(f"Exception while parse data - payload: {payload}")
+                    _LOGGER.warning(f"Exception {exc} while parse data - payload: {payload}")
                     if retry:
+                        await asyncio.sleep(1.5)
                         await self.read_tibber_local(retry=False)
             else:
                 _LOGGER.warning(f"access to bridge failed with code {res.status}")

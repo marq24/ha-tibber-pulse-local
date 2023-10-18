@@ -30,25 +30,25 @@ frontend for the first time you need to start the Tibber Pulse Bridge in AccessP
 following steps:
 
 ### 1. Start AP-Mode
-* Unplug the tibber bridge.
-* After three seconds, plug the tibber bridge.
-* After three seconds, unplug the tibber bridge.
-* After three seconds, plug the tibber bridge.
+* Unplug the Tibber bridge.
+* After three seconds, plug the Tibber bridge.
+* After three seconds, unplug the Tibber bridge.
+* After three seconds, plug the Tibber bridge.
 
-The LED on the tibber bridge should now light up green and not light blue anymore.
+The LED on the Tibber bridge should now light up green and not light blue anymore.
 
 If this is not the case, then try this alternative:
-* Unplug the tibber bridge.
-* Plug the tibber bridge
+* Unplug the Tibber bridge.
+* Plug the Tibber bridge
 * When the bridge light in __yellow__ then unplug the bridge again
 * Wait for a short while and plug in the bridge again after few seconds
 
-NOW the LED on the tibber bridge should now light up green and not light blue anymore.
+NOW the LED on the Tibber bridge should now light up green and not light blue anymore.
 
 ### 2. Connect to the Pulse Bridge WiFi AccessPoint
 
 Now use any device (laptop, tablet, phone) to connect to the `Tibber Bridge` WiFi network.  The password for the WiFi
-is the nine characters printed on the tibber bridge - it's important to include the dash. The password should have the
+is the nine characters printed on the Tibber bridge - it's important to include the dash. The password should have the
 pattern like this example one: `AD56-54BA`.
 
 ![img|160x90](images/bridge-pwd-location.png)
@@ -58,7 +58,7 @@ pattern like this example one: `AD56-54BA`.
 After you are connected to the WiFi that have been created by the Pulse Bridge with your laptop/phone, use a web browser
 on that device to connect to <http://10.133.70.1/>. You will be prompted for a user and a password (BasicAuth).
 
-The username is ```admin``` and the password is again the nine characters printed on the tibber bridge.
+The username is ```admin``` and the password is again the nine characters printed on the Tibber bridge.
 
 When connected, select the param tab, there find and set the variable `webserver_force_enable` to `true`.
 
@@ -68,15 +68,17 @@ __Please do not modify and other values in the params__
 
 ### 4. Bring your Pulse & Bridge back to normal operation 
 
-Unplug the tibber bridge, wait __ten seconds__ and plug it back again. Now it should connect back to your previously
-configured WiFi and should work as before (submit the data to tibber) - the LED should light up light blue again.
+Unplug the Tibber bridge, wait __ten seconds__ and plug it back again. Now it should connect back to your previously
+configured WiFi and should work as before (submit the data to Tibber) - the LED should light up light blue again.
 
-### 5. Final testing
+### 5. Final testing [do not continue if you did not completed this final step]
 
-Since you have set the `webserver_force_enable` to `true` the web frontend should now be accessible via
-<http://tibber_bridge/>. If this is not going to work for you, you might like to check the IP-Address of your Tibber
-Pulse Bridge in your Router. Personally I have configured my router in a way, that the Pulse Bridge gets allways the
-same IP assigned. I just can recommend to do the same.
+After you have successfully reset the Tibber bridge, and you have set the `webserver_force_enable` to `true` the web
+frontend should now be accessible via <http://tibber_bridge/>. If this is not going to work for you, you might like to
+check the IP-Address of your Tibber Pulse Bridge in your Router - The IP __is not__ the `10.133.70.1` any longer!
+
+Personally I have configured my router in a way, that the Pulse Bridge gets allways the same IP assigned. I just can
+recommend to do the same.
 
 When you open the web frontend of the bridge, you have to provide the user `admin` and the password always.
 
