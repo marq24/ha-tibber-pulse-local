@@ -25,7 +25,10 @@ async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigEntry, 
                 _LOGGER.info(f"available sensors found: {available_sensors}")
 
     for description in SENSOR_TYPES:
-        if available_sensors is None or description.key in available_sensors or description.key.endswith("_in_k"):
+        key = description.key
+        if key.endswith("_in_k"):
+           key = key[:-5]
+        if available_sensors is None or key in available_sensors:
             entity = TibberLocalSensor(coordinator, description)
             entities.append(entity)
 

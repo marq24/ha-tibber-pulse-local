@@ -22,7 +22,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-@callback
+
+@staticmethod
 def tibber_local_entries(hass: HomeAssistant):
     conf_hosts = []
     for entry in hass.config_entries.async_entries(DOMAIN):
@@ -32,17 +33,20 @@ def tibber_local_entries(hass: HomeAssistant):
             conf_hosts.append(entry.data[CONF_HOST])
     return conf_hosts
 
+
+@staticmethod
+def _host_in_configuration_exists(host: str, hass: HomeAssistant) -> bool:
+    if host in tibber_local_entries(hass):
+        return True
+    return False
+
+
 class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     def __init__(self):
         self._errors = {}
-
-    def _host_in_configuration_exists(self, host) -> bool:
-        if host in tibber_local_entries(self.hass):
-            return True
-        return False
 
     async def _test_connection_tibber_local(self, host, pwd):
         self._errors = {}
@@ -61,7 +65,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.warning("Could not connect to local Tibber Pulse Bridge at %s, check host/ip address", host)
         return False
 
-    async def _test_data_available(self, bridge:TibberLocalBridge, host:str) -> bool:
+    async def _test_data_available(self, bridge: TibberLocalBridge, host: str) -> bool:
         try:
             await bridge.update()
             _data_available = len(bridge._obis_values.keys()) > 0
@@ -101,7 +105,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             pwd = user_input.get(CONF_PASSWORD, "")
             scan = user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
-            if self._host_in_configuration_exists(host):
+            if _host_in_configuration_exists(host, self.hass):
                 self._errors[CONF_HOST] = "already_configured"
             else:
                 if await self._test_connection_tibber_local(host, pwd):
@@ -146,11 +150,11 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=self._errors,
         )
 
-
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
         return TibberLocalOptionsFlowHandler(config_entry)
+
 
 class TibberLocalOptionsFlowHandler(config_entries.OptionsFlow):
 
@@ -184,7 +188,7 @@ class TibberLocalOptionsFlowHandler(config_entries.OptionsFlow):
             self.options.update(user_input)
             if self.data.get(CONF_HOST) != self.options.get(CONF_HOST):
                 # ok looks like the host has been changed... we need to do some things...
-                if self._host_in_configuration_exists(host_entry):
+                if _host_in_configuration_exists(host_entry, self.hass):
                     self._errors[CONF_HOST] = "already_configured"
                 else:
                     return self._update_options()
@@ -204,7 +208,8 @@ class TibberLocalOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_PASSWORD, default=self.options.get(CONF_PASSWORD, self.data.get(CONF_PASSWORD, DEFAULT_PWD)),
                 ): str,  # pylint: disable=line-too-long
                 vol.Required(
-                    CONF_SCAN_INTERVAL, default=self.options.get(CONF_SCAN_INTERVAL, self.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)),
+                    CONF_SCAN_INTERVAL, default=self.options.get(CONF_SCAN_INTERVAL, self.data.get(CONF_SCAN_INTERVAL,
+                                                                                                   DEFAULT_SCAN_INTERVAL)),
                 ): int,  # pylint: disable=line-too-long
             }
         )
@@ -212,7 +217,6 @@ class TibberLocalOptionsFlowHandler(config_entries.OptionsFlow):
             step_id="user",
             data_schema=dataSchema,
         )
-
 
     def _update_options(self):
         """Update config entry options."""
