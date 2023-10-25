@@ -75,7 +75,8 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         # initial configuration phase - so we read it from the config_entry.data ONLY!
         com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
 
-        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=session, com_mode=com_mode, options=None)
+        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=session, com_mode=com_mode,
+                                        options=None)
         self.name = config_entry.title
         self._config_entry = config_entry
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
@@ -189,6 +190,7 @@ class IntBasedObisCode:
         else:
             return out;
 
+
 class TibberLocalBridge:
 
     # _communication_mode 'MODE_3_SML_1_04' is the initial implemented mode (reading binary sml data)...
@@ -215,7 +217,7 @@ class TibberLocalBridge:
     async def detect_com_mode_from_node_param27(self):
         # {'param_id': 27, 'name': 'meter_mode', 'size': 1, 'type': 'uint8', 'help': '0:IEC 62056-21, 1:Count impressions', 'value': [3]}
         self._com_mode = MODE_UNKNOWN
-        async with self.websession.get(self.url_mode, ssl=False) as res:
+        async with self.websession.get(self.url_mode, ssl=False, timeout=10.0) as res:
             res.raise_for_status()
             if res.status == 200:
                 json_resp = await res.json()
@@ -233,7 +235,7 @@ class TibberLocalBridge:
         await self.read_tibber_local(mode=self._com_mode, retry=True)
 
     async def read_tibber_local(self, mode: int, retry: bool):
-        async with self.websession.get(self.url_data, ssl=False) as res:
+        async with self.websession.get(self.url_data, ssl=False, timeout=10.0) as res:
             res.raise_for_status()
             self._obis_values = {}
             if res.status == 200:
