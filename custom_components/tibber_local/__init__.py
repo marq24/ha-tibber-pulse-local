@@ -237,7 +237,6 @@ class TibberLocalBridge:
     async def read_tibber_local(self, mode: int, retry: bool):
         async with self.websession.get(self.url_data, ssl=False, timeout=10.0) as res:
             res.raise_for_status()
-            self._obis_values = {}
             if res.status == 200:
                 if mode == MODE_3_SML_1_04:
                     await self.read_sml(await res.read(), retry)
@@ -248,6 +247,7 @@ class TibberLocalBridge:
 
     async def read_plaintext(self, plaintext: str, retry: bool):
         try:
+            temp_obis_values = {}
             for a_line in plaintext.splitlines():
                 # obis pattern is 'a-b:c.d.e*f'
                 parts = re.split('(.*?)-(.*?):(.*?)\\.(.*?)\\.(.*?)\\*(.*?)\\((.*?)\\)', a_line)
@@ -272,7 +272,7 @@ class TibberLocalBridge:
                     entry.value = value
                     entry.unit = unit
 
-                    self._obis_values[int_obc.obis_hex] = entry
+                    temp_obis_values[int_obc.obis_hex] = entry
                 else:
                     if parts[0] == '!':
                         break;
@@ -281,10 +281,15 @@ class TibberLocalBridge:
                     # else:
                     #    print('ignore '+ parts[0])
 
+            if len(temp_obis_values) > 0:
+                self._obis_values = {}
+                for a_key in temp_obis_values.keys():
+                    self._obis_values[a_key] = temp_obis_values.get(a_key)
+
         except Exception as exc:
             _LOGGER.warning(f"Exception {exc} while process data - plaintext: {plaintext}")
             if retry:
-                await asyncio.sleep(1.5)
+                await asyncio.sleep(2.5)
                 await self.read_tibber_local(mode=MODE_99_PLAINTEXT, retry=False)
 
     @staticmethod
@@ -306,9 +311,10 @@ class TibberLocalBridge:
             if sml_frame is None:
                 _LOGGER.info(f"Bytes missing - payload: {payload}")
                 if retry:
-                    await asyncio.sleep(1.5)
+                    await asyncio.sleep(2.5)
                     await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
             else:
+                self._obis_values = {}
                 # Shortcut to extract all values without parsing the whole frame
                 for entry in sml_frame.get_obis():
                     self._obis_values[entry.obis] = entry
@@ -316,13 +322,13 @@ class TibberLocalBridge:
         except CrcError as crc:
             _LOGGER.info(f"CRC while parse data - payload: {payload}")
             if retry:
-                await asyncio.sleep(1.5)
+                await asyncio.sleep(2.5)
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
 
         except Exception as exc:
             _LOGGER.warning(f"Exception {exc} while parse data - payload: {payload}")
             if retry:
-                await asyncio.sleep(1.5)
+                await asyncio.sleep(2.5)
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
 
     def _get_value_internal(self, key, divisor: int = 1):
