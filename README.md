@@ -4,6 +4,8 @@ If you like to access the data of your Tibber Pulse directly (instead via the de
 a simple approach to read the data directly from the Tibber Pulse Bridge. There are alternative solutions via an
 additional MQTT - but why should the data go through such a proxy, if it can be read directly.
 
+[![hacs_badge][hacsbadge]][hacs] [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] [![PayPal][paypalbadge]][paypal]
+
 ## Tibber Invitation link
 
 ###### Advertisement / Werbung
@@ -14,13 +16,11 @@ link, Tibber will we grant you and me a bonus of 50,-€ for each of us. This bo
 chances are very high, that you are already a Tibber customer and have already a Tibber Pulse. If you are already a
 Tibber customer and have not used an invitation link yet, you can also enter one afterward in the Tibber App.
 
-Please consider [using my personal Tibber invitation link to joind Tibber today](https://invite.tibber.com/6o0kqvzf) or
+Please consider [using my personal Tibber invitation link to join Tibber today](https://invite.tibber.com/6o0kqvzf) or
 Enter the following code: 6o0kqvzf (six, oscar, zero, kilo, quebec, victor, zulu, foxtrot) afterward in the Tibber 
 App - TIA!
 
 ## Know Issues
-
-- No Logo/Icons (Tibber) for the integration (yet)
 
 - The Tibber Pulse Bridge supporting different communication modes (when fetching data from electricity meter). Here
   I need your help! Obviously I have one electricity meter here at home. This meter is communicating via a protocol
@@ -282,3 +282,17 @@ again have in mind, that this yaml section have to be under your `sensor` sectio
       User-Agent: REST
     unit_of_measurement: V
 ```
+
+[hacs]: https://github.com/hacs/integration
+
+[hacsbadge]: https://img.shields.io/badge/HACS-custom-orange.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
+
+[paypal]: https://paypal.me/marq24
+
+[buymecoffee]: https://www.buymeacoffee.com/marquardt24
+
+[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a-coffee-blue.svg?style=for-the-badge&logo=buymeacoffee&logoColor=ccc
+
+[paypal]: https://paypal.me/marq24
+
+[paypalbadge]: https://img.shields.io/badge/paypal-me-blue.svg?style=for-the-badge&logo=paypal&logoColor=ccc
