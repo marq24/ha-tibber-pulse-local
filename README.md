@@ -6,19 +6,23 @@ additional MQTT - but why should the data go through such a proxy, if it can be 
 
 [![hacs_badge][hacsbadge]][hacs] [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] [![PayPal][paypalbadge]][paypal]
 
+---
+
 ## Tibber Invitation link
 
 ###### Advertisement / Werbung
 
 If you want to join Tibber (become a customer), you might want to use my personal invitation link. When you use this
-link, Tibber will we grant you and me a bonus of 50,-€ for each of us. This bonus then can be used in the Tibber store
-(not for your power bill) - e.g. to buy a Tibber Bridge. I am fully aware, that when you are here in this repository the
+link, Tibber will we grant you and me a bonus of 50,-€ for each of us. This bonus then can be used in the Tibber store (
+not for your power bill) - e.g. to buy a Tibber Bridge. I am fully aware, that when you are here in this repository the
 chances are very high, that you are already a Tibber customer and have already a Tibber Pulse. If you are already a
 Tibber customer and have not used an invitation link yet, you can also enter one afterward in the Tibber App.
 
 Please consider [using my personal Tibber invitation link to join Tibber today](https://invite.tibber.com/6o0kqvzf) or
-Enter the following code: 6o0kqvzf (six, oscar, zero, kilo, quebec, victor, zulu, foxtrot) afterward in the Tibber 
-App - TIA!
+Enter the following code: 6o0kqvzf (six, oscar, zero, kilo, quebec, victor, zulu, foxtrot) afterward in the Tibber App -
+TIA!
+
+---
 
 ## Know Issues
 
