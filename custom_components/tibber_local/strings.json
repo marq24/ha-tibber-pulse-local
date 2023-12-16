@@ -6,6 +6,7 @@
           "name": "[%key:common::config_flow::data::name%]",
           "host": "[%key:common::config_flow::data::host%]",
           "password": "[%key:common::config_flow::data::password%]",
+          "node_num": "[%key:common::config_flow::data::node_num%]",
           "scan_interval": "[%key:common::config_flow::data::scan_interval%]"
         }
       }

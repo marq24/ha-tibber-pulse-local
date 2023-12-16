@@ -23,6 +23,7 @@ from .const import (
     MANUFACTURE,
     DEFAULT_HOST,
     DEFAULT_SCAN_INTERVAL,
+    CONF_NODE_NUMBER,
     ENUM_MODES,
     MODE_UNKNOWN,
     MODE_3_SML_1_04,
@@ -71,12 +72,18 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         self._host = config_entry.options.get(CONF_HOST, config_entry.data[CONF_HOST])
         the_pwd = config_entry.options.get(CONF_PASSWORD, config_entry.data[CONF_PASSWORD])
 
+        # support for systems where node != 1
+        if CONF_NODE_NUMBER in config_entry.data:
+            node_num = int(config_entry.options.get(CONF_NODE_NUMBER, config_entry.data[CONF_NODE_NUMBER]))
+        else:
+            node_num = 1
+
         # the communication_mode is not "adjustable" via the options - it will be only set during the
         # initial configuration phase - so we read it from the config_entry.data ONLY!
         com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
 
-        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=session, com_mode=com_mode,
-                                        options=None)
+        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=session, node_num=node_num,
+                                        com_mode=com_mode, options=None)
         self.name = config_entry.title
         self._config_entry = config_entry
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
@@ -196,12 +203,12 @@ class TibberLocalBridge:
     # _communication_mode 'MODE_3_SML_1_04' is the initial implemented mode (reading binary sml data)...
     # 'all' other modes have to be implemented... also it could be, that the bridge does
     # not return a value for param_id=27
-    def __init__(self, host, pwd, websession, com_mode: int = MODE_3_SML_1_04, options: dict = None):
+    def __init__(self, host, pwd, websession, node_num: int = 1, com_mode: int = MODE_3_SML_1_04, options: dict = None):
         if websession is not None:
-            _LOGGER.info(f"restarting TibberLocalBridge integration... for host: '{host}' with options: {options}")
+            _LOGGER.info(f"restarting TibberLocalBridge integration... for host: '{host}' node: '{node_num}' com_mode: '{com_mode}' with options: {options}")
             self.websession = websession
-            self.url_data = f"http://admin:{pwd}@{host}/data.json?node_id=1"
-            self.url_mode = f"http://admin:{pwd}@{host}/node_params.json?node_id=1"
+            self.url_data = f"http://admin:{pwd}@{host}/data.json?node_id={node_num}"
+            self.url_mode = f"http://admin:{pwd}@{host}/node_params.json?node_id={node_num}"
         self._com_mode = com_mode
         self._obis_values = {}
 

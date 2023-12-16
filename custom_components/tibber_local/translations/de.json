@@ -17,7 +17,8 @@
           "name": "Anzeige Name",
           "host": "IP oder Hostname der Tibber Pulse Bridge",
           "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
-          "scan_interval": "Aktualisierungsintervall in Sekunden"
+          "scan_interval": "Aktualisierungsintervall in Sekunden",
+          "node_num": "Node Nummer (Experten Einstellung)"
         }
       }
     }
@@ -30,7 +31,8 @@
           "name": "Anzeige Name",
           "host": "IP oder Hostname der Tibber Pulse Bridge",
           "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
-          "scan_interval": "Aktualisierungsintervall in Sekunden"
+          "scan_interval": "Aktualisierungsintervall in Sekunden",
+          "node_num": "Node Nummer (Experten Einstellung)"
         }
       }
     }

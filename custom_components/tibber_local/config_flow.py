@@ -18,6 +18,8 @@ from .const import (
     DEFAULT_PWD,
     DEFAULT_SCAN_INTERVAL,
     ENUM_IMPLEMENTATIONS,
+    CONF_NODE_NUMBER,
+    DEFAULT_NODE_NUMBER
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,11 +50,11 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         self._errors = {}
 
-    async def _test_connection_tibber_local(self, host, pwd):
+    async def _test_connection_tibber_local(self, host, pwd, node_num):
         self._errors = {}
         websession = self.hass.helpers.aiohttp_client.async_get_clientsession()
         try:
-            bridge = TibberLocalBridge(host=host, pwd=pwd, websession=websession)
+            bridge = TibberLocalBridge(host=host, pwd=pwd, websession=websession, node_num=node_num)
             await bridge.detect_com_mode()
             if bridge._com_mode in ENUM_IMPLEMENTATIONS:
                 self._con_mode = bridge._com_mode
@@ -104,16 +106,18 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             name = user_input.get(CONF_NAME, f"ltibber_{host}")
             pwd = user_input.get(CONF_PASSWORD, "")
             scan = user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            node_num = user_input.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)
 
             if _host_in_configuration_exists(host, self.hass):
                 self._errors[CONF_HOST] = "already_configured"
             else:
-                if await self._test_connection_tibber_local(host, pwd):
+                if await self._test_connection_tibber_local(host, pwd, node_num):
 
                     a_data = {CONF_NAME: name,
                               CONF_HOST: host,
                               CONF_PASSWORD: pwd,
                               CONF_SCAN_INTERVAL: scan,
+                              CONF_NODE_NUMBER: node_num,
                               CONF_ID: self._serial,
                               CONF_MODE: self._con_mode}
 
@@ -127,6 +131,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input[CONF_HOST] = DEFAULT_HOST
             user_input[CONF_PASSWORD] = DEFAULT_PWD
             user_input[CONF_SCAN_INTERVAL] = DEFAULT_SCAN_INTERVAL
+            user_input[CONF_NODE_NUMBER] = DEFAULT_NODE_NUMBER
 
         return self.async_show_form(
             step_id="user",
@@ -143,6 +148,9 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     ): str,
                     vol.Required(
                         CONF_SCAN_INTERVAL, default=user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+                    ): int,
+                    vol.Required(
+                        CONF_NODE_NUMBER, default=user_input.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)
                     ): int,
                 }
             ),
@@ -211,6 +219,10 @@ class TibberLocalOptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_SCAN_INTERVAL, default=self.options.get(CONF_SCAN_INTERVAL, self.data.get(CONF_SCAN_INTERVAL,
                                                                                                    DEFAULT_SCAN_INTERVAL)),
                 ): int,  # pylint: disable=line-too-long
+                vol.Required(
+                    CONF_NODE_NUMBER,
+                    default=self.options.get(CONF_NODE_NUMBER, self.data.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER))
+                ): int,
             }
         )
         return self.async_show_form(
