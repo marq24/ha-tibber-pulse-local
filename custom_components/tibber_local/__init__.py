@@ -436,23 +436,23 @@ class TibberLocalBridge:
 
     @property
     def get0100100700ff(self) -> float:
-        # search for SUM, POS, NEG, ABS
-        return self._get_value_internal(['0100100700ff', '0100010700ff',  '0100020700ff', '01000f0700ff'])
+        # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
+        return self._get_value_internal(['0100100700ff', '0100010700ff',  '01000107ffff',  '0100020700ff', '01000f0700ff'])
 
     @property
     def get0100240700ff(self) -> float:
-        # search for SUM, POS, NEG, ABS
-        return self._get_value_internal(['0100240700ff', '0100150700ff', '0100160700ff', '0100230700ff'])
+        # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
+        return self._get_value_internal(['0100240700ff', '0100150700ff', '01001507ffff', '0100160700ff', '0100230700ff'])
 
     @property
     def get0100380700ff(self) -> float:
-        # search for SUM, POS, NEG, ABS
-        return self._get_value_internal(['0100380700ff', '0100290700ff', '01002a0700ff', '0100370700ff'])
+        # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
+        return self._get_value_internal(['0100380700ff', '0100290700ff', '01002907ffff', '01002a0700ff', '0100370700ff'])
 
     @property
     def get01004c0700ff(self) -> float:
-        # search for SUM, POS, NEG, ABS
-        return self._get_value_internal(['01004c0700ff', '01003d0700ff', '01003e0700ff', '01004b0700ff'])
+        # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
+        return self._get_value_internal(['01004c0700ff', '01003d0700ff', '01003d07ffff', '01003e0700ff', '01004b0700ff'])
 
     @property
     def get0100200700ff(self) -> float:
