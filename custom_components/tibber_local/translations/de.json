@@ -51,6 +51,7 @@
       "0100020800ff_in_k": {
         "name": "Wirkenergie Total (kWh)"
       },
+
       "0100100700ff": {
         "name": "Wirkleistung aktuell"
       },
@@ -63,6 +64,46 @@
       "01004c0700ff": {
         "name": "Wirkleistung L3"
       },
+
+      "0100010700ff": {
+        "name": "Positive Wirkleistung aktuell"
+      },
+      "0100150700ff": {
+        "name": "Positive Wirkleistung L1"
+      },
+      "0100290700ff": {
+        "name": "Positive Wirkleistung L2"
+      },
+      "01003d0700ff": {
+        "name": "Positive Wirkleistung L3"
+      },
+
+      "0100020700ff": {
+        "name": "Negative Wirkleistung aktuell"
+      },
+      "0100160700ff": {
+        "name": "Negative Wirkleistung L1"
+      },
+      "01002a0700ff": {
+        "name": "Negative Wirkleistung L2"
+      },
+      "01003e0700ff": {
+        "name": "Negative Wirkleistung L3"
+      },
+
+      "01000f0700ff": {
+        "name": "Absolute Wirkleistung aktuell"
+      },
+      "0100230700ff": {
+        "name": "Absolute Wirkleistung L1"
+      },
+      "0100370700ff": {
+        "name": "Absolute Wirkleistung L2"
+      },
+      "01004b0700ff": {
+        "name": "Absolute Wirkleistung L3"
+      },
+
       "0100200700ff": {
         "name": "Spannung L1"
       },

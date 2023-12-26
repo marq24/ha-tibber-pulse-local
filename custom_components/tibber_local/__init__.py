@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+from typing import List
 
 import voluptuous as vol
 
@@ -186,6 +187,7 @@ class IntBasedObisCode:
             _d = int(obis_src[4])
             _e = int(obis_src[5])
             _f = int(obis_src[6])
+
             # self.obis_code = f'{_a}-{_b}:{_c}.{_d}.{_e}*{_f}'
             # self.obis_short = f'{_c}.{_d}.{_e}'
             self.obis_hex = f'{self.get_as_two_digit_hex(_a)}{self.get_as_two_digit_hex(_b)}{self.get_as_two_digit_hex(_c)}{self.get_as_two_digit_hex(_d)}{self.get_as_two_digit_hex(_e)}{self.get_as_two_digit_hex(_f)}'
@@ -216,6 +218,7 @@ class TibberLocalBridge:
             self.url_mode = f"http://admin:{pwd}@{host}/node_params.json?node_id={node_num}"
         self._com_mode = com_mode
         self._obis_values = {}
+        self._obis_values_by_short = {}
 
     async def detect_com_mode(self):
         await self.detect_com_mode_from_node_param27()
@@ -259,7 +262,7 @@ class TibberLocalBridge:
 
     async def read_plaintext(self, plaintext: str, retry: bool):
         try:
-            temp_obis_values = {}
+            temp_obis_values = []
             for a_line in plaintext.splitlines():
 
                 # a patch for invalid reading?!
@@ -287,8 +290,7 @@ class TibberLocalBridge:
                     entry.obis = ObisCode(int_obc.obis_hex)
                     entry.value = value
                     entry.unit = unit
-
-                    temp_obis_values[int_obc.obis_hex] = entry
+                    temp_obis_values.append(entry)
                 else:
                     if parts[0] == '!':
                         break;
@@ -299,8 +301,10 @@ class TibberLocalBridge:
 
             if len(temp_obis_values) > 0:
                 self._obis_values = {}
-                for a_key in temp_obis_values.keys():
-                    self._obis_values[a_key] = temp_obis_values.get(a_key)
+                self._obis_values_by_short = {}
+                for entry in temp_obis_values:
+                    self._obis_values[entry.obis] = entry
+                    self._obis_values_by_short[entry.obis.obis_short] = entry
 
         except Exception as exc:
             _LOGGER.warning(f"Exception {exc} while process data - plaintext: {plaintext}")
@@ -331,9 +335,11 @@ class TibberLocalBridge:
                     await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
             else:
                 self._obis_values = {}
+                self._obis_values_by_short = {}
                 # Shortcut to extract all values without parsing the whole frame
                 for entry in sml_frame.get_obis():
                     self._obis_values[entry.obis] = entry
+                    self._obis_values_by_short[entry.obis.obis_short] = entry
 
         except CrcError as crc:
             _LOGGER.info(f"CRC while parse data - payload: {payload}")
@@ -348,6 +354,13 @@ class TibberLocalBridge:
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
 
     def _get_value_internal(self, key, divisor: int = 1):
+        if isinstance(key, List):
+            val = None
+            for a_key in key:
+                if val is None:
+                    val = self._get_value_internal(a_key, divisor)
+            return val
+
         if key in self._obis_values:
             a_obis = self._obis_values.get(key)
             if hasattr(a_obis, 'scaler'):
@@ -423,19 +436,23 @@ class TibberLocalBridge:
 
     @property
     def get0100100700ff(self) -> float:
-        return self._get_value_internal('0100100700ff')
+        # search for SUM, POS, NEG, ABS
+        return self._get_value_internal(['0100100700ff', '0100010700ff',  '0100020700ff', '01000f0700ff'])
 
     @property
     def get0100240700ff(self) -> float:
-        return self._get_value_internal('0100240700ff')
+        # search for SUM, POS, NEG, ABS
+        return self._get_value_internal(['0100240700ff', '0100150700ff', '0100160700ff', '0100230700ff'])
 
     @property
     def get0100380700ff(self) -> float:
-        return self._get_value_internal('0100380700ff')
+        # search for SUM, POS, NEG, ABS
+        return self._get_value_internal(['0100380700ff', '0100290700ff', '01002a0700ff', '0100370700ff'])
 
     @property
     def get01004c0700ff(self) -> float:
-        return self._get_value_internal('01004c0700ff')
+        # search for SUM, POS, NEG, ABS
+        return self._get_value_internal(['01004c0700ff', '01003d0700ff', '01003e0700ff', '01004b0700ff'])
 
     @property
     def get0100200700ff(self) -> float:
