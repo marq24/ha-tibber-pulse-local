@@ -1,4 +1,5 @@
 from typing import Final
+from dataclasses import dataclass
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -39,6 +40,10 @@ ENUM_MODES = [MODE_0_AutoScanMode, MODE_1_IEC_62056_21, MODE_2_Logarex, MODE_3_S
               MODE_11_ImpressionsIR]
 
 ENUM_IMPLEMENTATIONS = [MODE_3_SML_1_04, MODE_99_PLAINTEXT]
+
+@dataclass
+class ExtSensorEntityDescription(SensorEntityDescription):
+    aliases: list[str] | None = None
 
 SENSOR_TYPES = [
 
@@ -82,8 +87,9 @@ SENSOR_TYPES = [
     ),
 
     # aktuelle Wirkleistung
-    SensorEntityDescription(
+    ExtSensorEntityDescription(
         key="0100100700ff",
+        aliases=["0100010700ff",  "01000107ffff",  "0100020700ff", "01000f0700ff"],
         name="Power (actual)",
         native_unit_of_measurement=POWER_WATT,
         icon="mdi:meter-electric",
@@ -91,8 +97,9 @@ SENSOR_TYPES = [
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Wirkleistung L1
-    SensorEntityDescription(
+    ExtSensorEntityDescription(
         key="0100240700ff",
+        aliases=["0100150700ff", "01001507ffff", "0100160700ff", "0100230700ff"],
         name="Power L1",
         native_unit_of_measurement=POWER_WATT,
         icon="mdi:meter-electric",
@@ -100,8 +107,9 @@ SENSOR_TYPES = [
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Wirkleistung L2
-    SensorEntityDescription(
+    ExtSensorEntityDescription(
         key="0100380700ff",
+        aliases=["0100290700ff", "01002907ffff", "01002a0700ff", "0100370700ff"],
         name="Power L2",
         native_unit_of_measurement=POWER_WATT,
         icon="mdi:meter-electric",
@@ -109,8 +117,9 @@ SENSOR_TYPES = [
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Wirkleistung L3
-    SensorEntityDescription(
+    ExtSensorEntityDescription(
         key="01004c0700ff",
+        aliases=["01003d0700ff", "01003d07ffff", "01003e0700ff", "01004b0700ff"],
         name="Power L3",
         native_unit_of_measurement=POWER_WATT,
         icon="mdi:meter-electric",

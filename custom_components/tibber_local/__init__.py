@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import re
-from typing import List
 
 import voluptuous as vol
 
@@ -354,7 +353,7 @@ class TibberLocalBridge:
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
 
     def _get_value_internal(self, key, divisor: int = 1):
-        if isinstance(key, List):
+        if isinstance(key, list):
             val = None
             for a_key in key:
                 if val is None:
@@ -400,112 +399,112 @@ class TibberLocalBridge:
 
     @property
     def serial(self) -> str:  # XYZ-123a4567
-        if self.get010060320101 is not None:
-            return f"{self.get010060320101}-{self.get0100605a0201}"
-        elif self.get0100600100ff is not None:
-            return f"{self.get0100600100ff}"
+        if self.attr010060320101 is not None:
+            return f"{self.attr010060320101}-{self.attr0100605a0201}"
+        elif self.attr0100600100ff is not None:
+            return f"{self.attr0100600100ff}"
 
     @property
-    def get010060320101(self) -> str:  # XYZ
+    def attr010060320101(self) -> str:  # XYZ
         return self._get_str_internal('010060320101')
 
     @property
-    def get0100600100ff(self) -> str:  # 0a123b4c567890d12e34
+    def attr0100600100ff(self) -> str:  # 0a123b4c567890d12e34
         return self._get_str_internal('0100600100ff')
 
     @property
-    def get0100010800ff(self) -> float:
+    def attr0100010800ff(self) -> float:
         return self._get_value_internal('0100010800ff')
 
     @property
-    def get0100010800ff_in_k(self) -> float:
+    def attr0100010800ff_in_k(self) -> float:
         return self._get_value_internal('0100010800ff', divisor=1000)
 
     @property
-    def get0100010800ff_status(self) -> float:
+    def attr0100010800ff_status(self) -> float:
         if '0100010800ff' in self._obis_values and hasattr(self._obis_values.get('0100010800ff'), 'status'):
             return self._obis_values.get('0100010800ff').status
 
     @property
-    def get0100020800ff(self) -> float:
+    def attr0100020800ff(self) -> float:
         return self._get_value_internal('0100020800ff')
 
     @property
-    def get0100020800ff_in_k(self) -> float:
+    def attr0100020800ff_in_k(self) -> float:
         return self._get_value_internal(key='0100020800ff', divisor=1000)
 
     @property
-    def get0100100700ff(self) -> float:
+    def attr0100100700ff(self) -> float:
         # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
         return self._get_value_internal(['0100100700ff', '0100010700ff',  '01000107ffff',  '0100020700ff', '01000f0700ff'])
 
     @property
-    def get0100240700ff(self) -> float:
+    def attr0100240700ff(self) -> float:
         # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
         return self._get_value_internal(['0100240700ff', '0100150700ff', '01001507ffff', '0100160700ff', '0100230700ff'])
 
     @property
-    def get0100380700ff(self) -> float:
+    def attr0100380700ff(self) -> float:
         # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
         return self._get_value_internal(['0100380700ff', '0100290700ff', '01002907ffff', '01002a0700ff', '0100370700ff'])
 
     @property
-    def get01004c0700ff(self) -> float:
+    def attr01004c0700ff(self) -> float:
         # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
         return self._get_value_internal(['01004c0700ff', '01003d0700ff', '01003d07ffff', '01003e0700ff', '01004b0700ff'])
 
     @property
-    def get0100200700ff(self) -> float:
+    def attr0100200700ff(self) -> float:
         return self._get_value_internal('0100200700ff')
 
     @property
-    def get0100340700ff(self) -> float:
+    def attr0100340700ff(self) -> float:
         return self._get_value_internal('0100340700ff')
 
     @property
-    def get0100480700ff(self) -> float:
+    def attr0100480700ff(self) -> float:
         return self._get_value_internal('0100480700ff')
 
     @property
-    def get01001f0700ff(self) -> float:
+    def attr01001f0700ff(self) -> float:
         return self._get_value_internal('01001f0700ff')
 
     @property
-    def get0100330700ff(self) -> float:
+    def attr0100330700ff(self) -> float:
         return self._get_value_internal('0100330700ff')
 
     @property
-    def get0100470700ff(self) -> float:
+    def attr0100470700ff(self) -> float:
         return self._get_value_internal('0100470700ff')
 
     @property
-    def get0100510701ff(self) -> float:
+    def attr0100510701ff(self) -> float:
         return self._get_value_internal('0100510701ff')
 
     @property
-    def get0100510702ff(self) -> float:
+    def attr0100510702ff(self) -> float:
         return self._get_value_internal('0100510702ff')
 
     @property
-    def get0100510704ff(self) -> float:
+    def attr0100510704ff(self) -> float:
         return self._get_value_internal('0100510704ff')
 
     @property
-    def get010051070fff(self) -> float:
+    def attr010051070fff(self) -> float:
         return self._get_value_internal('010051070fff')
 
     @property
-    def get010051071aff(self) -> float:
+    def attr010051071aff(self) -> float:
         return self._get_value_internal('010051071aff')
 
     @property
-    def get01000e0700ff(self) -> float:
+    def attr01000e0700ff(self) -> float:
         return self._get_value_internal('01000e0700ff')
 
     @property
-    def get010000020000(self) -> str:  # 01
+    def attr010000020000(self) -> str:  # 01
         return self._get_str_internal('010000020000')
 
     @property
-    def get0100605a0201(self) -> str:  # 123a4567
+    def attr0100605a0201(self) -> str:  # 123a4567
         return self._get_str_internal('0100605a0201')

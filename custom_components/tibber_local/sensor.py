@@ -28,9 +28,17 @@ async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigEntry, 
         key = description.key
         if key.endswith("_in_k"):
            key = key[:-5]
+
         if available_sensors is None or key in available_sensors:
             entity = TibberLocalSensor(coordinator, description)
             entities.append(entity)
+        elif key not in available_sensors and hasattr(description, "aliases"):
+            if description.aliases is not None and len(description.aliases) > 0:
+                for alias in description.aliases:
+                    if alias in available_sensors:
+                        entity = TibberLocalSensor(coordinator, description)
+                        entities.append(entity)
+                        break
 
     async_add_entities(entities)
 
@@ -64,7 +72,7 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
     @property
     def state(self):
         """Return the current state."""
-        value = getattr(self.coordinator.bridge, 'get' + self.entity_description.key)
+        value = getattr(self.coordinator.bridge, 'attr' + self.entity_description.key)
         if type(value) != type(False):
             try:
                 rounded_value = round(float(value), self._attr_suggested_display_precision)
