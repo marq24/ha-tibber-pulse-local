@@ -24,15 +24,21 @@ async def async_setup_entry(hass: HomeAssistantType, config_entry: ConfigEntry, 
                 available_sensors = coordinator.bridge._obis_values.keys()
                 _LOGGER.info(f"available sensors found: {available_sensors}")
 
+    if available_sensors is None or len(available_sensors) == 0:
+        _LOGGER.warning(f"could not detect available sensors (obis-codes) using just 'import total' and 'power current' as default!")
+        # ok looks like, that we do not have any information about available sensors - so we just use two simple
+        # obis codes 'import total' and 'power current'
+        available_sensors = ["0100010800ff", "0100100700ff"]
+
     for description in SENSOR_TYPES:
         key = description.key
         if key.endswith("_in_k"):
            key = key[:-5]
 
-        if available_sensors is None or key in available_sensors:
+        if key in available_sensors:
             entity = TibberLocalSensor(coordinator, description)
             entities.append(entity)
-        elif key not in available_sensors and hasattr(description, "aliases"):
+        elif hasattr(description, "aliases"):
             if description.aliases is not None and len(description.aliases) > 0:
                 for alias in description.aliases:
                     if alias in available_sensors:
