@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Integration ist bereits eingereichtet"
+      "already_configured": "Integration ist bereits eingerichtet"
     },
     "error": {
       "login_failed": "Login fehlgeschlagen - bitte Host und/oder Passwort prüfen",
