@@ -1,24 +1,24 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Integration ist bereits eingereichtet"
+      "already_configured": "Integration ist bereits eingerichtet"
     },
     "error": {
-      "login_failed": "Login fehlgeschlagen - bitte Host und/oder Passwort prüfen",
+      "login_failed": "Login fehlgeschlagen – bitte Host und/oder Passwort prüfen",
       "cannot_connect": "Keine Verbindung möglich",
       "unknown": "Unbekannter Fehler",
       "no_data": "Es konnten keine Daten abgerufen werden",
-      "unknown_mode": "Der Tibber Pulse kommuniziert über ein noch-nicht-implementiertes Protokoll – bitte öffne ein Issue@github – ich benötige Beispieldaten – TIA"
+      "unknown_mode": "Der Tibber Pulse kommuniziert über ein noch nicht implementiertes Protokoll. Bitte erstell auf GitHub ein Issue – ich benötige Beispieldaten. Danke im Voraus!"
     },
     "step": {
       "user": {
-        "description": "Bitte gib die lokalen Verbindungsdaten zu Deiner Tibber Pulse Bridge an.\n\n\nDu musst zuvor das 'webserver_force_enable' Flag aktiviert haben!\n\n\nZusätzliche Informationen zur Einrichtung findest Du hier: https://github.com/marq24/ha-tibber-pulse-local",
+        "description": "Bitte gib die lokalen Verbindungsdaten zu Deiner Tibber Pulse Bridge an.\n\n\nDu musst zuvor das 'webserver_force_enable'-Flag aktiviert haben!\n\n\nZusätzliche Informationen zur Einrichtung findest Du hier: https://github.com/marq24/ha-tibber-pulse-local",
         "data": {
-          "name": "Anzeige Name",
+          "name": "Anzeigename",
           "host": "IP oder Hostname der Tibber Pulse Bridge",
-          "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
+          "password": "Bridge-Passwort (steht auf der Tibber Bridge unter dem QR-Code)",
           "scan_interval": "Aktualisierungsintervall in Sekunden",
-          "node_num": "Node Nummer (Experten Einstellung)"
+          "node_num": "Node-Nummer (Experteneinstellung)"
         }
       }
     }
@@ -26,13 +26,13 @@
   "options": {
     "step": {
       "user": {
-        "description": "Wenn Du Hilfe benötigst, findest du sie hier: https://github.com/marq24/ha-tibber-pulse-local",
+        "description": "Wenn Du Hilfe benötigst, findest Du sie hier: https://github.com/marq24/ha-tibber-pulse-local",
         "data": {
-          "name": "Anzeige Name",
+          "name": "Anzeigename",
           "host": "IP oder Hostname der Tibber Pulse Bridge",
-          "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
+          "password": "Bridge-Passwort (steht auf der Tibber Bridge unter dem QR-Code)",
           "scan_interval": "Aktualisierungsintervall in Sekunden",
-          "node_num": "Node Nummer (Experten Einstellung)"
+          "node_num": "Node-Nummer (Experteneinstellung)"
         }
       }
     }
@@ -40,16 +40,16 @@
   "entity": {
     "sensor": {
       "0100010800ff": {
-        "name": "Zählerstand Total"
+        "name": "Gesamtbezug (Wh)"
       },
       "0100020800ff": {
-        "name": "Wirkenergie Total"
+        "name": "Gesamteinspeisung (Wh)"
       },
       "0100010800ff_in_k": {
-        "name": "Zählerstand Total (kWh)"
+        "name": "Gesamtbezug (kWh)"
       },
       "0100020800ff_in_k": {
-        "name": "Wirkenergie Total (kWh)"
+        "name": "Gesamteinspeisung (kWh)"
       },
 
       "0100100700ff": {
@@ -123,7 +123,7 @@
         "name": "Strom L3"
       },
       "01000e0700ff": {
-        "name": "Netz Frequenz"
+        "name": "Netzfrequenz"
       },
       "0100510701ff": {
         "name": "Phasenabweichung Spannungen L1/L2"
