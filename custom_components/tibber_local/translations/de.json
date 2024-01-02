@@ -4,7 +4,7 @@
       "already_configured": "Integration ist bereits eingerichtet"
     },
     "error": {
-      "login_failed": "Login fehlgeschlagen - bitte Host und/oder Passwort prüfen",
+      "login_failed": "Login fehlgeschlagen – bitte Host und/oder Passwort prüfen",
       "cannot_connect": "Keine Verbindung möglich",
       "unknown": "Unbekannter Fehler",
       "no_data": "Es konnten keine Daten abgerufen werden",
@@ -16,7 +16,7 @@
         "data": {
           "name": "Anzeige Name",
           "host": "IP oder Hostname der Tibber Pulse Bridge",
-          "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
+          "password": "Das Bridge Passwort – [Du findest das Passwort auf der Tibber Bridge – unter dem QR-Code]",
           "scan_interval": "Aktualisierungsintervall in Sekunden",
           "node_num": "Node Nummer (Experten Einstellung)"
         }
@@ -30,7 +30,7 @@
         "data": {
           "name": "Anzeige Name",
           "host": "IP oder Hostname der Tibber Pulse Bridge",
-          "password": "Das Bridge Passwort - [Du findest das Passwort auf der Tibber Bridge - unter dem QR-Code]",
+          "password": "Das Bridge Passwort – [Du findest das Passwort auf der Tibber Bridge – unter dem QR-Code]",
           "scan_interval": "Aktualisierungsintervall in Sekunden",
           "node_num": "Node Nummer (Experten Einstellung)"
         }
