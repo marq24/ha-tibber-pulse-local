@@ -8,12 +8,11 @@ from homeassistant.components.sensor import (
 )
 
 from homeassistant.const import (
-    ENERGY_KILO_WATT_HOUR,
-    ENERGY_WATT_HOUR,
     POWER_WATT,
     UnitOfElectricPotential,
     UnitOfElectricCurrent,
     UnitOfFrequency,
+    UnitOfEnergy,
     DEGREE,
 )
 from homeassistant.helpers.entity import EntityCategory
@@ -52,7 +51,7 @@ SENSOR_TYPES = [
         key="0100010800ff",
         name="Import total",
         entity_registry_enabled_default=False,
-        native_unit_of_measurement=ENERGY_WATT_HOUR,
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -62,7 +61,7 @@ SENSOR_TYPES = [
         key="0100020800ff",
         name="Export total",
         entity_registry_enabled_default=False,
-        native_unit_of_measurement=ENERGY_WATT_HOUR,
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -71,7 +70,7 @@ SENSOR_TYPES = [
         key="0100010800ff_in_k",
         name="Import total (kWh)",
         suggested_display_precision=5,
-        native_unit_of_measurement=ENERGY_KILO_WATT_HOUR,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -80,7 +79,7 @@ SENSOR_TYPES = [
         key="0100020800ff_in_k",
         name="Export total (kWh)",
         suggested_display_precision=5,
-        native_unit_of_measurement=ENERGY_KILO_WATT_HOUR,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
