@@ -8,11 +8,11 @@ from homeassistant.components.sensor import (
 )
 
 from homeassistant.const import (
-    POWER_WATT,
     UnitOfElectricPotential,
     UnitOfElectricCurrent,
     UnitOfFrequency,
     UnitOfEnergy,
+    UnitOfPower,
     DEGREE,
 )
 from homeassistant.helpers.entity import EntityCategory
@@ -90,7 +90,7 @@ SENSOR_TYPES = [
         key="0100100700ff",
         aliases=["0100010700ff",  "01000107ffff",  "0100020700ff", "01000f0700ff"],
         name="Power (actual)",
-        native_unit_of_measurement=POWER_WATT,
+        native_unit_of_measurement=UnitOfPower.WATT,
         icon="mdi:meter-electric",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.MEASUREMENT,
@@ -100,7 +100,7 @@ SENSOR_TYPES = [
         key="0100240700ff",
         aliases=["0100150700ff", "01001507ffff", "0100160700ff", "0100230700ff"],
         name="Power L1",
-        native_unit_of_measurement=POWER_WATT,
+        native_unit_of_measurement=UnitOfPower.WATT,
         icon="mdi:meter-electric",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.MEASUREMENT,
@@ -110,7 +110,7 @@ SENSOR_TYPES = [
         key="0100380700ff",
         aliases=["0100290700ff", "01002907ffff", "01002a0700ff", "0100370700ff"],
         name="Power L2",
-        native_unit_of_measurement=POWER_WATT,
+        native_unit_of_measurement=UnitOfPower.WATT,
         icon="mdi:meter-electric",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.MEASUREMENT,
@@ -120,7 +120,7 @@ SENSOR_TYPES = [
         key="01004c0700ff",
         aliases=["01003d0700ff", "01003d07ffff", "01003e0700ff", "01004b0700ff"],
         name="Power L3",
-        native_unit_of_measurement=POWER_WATT,
+        native_unit_of_measurement=UnitOfPower.WATT,
         icon="mdi:meter-electric",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.MEASUREMENT,
