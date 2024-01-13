@@ -45,6 +45,11 @@ TIA!
   (data that has been read from the Tibber Pulse Bridge) will also be logged. So you can verify that the data is indeed
   invalid.
 
+- During the setup the integration check/verify that there is at least one data field available that can be read. If the
+  bridge does not provide any data (OBIS codes) then the setup will fail (with the message, that the connection could
+  not be established). You might like to check if `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/data.json?node_id=1` will
+  provide a data feed.
+
 ## Kudos
 
 - [@spacemanspiff2007](https://github.com/spacemanspiff2007) for providing a Python SML lib that makes reading the
@@ -158,6 +163,10 @@ Add custom integration using the web interface and follow instruction on screen.
     - Provide the password of the Pulse Bridge
     - Provide the update interval (can be 2 Seconds)
     - Provide area where the Tibber Pule Bridge is located
+
+__IMPORTANT to know__: During the setup of the integration it will be checked, if there is at least one OBIS-Code (data
+field) available from the bridge. If there is no field/data available that can be read, the setup process will fail
+(with the message that no connection is possible).  
 
 ## Additional entities to get status information about your Tibber Pulse itself
 
