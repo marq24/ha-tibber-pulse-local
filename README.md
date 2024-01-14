@@ -1,8 +1,6 @@
 # Tibber Pulse LOCAL
 
-If you like to access the data of your Tibber Pulse directly (instead via the detour through the cloud), then there is
-a simple approach to read the data directly from the Tibber Pulse Bridge. There are alternative solutions via an
-additional MQTT - but why should the data go through such a proxy, if it can be read directly.
+If you like to access the data of your Tibber Pulse directly (instead via the detour through the cloud), then there is a simple approach to read the data directly from the Tibber Pulse Bridge. There are alternative solutions via an additional MQTT - but why should the data go through such a proxy, if it can be read directly.
 
 [![hacs_badge][hacsbadge]][hacs] [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] [![PayPal][paypalbadge]][paypal]
 
@@ -12,56 +10,32 @@ additional MQTT - but why should the data go through such a proxy, if it can be 
 
 ###### Advertisement / Werbung
 
-If you want to join Tibber (become a customer), you might want to use my personal invitation link. When you use this
-link, Tibber will we grant you and me a bonus of 50,-€ for each of us. This bonus then can be used in the Tibber store (
-not for your power bill) - e.g. to buy a Tibber Bridge. I am fully aware, that when you are here in this repository the
-chances are very high, that you are already a Tibber customer and have already a Tibber Pulse. If you are already a
-Tibber customer and have not used an invitation link yet, you can also enter one afterward in the Tibber App.
+If you want to join Tibber (become a customer), you might want to use my personal invitation link. When you use this link, Tibber will we grant you and me a bonus of 50,-€ for each of us. This bonus then can be used in the Tibber store (not for your power bill) - e.g. to buy a Tibber Bridge. I am fully aware, that when you are here in this repository the chances are very high, that you are already a Tibber customer and have already a Tibber Pulse. If you are already a Tibber customer and have not used an invitation link yet, you can also enter one afterward in the Tibber App.
 
-Please consider [using my personal Tibber invitation link to join Tibber today](https://invite.tibber.com/6o0kqvzf) or
-Enter the following code: 6o0kqvzf (six, oscar, zero, kilo, quebec, victor, zulu, foxtrot) afterward in the Tibber App -
-TIA!
+Please consider [using my personal Tibber invitation link to join Tibber today](https://invite.tibber.com/6o0kqvzf) or Enter the following code: 6o0kqvzf (six, oscar, zero, kilo, quebec, victor, zulu, foxtrot) afterward in the Tibber App - TIA!
 
 ---
 
 ## Know Issues
 
-- The Tibber Pulse Bridge supporting different communication modes (when fetching data from electricity meter). Here
-  I need your help! Obviously I have one electricity meter here at home. This meter is communicating via a protocol
-  called SML 1.04 and this is currently the __only__ one that is supported/implemented.
+- The Tibber Pulse Bridge supporting different communication modes (when fetching data from electricity meter). Here I need your help! Obviously I have one electricity meter here at home. This meter is communicating via a protocol called SML 1.04 and this is currently the __only__ one that is supported/implemented.
 
-  The Tibber Bridge supporting also the modes: AutoScanMode, IEC-62056.21, Logarex and Impressions (Blinks / kwh) using
-  ambient or IR sensors. In order to support these other modes I would need sample data from you. If your Tibber Pulse
-  using one of these communications protocols, please be so kind and create here an issue in github - TIA!
+  The Tibber Bridge supporting also the modes: AutoScanMode, IEC-62056.21, Logarex and Impressions (Blinks / kwh) using ambient or IR sensors. In order to support these other modes I would need sample data from you. If your Tibber Pulse using one of these communications protocols, please be so kind and create here an issue in github - TIA!
 
-- Sometimes the Pulse deliver a data-package that does not contain valid data (looks like the build in webserver have a
-  response buffer issue?). These invalid packages can't be read with
-  the [python SML-Lib](https://github.com/spacemanspiff2007/SmlLib)
-  and you will find then in the HA-log some `Bytes missing...` or `CRC while parse data...` messages. (when logging on
-  INFO Level)
+- Sometimes the Pulse deliver a data-package that does not contain valid data (looks like the build in webserver have a response buffer issue?). These invalid packages can't be read with the [python SML-Lib](https://github.com/spacemanspiff2007/SmlLib) and you will find then in the HA-log some `Bytes missing...` or `CRC while parse data...` messages. (when logging on INFO Level)
 
-  If they happen the code will just try to load the data again for one time. Together with the message the actual
-  payload
-  (data that has been read from the Tibber Pulse Bridge) will also be logged. So you can verify that the data is indeed
-  invalid.
+  If they happen the code will just try to load the data again for one time. Together with the message the actual payload (data that has been read from the Tibber Pulse Bridge) will also be logged. So you can verify that the data is indeed invalid.
 
-- During the setup the integration check/verify that there is at least one data field available that can be read. If the
-  bridge does not provide any data (OBIS codes) then the setup will fail (with the message, that the connection could
-  not be established). You might like to check if `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/data.json?node_id=1` will
-  provide a data feed.
+- During the setup the integration check/verify that there is at least one data field available that can be read. If the bridge does not provide any data (OBIS codes) then the setup will fail (with the message, that the connection could not be established). You might like to check if `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/data.json?node_id=1` will provide a data feed.
 
 ## Kudos
 
-- [@spacemanspiff2007](https://github.com/spacemanspiff2007) for providing a Python SML lib that makes reading the
-  data from the Pulse almost effortless for a python noob like me
-- [@ProfDrYoMan](https://github.com/ProfDrYoMan) for providing the initial idea. I failed to setup the ESP32 stuff, so
-  I took the approach writing this custom integration
+- [@spacemanspiff2007](https://github.com/spacemanspiff2007) for providing a Python SML lib that makes reading the data from the Pulse almost effortless for a python noob like me
+- [@ProfDrYoMan](https://github.com/ProfDrYoMan) for providing the initial idea. I failed to setup the ESP32 stuff, so I took the approach writing this custom integration
 
 ## Preparation: Enabling the web frontend of the Tibber Pulse Bridge [*Required*]
 
-To enable the web frontend permanently, one local variable needs to be set in the web frontend. But to get into the web
-frontend for the first time you need to start the Tibber Pulse Bridge in AccessPoint mode. This can be done by the
-following steps:
+To enable the web frontend permanently, one local variable needs to be set in the web frontend. But to get into the web frontend for the first time you need to start the Tibber Pulse Bridge in AccessPoint mode. This can be done by the following steps:
 
 ### 1. Start AP-Mode
 
@@ -83,16 +57,13 @@ NOW the LED on the Tibber bridge should now light up green and not light blue an
 
 ### 2. Connect to the Pulse Bridge WiFi AccessPoint
 
-Now use any device (laptop, tablet, phone) to connect to the `Tibber Bridge` WiFi network. The password for the WiFi
-is the nine characters printed on the Tibber bridge - it's important to include the dash. The password should have the
-pattern like this example one: `AD56-54BA`.
+Now use any device (laptop, tablet, phone) to connect to the `Tibber Bridge` WiFi network. The password for the WiFi is the nine characters printed on the Tibber bridge - it's important to include the dash. The password should have the pattern like this example one: `AD56-54BA`.
 
 ![img|160x90](images/bridge-pwd-location.png)
 
 ### 3. Set `webserver_force_enable` to `true` in the web frontend
 
-After you are connected to the WiFi that have been created by the Pulse Bridge with your laptop/phone, use a web browser
-on that device to connect to <http://10.133.70.1/>. You will be prompted for a user and a password (BasicAuth).
+After you are connected to the WiFi that have been created by the Pulse Bridge with your laptop/phone, use a web browser on that device to connect to <http://10.133.70.1/>. You will be prompted for a user and a password (BasicAuth).
 
 The username is ```admin``` and the password is again the nine characters printed on the Tibber bridge.
 
@@ -104,28 +75,22 @@ __Please do not modify and other values in the params__
 
 ### 4. Bring your Pulse & Bridge back to normal operation
 
-Unplug the Tibber bridge, wait __ten seconds__ and plug it back again. Now it should connect back to your previously
-configured WiFi and should work as before (submit the data to Tibber) - the LED should light up light blue again.
+Unplug the Tibber bridge, wait __ten seconds__ and plug it back again. Now it should connect back to your previously configured WiFi and should work as before (submit the data to Tibber) - the LED should light up light blue again.
 
 ### 5. Final testing [do not continue if you did not completed this final step]
 
-After you have successfully reset the Tibber bridge (AP mode is OFF and you are back in normal operation mode). Since
-you
-have set the `webserver_force_enable` to `true` the web frontend should now be still accessible via the following URL:
+After you have successfully reset the Tibber bridge (AP mode is OFF and you are back in normal operation mode). Since you have set the `webserver_force_enable` to `true` the web frontend should now be still accessible via the following URL:
 <http://tibber-host/> or <http://tibber-bridge/>.
 
-If the hostname 'tibber-host' (or 'tibber-bridge') is not going to work for you in your LAN, you might like to check the
-IP-Address of your Tibber Pulse Bridge in your Router. __The IP *is not* the `10.133.70.1` any longer!__
+If the hostname 'tibber-host' (or 'tibber-bridge') is not going to work for you in your LAN, you might like to check the IP-Address of your Tibber Pulse Bridge in your Router. __The IP *is not* the `10.133.70.1` any longer!__
 
-Personally I have configured my router in a way, that the Pulse Bridge gets allways the same IP assigned. I just can
-recommend to do the same. Since accessing the device via IP (instead of the host name) will save you DNS-Lookups.
+Personally I have configured my router in a way, that the Pulse Bridge gets allways the same IP assigned. I just can recommend to do the same. Since accessing the device via IP (instead of the host name) will save you DNS-Lookups.
 
 When you open the web frontend of the bridge, you have to provide the user `admin` and the password always.
 
 ![img|160x90](images/web-frontend.png)
 
-Now (when the frontend works for you) all is prepared, so you can install and use this `Tibber Local Polling`
-integration
+Now (when the frontend works for you) all is prepared, so you can install and use this `Tibber Local Polling` integration
 
 ## Installation
 
@@ -141,9 +106,7 @@ integration
 
 ### Manual
 
-- Copy all files from `custom_components/tibber_local/` to `custom_components/tibber_local/` inside your config Home
-  Assistant
-  directory.
+- Copy all files from `custom_components/tibber_local/` to `custom_components/tibber_local/` inside your config Home Assistant directory.
 - Restart Home Assistant to install all dependencies
 
 ### Adding or enabling integration
@@ -164,21 +127,15 @@ Add custom integration using the web interface and follow instruction on screen.
     - Provide the update interval (can be 2 Seconds)
     - Provide area where the Tibber Pule Bridge is located
 
-__IMPORTANT to know__: During the setup of the integration it will be checked, if there is at least one OBIS-Code (data
-field) available from the bridge. If there is no field/data available that can be read, the setup process will fail
-(with the message that no connection is possible).  
+__IMPORTANT to know__: During the setup of this integration it will be checked, if there is at least one OBIS-Code (data field) available from the bridge. If there is no field/data available that can be read, the setup process will fail (with the message that no connection is possible).
 
 ## Additional entities to get status information about your Tibber Pulse itself
 
-Beside the data that the Tibber Pulse is reading from your electricity meter, the device is also provide additional
-information about its own status. Since the assumption is that you want to read this additional status information with
-a much lower update-interval (less frequent) the usage of a REST-Entity template a (IMHO) simple way to archive your
-goal.
+Beside the data that the Tibber Pulse is reading from your electricity meter, the device is also provide additional information about its own status. Since the assumption is that you want to read this additional status information with a much lower update-interval (less frequent) the usage of a REST-Entity template a (IMHO) simple way to archive your goal.
 
 ### REST-Template in your HA configuration.yaml
 
-requesting `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/metrics.json?node_id=1` will return a json like this one
-here
+requesting `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/metrics.json?node_id=1` will return a json like this one here
 
 ```json
 {
@@ -209,18 +166,14 @@ here
 }
 ```
 
-Check if you have already a `sensor` section in your `configuration.yaml` file - if there is none - create one on as top
-level entry like this (the line '  - platforms: ...' must (obviously) be replaced with the complete sections shown
-further below):
+Check if you have already a `sensor` section in your `configuration.yaml` file - if there is none - create one on as top level entry like this (the line '  - platforms: ...' must (obviously) be replaced with the complete sections shown further below):
 
 ```yaml
 sensor:
   - platform: ...
 ```
 
-Add in the `sensor` section of your `configuration.yaml` file the following content:
-sections with `[ CHANGE_ME:xxx ]` have to be modified to your requirements. E.g. assuming your assuming password
-is __55AA-CC21__, then you have to replace `[ CHANGE_ME:YOUR_PASSWORD ]` with just `55AA-CC21`
+Add in the `sensor` section of your `configuration.yaml` file the following content: sections with `[ CHANGE_ME:xxx ]` have to be modified to your requirements. E.g. assuming your assuming password is __55AA-CC21__, then you have to replace `[ CHANGE_ME:YOUR_PASSWORD ]` with just `55AA-CC21`
 
 ```yaml
   - platform: rest
@@ -247,9 +200,7 @@ is __55AA-CC21__, then you have to replace `[ CHANGE_ME:YOUR_PASSWORD ]` with ju
     unit_of_measurement: [ CHANGE_ME:A_UNIT_HERE ]
 ```
 
-Here is a complete example assuming the password is __55AA-CC21__ the IP is __192.168.2.213__, and you want to capture
-the __node_battery_voltage__ as main entity information and all other children of the `node_status` as additional
-attributes of the entity that will be requested every 5 minutes:
+Here is a complete example assuming the password is __55AA-CC21__ the IP is __192.168.2.213__, and you want to capture the __node_battery_voltage__ as main entity information and all other children of the `node_status` as additional attributes of the entity that will be requested every 5 minutes:
 
 ```yaml
   - platform: rest
@@ -279,8 +230,7 @@ attributes of the entity that will be requested every 5 minutes:
     unit_of_measurement: V
 ```
 
-Here just another example with just a single value (without additional atributes) that will update every hour (just
-again have in mind, that this yaml section have to be under your `sensor` section of your `configuration.yaml` file):
+Here just another example with just a single value (without additional atributes) that will update every hour (just again have in mind, that this yaml section have to be under your `sensor` section of your `configuration.yaml` file):
 
 ```yaml
   - platform: rest
