@@ -8,7 +8,7 @@
       "cannot_connect": "Failed to connect",
       "unknown": "Unknown error",
       "no_data": "Could not read any data from device",
-      "unknown_mode": "The Tibber Pulse is communicating via an not-yet-implemented protocol - please open an issue@github - I need sample data - TIA"
+      "unknown_mode": "The Tibber Pulse is communicating via an not-yet-implemented protocol - please create DEBUG log output and open an issue@github - I need sample data - TIA"
     },
     "step": {
       "user": {

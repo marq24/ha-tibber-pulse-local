@@ -28,6 +28,12 @@ Please consider [using my personal Tibber invitation link to join Tibber today](
 
 - During the setup the integration check/verify that there is at least one data field available that can be read. If the bridge does not provide any data (OBIS codes) then the setup will fail (with the message, that the connection could not be established). You might like to check if `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/data.json?node_id=1` will provide a data feed.
 
+## Want to report an issue?
+
+Please use the [GitHub Issues](https://github.com/marq24/ha-tibber-pulse-local/issues) for reporting any issues you encounter with this integration. Please be so kind before creating a new issues, check the closed ones, if your problem have been already reported (& solved). 
+
+In order to speed up the support process you might like already prepare and provide DEBUG log output. In the case of a technical issue - like not-supported--yet-communication-mode - I would need this DEBUG log output to be able to help/fix the issue. There is a short [tutorial/guide 'How to provide DEBUG log' here](https://github.com/marq24/ha-senec-v3/blob/master/docs/HA_DEBUG.md) - please take the time to quickly go through it.
+
 ## Kudos
 
 - [@spacemanspiff2007](https://github.com/spacemanspiff2007) for providing a Python SML lib that makes reading the data from the Pulse almost effortless for a python noob like me

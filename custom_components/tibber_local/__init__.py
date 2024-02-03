@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import re
 
@@ -10,7 +11,7 @@ from smllib.errors import CrcError
 from smllib.sml import SmlListEntry, ObisCode
 from smllib.const import UNITS
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -26,6 +27,7 @@ from .const import (
     CONF_NODE_NUMBER,
     ENUM_MODES,
     MODE_UNKNOWN,
+    MODE_0_AutoScanMode,
     MODE_3_SML_1_04,
     MODE_99_PLAINTEXT,
 )
@@ -36,6 +38,19 @@ CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS = ["sensor"]
 
+def mask_map(d):
+    for k, v in d.copy().items():
+        if isinstance(v, dict):
+            d.pop(k)
+            d[k] = v
+            mask_map(v)
+        else:
+            lk = k.lower()
+            if lk == "host" or lk == "password":
+                v = "<MASKED>"
+            d.pop(k)
+            d[k] = v
+    return d
 
 async def async_setup(hass: HomeAssistant, config: dict):
     return True
@@ -43,12 +58,23 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     global SCAN_INTERVAL
-
     SCAN_INTERVAL = timedelta(seconds=config_entry.options.get(CONF_SCAN_INTERVAL,
                                                                config_entry.data.get(CONF_SCAN_INTERVAL,
                                                                                      DEFAULT_SCAN_INTERVAL)))
+    if DOMAIN not in hass.data:
+        value = "UNKOWN"
+        try:
+            basepath = __file__[:-11]
+            with open(f"{basepath}manifest.json") as f:
+                manifest = json.load(f)
+                value = manifest["version"]
+        except:
+            pass
 
-    _LOGGER.info("Starting TibberLocal with interval: " + str(SCAN_INTERVAL))
+        hass.data.setdefault(DOMAIN, {"manifest_version": value})
+
+
+    _LOGGER.info(f"Starting TibberLocal v{hass.data.get(DOMAIN)['manifest_version']} with interval: {SCAN_INTERVAL} - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
     session = async_get_clientsession(hass)
 
     coordinator = TibberLocalDataUpdateCoordinator(hass, session, config_entry)
@@ -57,13 +83,14 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if not coordinator.last_update_success:
         raise ConfigEntryNotReady
 
-    hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][config_entry.entry_id] = coordinator
 
     for platform in PLATFORMS:
         hass.async_create_task(hass.config_entries.async_forward_entry_setup(config_entry, platform))
 
-    config_entry.add_update_listener(async_reload_entry)
+    if config_entry.state != ConfigEntryState.LOADED:
+        config_entry.add_update_listener(async_reload_entry)
+
     return True
 
 
@@ -110,22 +137,20 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    unload_ok = all(
-        await asyncio.gather(
-            *[
-                hass.config_entries.async_forward_entry_unload(config_entry, component)
-                for component in PLATFORMS
-            ]
-        )
-    )
+    unload_ok = all(await asyncio.gather(*[
+        hass.config_entries.async_forward_entry_unload(config_entry, component)
+        for component in PLATFORMS
+    ]))
     if unload_ok:
-        hass.data[DOMAIN].pop(config_entry.entry_id)
+        if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
+            hass.data[DOMAIN].pop(config_entry.entry_id)
     return unload_ok
 
 
 async def async_reload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
-    await async_unload_entry(hass, config_entry)
-    await async_setup_entry(hass, config_entry)
+    if await async_unload_entry(hass, config_entry):
+        await asyncio.sleep(2)
+        await async_setup_entry(hass, config_entry)
 
 
 class TibberLocalEntity(Entity):
@@ -221,47 +246,78 @@ class TibberLocalBridge:
 
     async def detect_com_mode(self):
         await self.detect_com_mode_from_node_param27()
+        _LOGGER.debug(f"detect_com_mode: after detect_com_mode_from_node_param27 mode is: {self._com_mode}")
         # if we can't read the mode from the properties (or the mode is not in the ENUM_MODES)
         # we want to check, if we can read plaintext?!
         if self._com_mode == MODE_UNKNOWN:
-            await self.read_tibber_local(MODE_99_PLAINTEXT, False)
+            await self._check_modes_internal(MODE_99_PLAINTEXT, MODE_3_SML_1_04)
+        elif self._com_mode == MODE_0_AutoScanMode:
+            await self._check_modes_internal(MODE_3_SML_1_04, MODE_99_PLAINTEXT)
+
+    async def _check_modes_internal(self, mode_1:int, mode_2:int):
+        _LOGGER.debug(f"detect_com_mode is {self._com_mode}: will try to read {mode_1}")
+        await self.read_tibber_local(mode_1, False, log_payload=True)
+        if len(self._obis_values) > 0:
+            self._com_mode = mode_1
+            _LOGGER.debug(f"detect_com_mode 1 SUCCESS -> _com_mode: {self._com_mode}")
+        else:
+            _LOGGER.debug(f"detect_com_mode 1 is {self._com_mode}: {mode_1} failed - will try to read {mode_2}")
+            await self.read_tibber_local(mode_2, False, log_payload=True)
             if len(self._obis_values) > 0:
-                self._com_mode = MODE_99_PLAINTEXT
+                self._com_mode = mode_2
+                _LOGGER.debug(f"detect_com_mode 2 SUCCESS -> _com_mode: {self._com_mode}")
+            else:
+                _LOGGER.debug(f"detect_com_mode 2 is {self._com_mode}: {mode_1} failed and {mode_2} failed")
+                pass
 
     async def detect_com_mode_from_node_param27(self):
-        # {'param_id': 27, 'name': 'meter_mode', 'size': 1, 'type': 'uint8', 'help': '0:IEC 62056-21, 1:Count impressions', 'value': [3]}
-        self._com_mode = MODE_UNKNOWN
-        async with self.websession.get(self.url_mode, ssl=False, timeout=10.0) as res:
-            res.raise_for_status()
-            if res.status == 200:
-                json_resp = await res.json()
-                for a_parm_obj in json_resp:
-                    if 'param_id' in a_parm_obj and a_parm_obj['param_id'] == 27 or \
-                            'name' in a_parm_obj and a_parm_obj['name'] == 'meter_mode':
-                        if 'value' in a_parm_obj:
-                            self._com_mode = a_parm_obj['value'][0]
-                            # check for known modes in the UI (http://YOUR-IP-HERE/nodes/1/config)
-                            if self._com_mode not in ENUM_MODES:
-                                self._com_mode = MODE_UNKNOWN
-                            break
+        try:
+            # {'param_id': 27, 'name': 'meter_mode', 'size': 1, 'type': 'uint8', 'help': '0:IEC 62056-21, 1:Count impressions', 'value': [3]}
+            self._com_mode = MODE_UNKNOWN
+            async with self.websession.get(self.url_mode, ssl=False, timeout=10.0) as res:
+                try:
+                    res.raise_for_status()
+                    if res.status == 200:
+                        json_resp = await res.json()
+                        for a_parm_obj in json_resp:
+                            if 'param_id' in a_parm_obj and a_parm_obj['param_id'] == 27 or \
+                                    'name' in a_parm_obj and a_parm_obj['name'] == 'meter_mode':
+                                if 'value' in a_parm_obj:
+                                    self._com_mode = a_parm_obj['value'][0]
+                                    # check for known modes in the UI (http://YOUR-IP-HERE/nodes/1/config)
+                                    if self._com_mode not in ENUM_MODES:
+                                        self._com_mode = MODE_UNKNOWN
+                                    break
+                except Exception as exec:
+                    _LOGGER.warning(f"access to bridge failed with exception: {exec}")
+        except Exception as exec:
+            _LOGGER.warning(f"access to bridge failed with exception: {exec}")
 
     async def update(self):
         await self.read_tibber_local(mode=self._com_mode, retry=True)
 
-    async def read_tibber_local(self, mode: int, retry: bool):
+    async def read_tibber_local(self, mode: int, retry: bool, log_payload: bool = False):
         async with self.websession.get(self.url_data, ssl=False, timeout=10.0) as res:
-            res.raise_for_status()
-            if res.status == 200:
-                if mode == MODE_3_SML_1_04:
-                    await self.read_sml(await res.read(), retry)
-                elif mode == MODE_99_PLAINTEXT:
-                    await self.read_plaintext(await res.text(), retry)
-            else:
-                _LOGGER.warning(f"access to bridge failed with code {res.status}")
+            try:
+                res.raise_for_status()
+                if res.status == 200:
+                    if mode == MODE_3_SML_1_04:
+                        await self.read_sml(await res.read(), retry, log_payload)
+                    elif mode == MODE_99_PLAINTEXT:
+                        await self.read_plaintext(await res.text(), retry, log_payload)
+                else:
+                    if res is not None:
+                        _LOGGER.warning(f"access to bridge failed with code {res.status} - res: {res}")
+                    else:
+                        _LOGGER.warning(f"access to bridge failed (UNKNOWN reason)")
+            except Exception as exec:
+                _LOGGER.warning(f"access to bridge failed with exception: {exec}")
 
-    async def read_plaintext(self, plaintext: str, retry: bool):
+    async def read_plaintext(self, plaintext: str, retry: bool, log_payload: bool):
         try:
             temp_obis_values = []
+            if log_payload:
+                _LOGGER.debug(f"plaintext payload: {str}")
             for a_line in plaintext.splitlines():
 
                 # a patch for invalid reading?!
@@ -318,11 +374,14 @@ class TibberLocalBridge:
                 return aUnit[0]
         return None
 
-    async def read_sml(self, payload: bytes, retry: bool):
+    async def read_sml(self, payload: bytes, retry: bool, log_payload: bool):
         # for what ever reason the data that can be read from the TibberPulse Webserver is
         # not always valid! [I guess there is a issue with an internal buffer in the webserver
         # implementation] - in any case the bytes received contain sometimes invalid characters
         # so the 'stream.get_frame()' method will not be able to parse the data...
+        if log_payload:
+            _LOGGER.debug(f"sml payload: {payload}")
+
         stream = SmlStreamReader()
         stream.add(payload)
         try:
