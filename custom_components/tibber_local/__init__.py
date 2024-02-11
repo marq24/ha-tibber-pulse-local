@@ -317,7 +317,11 @@ class TibberLocalBridge:
         try:
             temp_obis_values = []
             if log_payload:
-                _LOGGER.debug(f"plaintext payload: {str}")
+                _LOGGER.debug(f"plaintext payload: {plaintext}")
+
+            if '\r' not in plaintext:
+                plaintext = plaintext.replace(' ', '\r')
+
             for a_line in plaintext.splitlines():
 
                 # a patch for invalid reading?!
@@ -350,7 +354,7 @@ class TibberLocalBridge:
                     if parts[0] == '!':
                         break;
                     elif parts[0][0] != '/':
-                        print('unknown:' + parts[0])
+                        _LOGGER.debug(f'unknown entry: {parts[0]} (line: {a_line})')
                     # else:
                     #    print('ignore '+ parts[0])
 
