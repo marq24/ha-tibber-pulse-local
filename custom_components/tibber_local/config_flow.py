@@ -19,6 +19,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     ENUM_IMPLEMENTATIONS,
     CONF_NODE_NUMBER,
+    CONF_IGNORE_READING_ERRORS,
     DEFAULT_NODE_NUMBER
 )
 
@@ -204,30 +205,26 @@ class TibberLocalOptionsFlowHandler(config_entries.OptionsFlow):
                 # host did not change...
                 return self._update_options()
 
-        dataSchema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_NAME, default=self.options.get(CONF_NAME, self.data.get(CONF_NAME, DEFAULT_NAME)),
-                ): str,  # pylint: disable=line-too-long
-                vol.Required(
-                    CONF_HOST, default=self.options.get(CONF_HOST, self.data.get(CONF_HOST, DEFAULT_HOST)),
-                ): str,  # pylint: disable=line-too-long
-                vol.Required(
-                    CONF_PASSWORD, default=self.options.get(CONF_PASSWORD, self.data.get(CONF_PASSWORD, DEFAULT_PWD)),
-                ): str,  # pylint: disable=line-too-long
-                vol.Required(
-                    CONF_SCAN_INTERVAL, default=self.options.get(CONF_SCAN_INTERVAL, self.data.get(CONF_SCAN_INTERVAL,
-                                                                                                   DEFAULT_SCAN_INTERVAL)),
-                ): int,  # pylint: disable=line-too-long
-                vol.Required(
-                    CONF_NODE_NUMBER,
-                    default=self.options.get(CONF_NODE_NUMBER, self.data.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER))
-                ): int,
-            }
-        )
         return self.async_show_form(
             step_id="user",
-            data_schema=dataSchema,
+            data_schema=vol.Schema({
+                vol.Required(CONF_NAME,
+                             default=self.options.get(CONF_NAME, self.data.get(CONF_NAME, DEFAULT_NAME))): str,
+                vol.Required(CONF_HOST,
+                             default=self.options.get(CONF_HOST, self.data.get(CONF_HOST, DEFAULT_HOST))): str,
+                vol.Required(CONF_PASSWORD,
+                             default=self.options.get(CONF_PASSWORD, self.data.get(CONF_PASSWORD, DEFAULT_PWD))): str,
+                vol.Required(CONF_SCAN_INTERVAL, default=self.options.get(CONF_SCAN_INTERVAL,
+                                                                          self.data.get(CONF_SCAN_INTERVAL,
+                                                                                        DEFAULT_SCAN_INTERVAL))): int,
+                vol.Required(CONF_NODE_NUMBER, default=self.options.get(CONF_NODE_NUMBER,
+                                                                        self.data.get(CONF_NODE_NUMBER,
+                                                                                      DEFAULT_NODE_NUMBER))): int,
+                vol.Required(CONF_IGNORE_READING_ERRORS, default=self.options.get(CONF_IGNORE_READING_ERRORS,
+                                                                                  self.data.get(
+                                                                                      CONF_IGNORE_READING_ERRORS,
+                                                                                      False))): bool
+            }),
         )
 
     def _update_options(self):

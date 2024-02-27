@@ -25,6 +25,7 @@ from .const import (
     DEFAULT_HOST,
     DEFAULT_SCAN_INTERVAL,
     CONF_NODE_NUMBER,
+    CONF_IGNORE_READING_ERRORS,
     ENUM_MODES,
     MODE_UNKNOWN,
     MODE_0_AutoScanMode,
@@ -100,17 +101,17 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         the_pwd = config_entry.options.get(CONF_PASSWORD, config_entry.data[CONF_PASSWORD])
 
         # support for systems where node != 1
-        if CONF_NODE_NUMBER in config_entry.data:
-            node_num = int(config_entry.options.get(CONF_NODE_NUMBER, config_entry.data[CONF_NODE_NUMBER]))
-        else:
-            node_num = 1
+        node_num = int(config_entry.options.get(CONF_NODE_NUMBER, config_entry.data.get(CONF_NODE_NUMBER, 1)))
+
+        # ignore parse errors is only in the OPTIONS (not part of the initial setup)
+        ignore_parse_errors = bool(config_entry.options.get(CONF_IGNORE_READING_ERRORS, False))
 
         # the communication_mode is not "adjustable" via the options - it will be only set during the
         # initial configuration phase - so we read it from the config_entry.data ONLY!
         com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
 
         self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=session, node_num=node_num,
-                                        com_mode=com_mode, options=None)
+                                        com_mode=com_mode, options={"ignore_parse_errors": ignore_parse_errors})
         self.name = config_entry.title
         self._config_entry = config_entry
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
@@ -241,6 +242,9 @@ class TibberLocalBridge:
             self.url_data = f"http://admin:{pwd}@{host}/data.json?node_id={node_num}"
             self.url_mode = f"http://admin:{pwd}@{host}/node_params.json?node_id={node_num}"
         self._com_mode = com_mode
+        self.ignore_parse_errors = False
+        if options is not None and "ignore_parse_errors" in options:
+            self.ignore_parse_errors = options["ignore_parse_errors"]
         self._obis_values = {}
         self._obis_values_by_short = {}
 
@@ -354,7 +358,8 @@ class TibberLocalBridge:
                     if parts[0] == '!':
                         break;
                     elif parts[0][0] != '/':
-                        _LOGGER.debug(f'unknown entry: {parts[0]} (line: {a_line})')
+                        if not self.ignore_parse_errors:
+                            _LOGGER.debug(f'unknown entry: {parts[0]} (line: {a_line})')
                     # else:
                     #    print('ignore '+ parts[0])
 
@@ -366,7 +371,8 @@ class TibberLocalBridge:
                     self._obis_values_by_short[entry.obis.obis_short] = entry
 
         except Exception as exc:
-            _LOGGER.warning(f"Exception {exc} while process data - plaintext: {plaintext}")
+            if not self.ignore_parse_errors:
+                _LOGGER.warning(f"Exception {exc} while process data - plaintext: {plaintext}")
             if retry:
                 await asyncio.sleep(2.5)
                 await self.read_tibber_local(mode=MODE_99_PLAINTEXT, retry=False)
@@ -391,7 +397,8 @@ class TibberLocalBridge:
         try:
             sml_frame = stream.get_frame()
             if sml_frame is None:
-                _LOGGER.info(f"Bytes missing - payload: {payload}")
+                if not self.ignore_parse_errors:
+                    _LOGGER.info(f"Bytes missing - payload: {payload}")
                 if retry:
                     await asyncio.sleep(2.5)
                     await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
@@ -404,13 +411,15 @@ class TibberLocalBridge:
                     self._obis_values_by_short[entry.obis.obis_short] = entry
 
         except CrcError as crc:
-            _LOGGER.info(f"CRC while parse data - payload: {payload}")
+            if not self.ignore_parse_errors:
+                _LOGGER.info(f"CRC while parse data - payload: {payload}")
             if retry:
                 await asyncio.sleep(2.5)
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
 
         except Exception as exc:
-            _LOGGER.warning(f"Exception {exc} while parse data - payload: {payload}")
+            if not self.ignore_parse_errors:
+                _LOGGER.warning(f"Exception {exc} while parse data - payload: {payload}")
             if retry:
                 await asyncio.sleep(2.5)
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)

@@ -32,7 +32,8 @@
           "host": "IP oder Hostname der Tibber Pulse Bridge",
           "password": "Bridge-Passwort (steht auf der Tibber Bridge unter dem QR-Code)",
           "scan_interval": "Aktualisierungsintervall in Sekunden",
-          "node_num": "Node-Nummer (Experteneinstellung)"
+          "node_num": "Node-Nummer (Experteneinstellung)",
+          "ignore_errors": "Fehler und Warnungen beim Lesen der Daten nicht protokollieren"
         }
       }
     }
