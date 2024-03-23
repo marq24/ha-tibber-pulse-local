@@ -1,0 +1,9 @@
+name: Feature Request
+description: When you miss a feature ora a OBIS code - just let me know!
+labels: enhancement
+body:
+  - type: textarea
+    id: content
+    attributes:
+      label: Add a description
+      placeholder: "What do you miss in the current implementation?"
