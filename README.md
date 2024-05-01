@@ -107,7 +107,7 @@ Now (when the frontend works for you) all is prepared, so you can install and us
 - Install [Home Assistant Community Store (HACS)](https://hacs.xyz/)
 - Add custom repository https://github.com/marq24/ha-tibber-pulse-local to HACS
 - Add integration repository (search for "Tibber Pulse Local" in "Explore & Download Repositories")
-    - Select latest version or `master`
+    - Select latest version or `main`
 - Restart Home Assistant to install all dependencies
 
 ### Manual
