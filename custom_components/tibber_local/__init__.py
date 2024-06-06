@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import re
 
@@ -58,24 +57,16 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
+    if DOMAIN not in hass.data:
+        value = "UNKOWN"
+        hass.data.setdefault(DOMAIN, {"manifest_version": value})
+
     global SCAN_INTERVAL
     SCAN_INTERVAL = timedelta(seconds=config_entry.options.get(CONF_SCAN_INTERVAL,
                                                                config_entry.data.get(CONF_SCAN_INTERVAL,
                                                                                      DEFAULT_SCAN_INTERVAL)))
-    if DOMAIN not in hass.data:
-        value = "UNKOWN"
-        try:
-            basepath = __file__[:-11]
-            with open(f"{basepath}manifest.json") as f:
-                manifest = json.load(f)
-                value = manifest["version"]
-        except:
-            pass
 
-        hass.data.setdefault(DOMAIN, {"manifest_version": value})
-
-
-    _LOGGER.info(f"Starting TibberLocal v{hass.data.get(DOMAIN)['manifest_version']} with interval: {SCAN_INTERVAL} - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
+    _LOGGER.info(f"Starting TibberLocal with interval: {SCAN_INTERVAL} - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
     session = async_get_clientsession(hass)
 
     coordinator = TibberLocalDataUpdateCoordinator(hass, session, config_entry)
