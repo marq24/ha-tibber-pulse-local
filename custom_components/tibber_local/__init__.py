@@ -70,7 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     session = async_get_clientsession(hass)
 
     coordinator = TibberLocalDataUpdateCoordinator(hass, session, config_entry)
-    await coordinator.async_refresh()
+    await coordinator.init_on_load()
 
     if not coordinator.last_update_success:
         raise ConfigEntryNotReady
@@ -112,6 +112,13 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
     #    # just as testing the 'event.async_track_entity_registry_updated_event'
     #    _LOGGER.warning(str(evt))
     #    return True
+
+    async def init_on_load(self):
+        try:
+            await self.bridge.update()
+            _LOGGER.info(f"after init - found OBIS entries: '{self.bridge._obis_values}'")
+        except Exception as exception:
+            _LOGGER.warning(f"init caused {exception}")
 
     async def _async_update_data(self):
         try:

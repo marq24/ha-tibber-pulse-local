@@ -16,13 +16,14 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities):
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
     entities = []
-
     available_sensors = None
     if hasattr(coordinator, 'bridge' ):
         if hasattr(coordinator.bridge, '_obis_values'):
             if len(coordinator.bridge._obis_values) > 0:
                 available_sensors = coordinator.bridge._obis_values.keys()
                 _LOGGER.info(f"available sensors found: {available_sensors}")
+            else:
+                _LOGGER.warning(f"no sensors found @ bridge")
 
     if available_sensors is None or len(available_sensors) == 0:
         _LOGGER.warning(f"could not detect available sensors (obis-codes) using just 'import total' and 'power current' as default!")
