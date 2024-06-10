@@ -2,6 +2,8 @@
 
 If you like to access the data of your Tibber Pulse directly (instead via the detour through the cloud), then there is a simple approach to read the data directly from the Tibber Pulse Bridge. There are alternative solutions via an additional MQTT - but why should the data go through such a proxy, if it can be read directly.
 
+__Please note__, _that this integration is not official and not supported by the tibber development team. I am not affiliated with tibber in any way._
+
 [![hacs_badge][hacsbadge]][hacs] [![github][ghsbadge]][ghs] [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] [![PayPal][paypalbadge]][paypal] [![hainstall][hainstallbadge]][hainstall]
 
 ---
