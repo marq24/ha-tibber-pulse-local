@@ -2,15 +2,14 @@ import asyncio
 import logging
 
 import voluptuous as vol
-
-from custom_components.tibber_local import TibberLocalBridge
-from requests.exceptions import HTTPError, Timeout
 from aiohttp import ClientResponseError
-
 from homeassistant import config_entries
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from requests.exceptions import HTTPError, Timeout
 
+from custom_components.tibber_local import TibberLocalBridge
 from .const import (
     DOMAIN,
     DEFAULT_NAME,
@@ -53,9 +52,9 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _test_connection_tibber_local(self, host, pwd, node_num):
         self._errors = {}
-        websession = self.hass.helpers.aiohttp_client.async_get_clientsession()
         try:
-            bridge = TibberLocalBridge(host=host, pwd=pwd, websession=websession, node_num=node_num)
+            bridge = TibberLocalBridge(host=host, pwd=pwd, websession=async_get_clientsession(self.hass),
+                                       node_num=node_num)
             await bridge.detect_com_mode()
             if bridge._com_mode in ENUM_IMPLEMENTATIONS:
                 self._con_mode = bridge._com_mode
