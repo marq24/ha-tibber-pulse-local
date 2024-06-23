@@ -1,15 +1,9 @@
 import asyncio
 import logging
 import re
+from datetime import timedelta
 
 import voluptuous as vol
-
-from datetime import timedelta
-from smllib import SmlStreamReader
-from smllib.errors import CrcError
-from smllib.sml import SmlListEntry, ObisCode
-from smllib.const import UNITS
-
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant
@@ -17,6 +11,10 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import EntityDescription, Entity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from smllib import SmlStreamReader
+from smllib.const import UNITS
+from smllib.errors import CrcError
+from smllib.sml import SmlListEntry, ObisCode
 
 from .const import (
     DOMAIN,
@@ -30,6 +28,8 @@ from .const import (
     MODE_0_AutoScanMode,
     MODE_3_SML_1_04,
     MODE_99_PLAINTEXT,
+    MODE_1_IEC_62056_21,
+    ENUM_IMPLEMENTATIONS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -255,6 +255,10 @@ class TibberLocalBridge:
         elif self._com_mode == MODE_0_AutoScanMode:
             await self._check_modes_internal(MODE_3_SML_1_04, MODE_99_PLAINTEXT)
 
+        # finally raise value error if not implemented yet!
+        if self._com_mode not in ENUM_IMPLEMENTATIONS:
+            raise ValueError(f"NOT IMPLEMENTED yet! - Mode: {self._com_mode}")
+
     async def _check_modes_internal(self, mode_1:int, mode_2:int):
         _LOGGER.debug(f"detect_com_mode is {self._com_mode}: will try to read {mode_1}")
         await self.read_tibber_local(mode_1, False, log_payload=True)
@@ -304,6 +308,8 @@ class TibberLocalBridge:
                 if res.status == 200:
                     if mode == MODE_3_SML_1_04:
                         await self.read_sml(await res.read(), retry, log_payload)
+                    #elif mode == MODE_1_IEC_62056_21:
+                    #    await self.read_ice62056(await res.read(), retry, log_payload)
                     elif mode == MODE_99_PLAINTEXT:
                         await self.read_plaintext(await res.text(), retry, log_payload)
                 else:

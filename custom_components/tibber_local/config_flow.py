@@ -55,12 +55,17 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         try:
             bridge = TibberLocalBridge(host=host, pwd=pwd, websession=async_get_clientsession(self.hass),
                                        node_num=node_num)
-            await bridge.detect_com_mode()
-            if bridge._com_mode in ENUM_IMPLEMENTATIONS:
-                self._con_mode = bridge._com_mode
-                return await self._test_data_available(bridge, host)
-            else:
+            try:
+                await bridge.detect_com_mode()
+                if bridge._com_mode in ENUM_IMPLEMENTATIONS:
+                    self._con_mode = bridge._com_mode
+                    return await self._test_data_available(bridge, host)
+                else:
+                    self._errors[CONF_HOST] = "unknown_mode"
+
+            except ValueError as val_err:
                 self._errors[CONF_HOST] = "unknown_mode"
+                _LOGGER.warning(f"ValueError: {val_err}")
 
         except (OSError, HTTPError, Timeout, ClientResponseError):
             self._errors[CONF_HOST] = "cannot_connect"
