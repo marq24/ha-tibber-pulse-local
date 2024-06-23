@@ -57,23 +57,22 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    if DOMAIN not in hass.data:
-        value = "UNKOWN"
-        hass.data.setdefault(DOMAIN, {"manifest_version": value})
-
     global SCAN_INTERVAL
     SCAN_INTERVAL = timedelta(seconds=config_entry.options.get(CONF_SCAN_INTERVAL,
                                                                config_entry.data.get(CONF_SCAN_INTERVAL,
                                                                                      DEFAULT_SCAN_INTERVAL)))
 
     _LOGGER.info(f"Starting TibberLocal with interval: {SCAN_INTERVAL} - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
-    session = async_get_clientsession(hass)
 
-    coordinator = TibberLocalDataUpdateCoordinator(hass, session, config_entry)
-    await coordinator.init_on_load()
+    if DOMAIN not in hass.data:
+        value = "UNKOWN"
+        hass.data.setdefault(DOMAIN, {"manifest_version": value})
 
+    coordinator = TibberLocalDataUpdateCoordinator(hass, config_entry)
     if not coordinator.last_update_success:
         raise ConfigEntryNotReady
+    else:
+        await coordinator.init_on_load()
 
     hass.data[DOMAIN][config_entry.entry_id] = coordinator
 
@@ -87,7 +86,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
 
 class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass: HomeAssistant, session, config_entry):
+    def __init__(self, hass: HomeAssistant, config_entry):
         self._host = config_entry.options.get(CONF_HOST, config_entry.data[CONF_HOST])
         the_pwd = config_entry.options.get(CONF_PASSWORD, config_entry.data[CONF_PASSWORD])
 
@@ -101,7 +100,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         # initial configuration phase - so we read it from the config_entry.data ONLY!
         com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
 
-        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=session, node_num=node_num,
+        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=async_get_clientsession(hass), node_num=node_num,
                                         com_mode=com_mode, options={"ignore_parse_errors": ignore_parse_errors})
         self.name = config_entry.title
         self._config_entry = config_entry
