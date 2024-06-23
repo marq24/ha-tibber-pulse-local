@@ -10,5 +10,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/marq24/ha-tibber-pulse-local/issues",
   "requirements": ["smllib==1.4"],
-  "version": "2024.6.2"
+  "version": "2024.6.3"
 }
