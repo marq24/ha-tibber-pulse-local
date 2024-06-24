@@ -214,7 +214,7 @@ class IntBasedObisCode:
             # self.obis_short = f'{_c}.{_d}.{_e}'
             self.obis_hex = f'{self.get_as_two_digit_hex(_a)}{self.get_as_two_digit_hex(_b)}{self.get_as_two_digit_hex(_c)}{self.get_as_two_digit_hex(_d)}{self.get_as_two_digit_hex(_e)}{self.get_as_two_digit_hex(_f)}'
         except Exception as e:
-            if (do_log_output):
+            if do_log_output:
                 _LOGGER.warning(
                     f"could not parse a value as int from list {obis_src} - Please check the position of your Tibber Pulse reading head (you might need to rotate it few degrees anti clock wise) - Exception: {e}")
 
@@ -224,10 +224,13 @@ class IntBasedObisCode:
         if len(out) == 1:
             return '0' + out
         else:
-            return out;
+            return out
 
 
 class TibberLocalBridge:
+
+    ONLY_DIGITS: re.Pattern = re.compile("^[0-9]+$")
+    PLAIN_TEXT_LINE: re.Pattern = re.compile('(.*?)-(.*?):(.*?)\\.(.*?)\\.(.*?)\\*(.*?)\\((.*?)\\)')
 
     # _communication_mode 'MODE_3_SML_1_04' is the initial implemented mode (reading binary sml data)...
     # 'all' other modes have to be implemented... also it could be, that the bridge does
@@ -323,6 +326,14 @@ class TibberLocalBridge:
             except Exception as exec:
                 _LOGGER.warning(f"access to bridge failed with exception: {exec}")
 
+    def check_first_six_parts_for_digits(self, parts: list[str]) -> bool:
+        return (self.ONLY_DIGITS.match(parts[1]) is not None and
+                self.ONLY_DIGITS.match(parts[2]) is not None and
+                self.ONLY_DIGITS.match(parts[3]) is not None and
+                self.ONLY_DIGITS.match(parts[4]) is not None and
+                self.ONLY_DIGITS.match(parts[5]) is not None and
+                self.ONLY_DIGITS.match(parts[6]) is not None)
+
     async def read_plaintext(self, plaintext: str, retry: bool, log_payload: bool):
         try:
             temp_obis_values = []
@@ -338,39 +349,43 @@ class TibberLocalBridge:
                     # a_line = a_line.replace('."55*', '.255*')
 
                     # obis pattern is 'a-b:c.d.e*f'
-                    parts = re.split('(.*?)-(.*?):(.*?)\\.(.*?)\\.(.*?)\\*(.*?)\\((.*?)\\)', a_line)
+                    parts = re.split(self.PLAIN_TEXT_LINE, a_line)
                     if len(parts) == 9:
-                        int_obc = IntBasedObisCode(parts, not self.ignore_parse_errors)
-                        value = parts[7]
-                        unit = None
-                        if '*' in value:
-                            val_with_unit = value.split("*")
-                            if '.' in val_with_unit[0]:
-                                value = float(val_with_unit[0])
-                            else:
-                                value = int(val_with_unit[0])
+                        if self.check_first_six_parts_for_digits(parts):
+                            int_obc = IntBasedObisCode(parts, not self.ignore_parse_errors)
+                            value = parts[7]
+                            unit = None
+                            if '*' in value:
+                                val_with_unit = value.split("*")
+                                if '.' in val_with_unit[0]:
+                                    value = float(val_with_unit[0])
+                                else:
+                                    value = int(val_with_unit[0])
 
-                            # converting any "kilo" unit to base unit...
-                            # so kWh will be converted to Wh - or kV will be V
-                            if val_with_unit[1].lower()[0] == 'k':
-                                value = value * 1000;
-                                val_with_unit[1] = val_with_unit[1][1:]
+                                # converting any "kilo" unit to base unit...
+                                # so kWh will be converted to Wh - or kV will be V
+                                if val_with_unit[1].lower()[0] == 'k':
+                                    value = value * 1000
+                                    val_with_unit[1] = val_with_unit[1][1:]
 
-                            unit = self.find_unit_int_from_string(val_with_unit[1])
+                                unit = self.find_unit_int_from_string(val_with_unit[1])
 
-                        # creating finally the "right" object from the parsed information
-                        if hasattr(int_obc, "obis_hex"):
-                            entry = SmlListEntry()
-                            entry.obis = ObisCode(int_obc.obis_hex)
-                            entry.value = value
-                            entry.unit = unit
-                            temp_obis_values.append(entry)
+                            # creating finally the "right" object from the parsed information
+                            if hasattr(int_obc, "obis_hex"):
+                                entry = SmlListEntry()
+                                entry.obis = ObisCode(int_obc.obis_hex)
+                                entry.value = value
+                                entry.unit = unit
+                                temp_obis_values.append(entry)
+                        else:
+                            if not self.ignore_parse_errors:
+                                _LOGGER.debug(f"ignore none digits-only code: {a_line}")
                     else:
                         if parts[0] == '!':
-                            break;
+                            break
                         elif len(parts[0]) > 0 and parts[0][0] != '/':
                             if not self.ignore_parse_errors:
-                                _LOGGER.debug(f'unknown entry: {parts[0]} (line: {a_line})')
+                                _LOGGER.debug(f"unknown entry: {parts[0]} (line: '{a_line}')")
                         #else:
                         #    print('ignore '+ parts[0])
 
