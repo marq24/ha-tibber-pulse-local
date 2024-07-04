@@ -76,8 +76,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
     hass.data[DOMAIN][config_entry.entry_id] = coordinator
 
-    for platform in PLATFORMS:
-        hass.async_create_task(hass.config_entries.async_forward_entry_setup(config_entry, platform))
+    await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
     if config_entry.state != ConfigEntryState.LOADED:
         config_entry.add_update_listener(async_reload_entry)
@@ -135,10 +134,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    unload_ok = all(await asyncio.gather(*[
-        hass.config_entries.async_forward_entry_unload(config_entry, component)
-        for component in PLATFORMS
-    ]))
+    unload_ok = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
     if unload_ok:
         if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
             hass.data[DOMAIN].pop(config_entry.entry_id)
