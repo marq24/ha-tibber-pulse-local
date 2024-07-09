@@ -93,7 +93,7 @@ SENSOR_TYPES = [
         name="Power (actual)",
         native_unit_of_measurement=UnitOfPower.WATT,
         icon="mdi:meter-electric",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Wirkleistung L1
@@ -103,7 +103,7 @@ SENSOR_TYPES = [
         name="Power L1",
         native_unit_of_measurement=UnitOfPower.WATT,
         icon="mdi:meter-electric",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Wirkleistung L2
@@ -113,7 +113,7 @@ SENSOR_TYPES = [
         name="Power L2",
         native_unit_of_measurement=UnitOfPower.WATT,
         icon="mdi:meter-electric",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Wirkleistung L3
@@ -123,7 +123,7 @@ SENSOR_TYPES = [
         name="Power L3",
         native_unit_of_measurement=UnitOfPower.WATT,
         icon="mdi:meter-electric",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
     ),
 
