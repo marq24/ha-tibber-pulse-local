@@ -1,6 +1,8 @@
-# Tibber Pulse LOCAL
+# Tibber Pulse IR LOCAL
 
-If you like to access the data of your Tibber Pulse directly (instead via the detour through the cloud), then there is a simple approach to read the data directly from the Tibber Pulse Bridge. There are alternative solutions via an additional MQTT - but why should the data go through such a proxy, if it can be read directly.
+If you like to access the data of your Tibber Pulse IR directly (instead via the detour through the cloud), then there is a simple approach to read the data directly from the Tibber Pulse Bridge. There are alternative solutions via an additional MQTT - but why should the data go through such a proxy, if it can be read directly.
+
+This integration will work __only__ with the __IR__ Version of the Tibber Pulse. There are other versions: P1, HAN or KM (sold in countries like Sweden, Norway or Netherlands) that __are not compatible__ with this integration. If you are not sure, what Tibber Pulse version you have just check, if you have an additional 'Bridge' device - which is basically an additional thing, that you have to plug into a power outlet (see the picture below). 
 
 __Please note__, _that this integration is not official and not supported by the tibber development team. I am not affiliated with tibber in any way._
 
@@ -20,9 +22,9 @@ Please consider [using my personal Tibber invitation link to join Tibber today](
 
 ## Know Issues
 
-- The Tibber Pulse Bridge supporting different communication modes (when fetching data from electricity meter). Here I need your help! Obviously I have one electricity meter here at home. This meter is communicating via a protocol called SML 1.04 and this is currently the __only__ one that is supported/implemented.
+- The Tibber Pulse IR Bridge supporting different communication modes (when fetching data from electricity meter). Here I need your help! Obviously I have one electricity meter here at home. This meter is communicating via a protocol called SML 1.04 and this is currently the __only__ one that is supported/implemented.
 
-  The Tibber Bridge supporting also the modes: AutoScanMode, IEC-62056.21, Logarex and Impressions (Blinks / kwh) using ambient or IR sensors. In order to support these other modes I would need sample data from you. If your Tibber Pulse using one of these communications protocols, please be so kind and create here an issue in github - TIA!
+  The Tibber Bridge supporting also the modes: AutoScanMode, IEC-62056.21, Logarex and Impressions (Blinks / kwh) using ambient or IR sensors. In order to support these other modes I would need sample data from you. If your Tibber Pulse IR using one of these communications protocols, please be so kind and create here an issue in github - TIA!
 
 - Sometimes the Pulse deliver a data-package that does not contain valid data (looks like the build in webserver have a response buffer issue?). These invalid packages can't be read with the [python SML-Lib](https://github.com/spacemanspiff2007/SmlLib) and you will find then in the HA-log some `Bytes missing...` or `CRC while parse data...` messages. (when logging on INFO Level)
 
@@ -38,7 +40,7 @@ In order to speed up the support process you might like already prepare and prov
 
 ## Kudos
 
-- [@spacemanspiff2007](https://github.com/spacemanspiff2007) for providing a Python SML lib that makes reading the data from the Pulse almost effortless for a python noob like me
+- [@spacemanspiff2007](https://github.com/spacemanspiff2007) for providing a Python SML lib that makes reading the data from the Pulse IR almost effortless for a python noob like me
 - [@ProfDrYoMan](https://github.com/ProfDrYoMan) for providing the initial idea. I failed to setup the ESP32 stuff, so I took the approach writing this custom integration
 
 ## Preparation: Enabling the web frontend of the Tibber Pulse Bridge [*Required*]
@@ -137,9 +139,9 @@ Add custom integration using the web interface and follow instruction on screen.
 
 __IMPORTANT to know__: During the setup of this integration it will be checked, if there is at least one OBIS-Code (data field) available from the bridge. If there is no field/data available that can be read, the setup process will fail (with the message that no connection is possible).
 
-## Additional entities to get status information about your Tibber Pulse itself
+## Additional entities to get status information about your Tibber Pulse IR itself
 
-Beside the data that the Tibber Pulse is reading from your electricity meter, the device is also provide additional information about its own status. Since the assumption is that you want to read this additional status information with a much lower update-interval (less frequent) the usage of a REST-Entity template a (IMHO) simple way to archive your goal.
+Beside the data that the Tibber Pulse IR is reading from your electricity meter, the device is also provide additional information about its own status. Since the assumption is that you want to read this additional status information with a much lower update-interval (less frequent) the usage of a REST-Entity template a (IMHO) simple way to archive your goal.
 
 ### REST-Template in your HA configuration.yaml
 
