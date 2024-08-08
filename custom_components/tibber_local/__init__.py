@@ -38,6 +38,7 @@ CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS = ["sensor"]
 
+
 def mask_map(d):
     for k, v in d.copy().items():
         if isinstance(v, dict):
@@ -52,6 +53,7 @@ def mask_map(d):
             d[k] = v
     return d
 
+
 async def async_setup(hass: HomeAssistant, config: dict):
     return True
 
@@ -62,7 +64,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
                                                                config_entry.data.get(CONF_SCAN_INTERVAL,
                                                                                      DEFAULT_SCAN_INTERVAL)))
 
-    _LOGGER.info(f"Starting TibberLocal with interval: {SCAN_INTERVAL} - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
+    _LOGGER.info(
+        f"Starting TibberLocal with interval: {SCAN_INTERVAL} - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
 
     if DOMAIN not in hass.data:
         value = "UNKOWN"
@@ -99,7 +102,8 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         # initial configuration phase - so we read it from the config_entry.data ONLY!
         com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
 
-        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=async_get_clientsession(hass), node_num=node_num,
+        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=async_get_clientsession(hass),
+                                        node_num=node_num,
                                         com_mode=com_mode, options={"ignore_parse_errors": ignore_parse_errors})
         self.name = config_entry.title
         self._config_entry = config_entry
@@ -204,7 +208,10 @@ class IntBasedObisCode:
             _c = int(obis_src[3])
             _d = int(obis_src[4])
             _e = int(obis_src[5])
-            _f = int(obis_src[6])
+            if obis_src[6] is not None and len(obis_src[6]) > 0:
+                _f = int(obis_src[6])
+            else:
+                _f = 255
 
             # self.obis_code = f'{_a}-{_b}:{_c}.{_d}.{_e}*{_f}'
             # self.obis_short = f'{_c}.{_d}.{_e}'
@@ -224,9 +231,8 @@ class IntBasedObisCode:
 
 
 class TibberLocalBridge:
-
     ONLY_DIGITS: re.Pattern = re.compile("^[0-9]+$")
-    PLAIN_TEXT_LINE: re.Pattern = re.compile('(.*?)-(.*?):(.*?)\\.(.*?)\\.(.*?)\\*(.*?)\\((.*?)\\)')
+    PLAIN_TEXT_LINE: re.Pattern = re.compile('(.*?)-(.*?):(.*?)\\.(.*?)\\.(.*?)(?:\\*(.*?)|)\\((.*?)\\)')
 
     # _communication_mode 'MODE_3_SML_1_04' is the initial implemented mode (reading binary sml data)...
     # 'all' other modes have to be implemented... also it could be, that the bridge does
@@ -263,7 +269,7 @@ class TibberLocalBridge:
         if self._com_mode not in ENUM_IMPLEMENTATIONS:
             raise ValueError(f"NOT IMPLEMENTED yet! - Mode: {self._com_mode}")
 
-    async def _check_modes_internal(self, mode_1:int, mode_2:int):
+    async def _check_modes_internal(self, mode_1: int, mode_2: int):
         _LOGGER.debug(f"detect_com_mode is {self._com_mode}: will try to read {mode_1}")
         await self.read_tibber_local(mode_1, False, log_payload=True)
         if len(self._obis_values) > 0:
@@ -322,13 +328,13 @@ class TibberLocalBridge:
             except Exception as exec:
                 _LOGGER.warning(f"access to bridge failed with exception: {exec}")
 
-    def check_first_six_parts_for_digits(self, parts: list[str]) -> bool:
+    def check_first_six_parts_for_digits_or_last_is_none(self, parts: list[str]) -> bool:
         return (self.ONLY_DIGITS.match(parts[1]) is not None and
                 self.ONLY_DIGITS.match(parts[2]) is not None and
                 self.ONLY_DIGITS.match(parts[3]) is not None and
                 self.ONLY_DIGITS.match(parts[4]) is not None and
                 self.ONLY_DIGITS.match(parts[5]) is not None and
-                self.ONLY_DIGITS.match(parts[6]) is not None)
+                (parts[6] is None or self.ONLY_DIGITS.match(parts[6]) is not None))
 
     async def read_plaintext(self, plaintext: str, retry: bool, log_payload: bool):
         try:
@@ -347,7 +353,7 @@ class TibberLocalBridge:
                     # obis pattern is 'a-b:c.d.e*f'
                     parts = re.split(self.PLAIN_TEXT_LINE, a_line)
                     if len(parts) == 9:
-                        if self.check_first_six_parts_for_digits(parts):
+                        if self.check_first_six_parts_for_digits_or_last_is_none(parts):
                             int_obc = IntBasedObisCode(parts, not self.ignore_parse_errors)
                             value = parts[7]
                             unit = None
@@ -382,7 +388,7 @@ class TibberLocalBridge:
                         elif len(parts[0]) > 0 and parts[0][0] != '/':
                             if not self.ignore_parse_errors:
                                 _LOGGER.debug(f"unknown entry: {parts[0]} (line: '{a_line}')")
-                        #else:
+                        # else:
                         #    print('ignore '+ parts[0])
 
                 except Exception as e:
@@ -534,22 +540,26 @@ class TibberLocalBridge:
     @property
     def attr0100100700ff(self) -> float:
         # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
-        return self._get_value_internal(['0100100700ff', '0100010700ff',  '01000107ffff',  '0100020700ff', '01000f0700ff'])
+        return self._get_value_internal(
+            ['0100100700ff', '0100010700ff', '01000107ffff', '0100020700ff', '01000f0700ff'])
 
     @property
     def attr0100240700ff(self) -> float:
         # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
-        return self._get_value_internal(['0100240700ff', '0100150700ff', '01001507ffff', '0100160700ff', '0100230700ff'])
+        return self._get_value_internal(
+            ['0100240700ff', '0100150700ff', '01001507ffff', '0100160700ff', '0100230700ff'])
 
     @property
     def attr0100380700ff(self) -> float:
         # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
-        return self._get_value_internal(['0100380700ff', '0100290700ff', '01002907ffff', '01002a0700ff', '0100370700ff'])
+        return self._get_value_internal(
+            ['0100380700ff', '0100290700ff', '01002907ffff', '01002a0700ff', '0100370700ff'])
 
     @property
     def attr01004c0700ff(self) -> float:
         # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
-        return self._get_value_internal(['01004c0700ff', '01003d0700ff', '01003d07ffff', '01003e0700ff', '01004b0700ff'])
+        return self._get_value_internal(
+            ['01004c0700ff', '01003d0700ff', '01003d07ffff', '01003e0700ff', '01004b0700ff'])
 
     @property
     def attr0100200700ff(self) -> float:
