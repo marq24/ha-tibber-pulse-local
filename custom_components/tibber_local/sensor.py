@@ -3,8 +3,8 @@ import logging
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.typing import StateType
 from homeassistant.util import slugify
-
 from . import TibberLocalDataUpdateCoordinator, TibberLocalEntity
 from .const import (
     DOMAIN,
@@ -77,14 +77,18 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
             self._attr_suggested_display_precision = 2
 
     @property
-    def state(self):
-        """Return the current state."""
-        value = getattr(self.coordinator.bridge, 'attr' + self.entity_description.key)
-        if type(value) != type(False):
-            try:
-                rounded_value = round(float(value), self._attr_suggested_display_precision)
-                return rounded_value
-            except (ValueError, TypeError):
-                return value
-        else:
-            return value
+    def native_value(self) -> StateType:
+        return getattr(self.coordinator.bridge, 'attr' + self.entity_description.key)
+
+    # @property
+    # def state(self):
+    #     """Return the current state."""
+    #     value = getattr(self.coordinator.bridge, 'attr' + self.entity_description.key)
+    #     if type(value) != type(False):
+    #         try:
+    #             rounded_value = round(float(value), self._attr_suggested_display_precision)
+    #             return rounded_value
+    #         except (ValueError, TypeError):
+    #             return value
+    #     else:
+    #         return value
