@@ -1,8 +1,5 @@
 {
   "name": "Tibber Pulse Local",
-  "country": [
-    "ALL"
-  ],
   "homeassistant": "2023.0.6",
   "hacs": "1.18.0",
   "render_readme": true
