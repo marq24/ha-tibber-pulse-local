@@ -102,19 +102,16 @@ When you open the web frontend of the bridge, you have to provide the user `admi
 
 Now (when the frontend works for you) all is prepared, so you can install and use this `Tibber Local Polling` integration
 
-## Installation
+## Setup / Installation
 
-### Hacs
-
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+### Installation using HACS
 
 - Install [Home Assistant Community Store (HACS)](https://hacs.xyz/)
-- Add custom repository https://github.com/marq24/ha-tibber-pulse-local to HACS
 - Add integration repository (search for "Tibber Pulse Local" in "Explore & Download Repositories")
-    - Select latest version or `main`
+  - Select latest version or `main`
 - Restart Home Assistant to install all dependencies
 
-### Manual
+### Manual installation
 
 - Copy all files from `custom_components/tibber_local/` to `custom_components/tibber_local/` inside your config Home Assistant directory.
 - Restart Home Assistant to install all dependencies
@@ -257,7 +254,7 @@ Here just another example with just a single value (without additional atributes
 ```
 
 [hacs]: https://github.com/hacs/integration
-[hacsbadge]: https://img.shields.io/badge/HACS-custom-orange.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
+[hacsbadge]: https://img.shields.io/badge/HACS-Default-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
 
 [ghs]: https://github.com/sponsors/marq24
 [ghsbadge]: https://img.shields.io/github/sponsors/marq24?style=for-the-badge&logo=github&logoColor=ccc&link=https%3A%2F%2Fgithub.com%2Fsponsors%2Fmarq24&label=Sponsors
