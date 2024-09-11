@@ -81,7 +81,7 @@ When connected, select the param tab, there find and set the variable `webserver
 
 After setting and saving the value, remember to press *"Store params to flash"* on the bottom of the page.
 
-__Please do not modify and other values in the params__
+__Please do not modify any other values in the params!__
 
 ### 4. Bring your Pulse & Bridge back to normal operation
 
