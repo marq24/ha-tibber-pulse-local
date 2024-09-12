@@ -83,6 +83,13 @@ After setting and saving the value, remember to press *"Store params to flash"* 
 
 __Please do not modify any other values in the params!__
 
+### What to do when there is no `webserver_force_enable` on the param tab?!
+
+Looks like that with recent firmware release tibber have decided to remove (aka 'hide') the `webserver_force_enable` from the param list. This does not mean (for now) that you can't use the integration.
+
+[Please have a look at the discussion here in order to find info what you can try](https://github.com/marq24/ha-tibber-pulse-local/discussions/38). Please share in the discussion, if you had been successful - TIA.
+
+
 ### 4. Bring your Pulse & Bridge back to normal operation
 
 Unplug the Tibber bridge, wait __ten seconds__ and plug it back again. Now it should connect back to your previously configured WiFi and should work as before (submit the data to Tibber) - the LED should light up light blue again.
