@@ -75,7 +75,7 @@ Now use any device (laptop, tablet, phone) to connect to the `Tibber Bridge` WiF
 
 After you are connected to the WiFi that have been created by the Pulse Bridge with your laptop/phone, use a web browser on that device to connect to <http://10.133.70.1/>. You will be prompted for a user and a password (BasicAuth).
 
-The username is ```admin``` and the password is again the nine characters printed on the Tibber bridge.
+The username is `admin` and the password is again the nine characters printed on the Tibber bridge.
 
 When connected, select the param tab, there find and set the variable `webserver_force_enable` to `true`.
 
@@ -85,16 +85,15 @@ __Please do not modify any other values in the params!__
 
 ### What to do when there is no `webserver_force_enable` on the param tab?!
 
-Looks like that with recent firmware release tibber have decided to remove (aka 'hide') the `webserver_force_enable` from the param list. This does not mean (for now) that you can't use the integration.
-
-[Please have a look at the discussion here in order to find info what you can try](https://github.com/marq24/ha-tibber-pulse-local/discussions/38). Please share in the discussion, if you had been successful - TIA.
-
+With a recent firmware release the `webserver_force_enable` flag (39) does __not appear__ any longer in the param list. This does __not__ mean that you can't use the integration! [Please have a look at the discussion [_What to do when there is no webserver_force_enable on the param tab of your Tibber Pulse IR Bridge_] in order to find an alternative approach to set the flag](https://github.com/marq24/ha-tibber-pulse-local/discussions/38). Please share also in the discussion, if you had been successful - TIA.
 
 ### 4. Bring your Pulse & Bridge back to normal operation
 
 Unplug the Tibber bridge, wait __ten seconds__ and plug it back again. Now it should connect back to your previously configured WiFi and should work as before (submit the data to Tibber) - the LED should light up light blue again.
 
-### 5. Final testing [do not continue if you did not completed this final step]
+### 5. Final testing [do not continue if you did not complete this final step]
+
+#### Part I: Access the web frontent
 
 After you have successfully reset the Tibber bridge (AP mode is OFF and you are back in normal operation mode). Since you have set the `webserver_force_enable` to `true` the web frontend should now be still accessible via the following URL:
 <http://tibber-host/> or <http://tibber-bridge/>.
@@ -103,11 +102,24 @@ If the hostname 'tibber-host' (or 'tibber-bridge') is not going to work for you 
 
 Personally I have configured my router in a way, that the Pulse Bridge gets allways the same IP assigned. I just can recommend to do the same. Since accessing the device via IP (instead of the host name) will save you DNS-Lookups.
 
-When you open the web frontend of the bridge, you have to provide the user `admin` and the password always.
+When you open the web frontend of the bridge, you always have to provide the user `admin` and the password.
 
 ![img|160x90](images/web-frontend.png)
 
-Now (when the frontend works for you) all is prepared, so you can install and use this `Tibber Local Polling` integration
+Now (when the frontend works for you) almost everything is prepared... Just one more thing to check:
+
+#### Part II: Ensure that there is at least one node paired with the bridge
+
+For what ever reasons there are experts out there, trying to use this integration _without having paired_ the Tibber Pulse reading head (the part is mounted at your power meter) with the Tibber Pulse Bridge. For sure this not going to work! The pairing procedure is part of the regular Tibber Pulse setup process with your Tibber app - so probably you have done this already - but just in case:
+
+Please double-check by opening the `http://[YOUR_IP]/nodes/` section (you can select from the menu the 'NODES' entry) and ensure, that there is at least one node listed - which means that the bridge is connected with the reading-head-unit.
+
+Here you can also check, if the node is listed with the (expected) default NodeId value `1`. If you have a different NodeId, then you need to adjust the expert setting `Node Number (expert setting)` when configure this integration.
+
+
+#### Finally, you are done!
+
+When part I & II is completed/confirmed, __then__ you can install and use this `Tibber Local Polling` integration
 
 ## Setup / Installation
 

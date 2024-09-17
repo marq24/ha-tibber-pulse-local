@@ -1,6 +1,5 @@
 name: Problem Report
 description: Please report any technical issue with this home assistant integration - please note this is not a official Tibber repository or service
-labels: bug
 body:
   - type: checkboxes
     id: checklist
@@ -8,6 +7,8 @@ body:
       label: Checklist
       description: Please go though this short checklist - TIA
       options:
+        - label: I have followed the install preparation procedure - including the verification part I & II.
+          required: true
         - label: I have installed the **latest** release (or BETA) version of the integration and home assistant.
           required: true
         - label: I have prepared DEBUG log output (for technical issues) |
