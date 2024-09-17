@@ -1,0 +1,105 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "A integração já está configurada"
+    },
+    "error": {
+      "login_failed": "Falha ao iniciar sessão - verifique o host e/ou a palavra-passe",
+      "cannot_connect": "Falha ao conectar",
+      "unknown": "Erro desconhecido",
+      "no_data": "Não foi possível ler quaisquer dados do dispositivo",
+      "unknown_mode": "Por favor, verifique o IP/host ou o Número de Nó fornecido - se tem a certeza de que a sua informação está correta, o Tibber Pulse está a comunicar através de um protocolo que ainda não foi implementado - por favor, crie um log de DEBUG e abra uma questão no GitHub - necessito de dados de exemplo - Obrigado"
+    },
+    "step": {
+      "user": {
+        "description": "Por favor, especifique a informação de conexão local para a sua Tibber Pulse Bridge.\n\n\nDeve ter ativado a flag 'webserver_force_enable'!\n\n\nSe precisar de ajuda com a configuração, consulte: https://github.com/marq24/ha-tibber-pulse-local",
+        "data": {
+          "name": "Nome de exibição",
+          "host": "IP ou hostname da Tibber Pulse Bridge",
+          "password": "A sua palavra-passe da bridge - [A palavra-passe encontra-se na Tibber Bridge - abaixo do código QR]",
+          "scan_interval": "Intervalo de sondagem em segundos",
+          "node_num": "Número do Nó (configuração avançada)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "description": "Se precisar de ajuda com a configuração, consulte aqui: https://github.com/marq24/ha-tibber-pulse-local",
+        "data": {
+          "name": "Nome de exibição",
+          "host": "IP ou hostname da Tibber Pulse Bridge",
+          "password": "A sua palavra-passe da bridge - [A palavra-passe encontra-se na Tibber Bridge - abaixo do código QR]",
+          "scan_interval": "Intervalo de sondagem em segundos",
+          "node_num": "Número do Nó (configuração avançada)",
+          "ignore_errors": "Não registar erros ou avisos ao analisar dados"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "0100010800ff": {
+        "name": "Importação total"
+      },
+      "0100020800ff": {
+        "name": "Exportação total"
+      },
+      "0100010800ff_in_k": {
+        "name": "Importação total (kWh)"
+      },
+      "0100020800ff_in_k": {
+        "name": "Exportação total (kWh)"
+      },
+      "0100100700ff": {
+        "name": "Potência (atual)"
+      },
+      "0100240700ff": {
+        "name": "Potência L1"
+      },
+      "0100380700ff": {
+        "name": "Potência L2"
+      },
+      "01004c0700ff": {
+        "name": "Potência L3"
+      },
+      "0100200700ff": {
+        "name": "Potencial L1"
+      },
+      "0100340700ff": {
+        "name": "Potencial L2"
+      },
+      "0100480700ff": {
+        "name": "Potencial L3"
+      },
+      "01001f0700ff": {
+        "name": "Corrente L1"
+      },
+      "0100330700ff": {
+        "name": "Corrente L2"
+      },
+      "0100470700ff": {
+        "name": "Corrente L3"
+      },
+      "01000e0700ff": {
+        "name": "Frequência da rede"
+      },
+      "0100510701ff": {
+        "name": "Desvio de Fase Potencial L1/L2"
+      },
+      "0100510702ff": {
+        "name": "Desvio de Fase Potencial L1/L3"
+      },
+      "0100510704ff": {
+        "name": "Desvio de Fase Corrente/Potencial L1"
+      },
+      "010051070fff": {
+        "name": "Desvio de Fase Corrente/Potencial L2"
+      },
+      "010051071aff": {
+        "name": "Desvio de Fase Corrente/Potencial L3"
+      }
+    }
+  }
+}
