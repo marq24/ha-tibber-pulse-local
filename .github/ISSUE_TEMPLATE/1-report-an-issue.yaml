@@ -7,7 +7,7 @@ body:
       label: Checklist
       description: Please go though this short checklist - TIA
       options:
-        - label: I have followed the install preparation procedure - including the verification part I & II.
+        - label: I have followed the install preparation procedure - including the verification part I, II & III.
           required: true
         - label: I have installed the **latest** release (or BETA) version of the integration and home assistant.
           required: true

@@ -69,7 +69,7 @@ NOW the LED on the Tibber bridge should now light up green and not light blue an
 
 Now use any device (laptop, tablet, phone) to connect to the `Tibber Bridge` WiFi network. The password for the WiFi is the nine characters printed on the Tibber bridge - it's important to include the dash. The password should have the pattern like this example one: `AD56-54BA`.
 
-![img|160x90](images/bridge-pwd-location.png)
+![img|160x90](https://github.com/marq24/ha-tibber-pulse-local/raw/main/images/bridge-pwd-location.png)
 
 ### 3. Set `webserver_force_enable` to `true` in the web frontend
 
@@ -77,15 +77,35 @@ After you are connected to the WiFi that have been created by the Pulse Bridge w
 
 The username is `admin` and the password is again the nine characters printed on the Tibber bridge.
 
-When connected, select the param tab, there find and set the variable `webserver_force_enable` to `true`.
+Depending on the hardware revision and firmware there are two alternatives to archive this goal. Please select the procedure that fit your situation.
 
-After setting and saving the value, remember to press *"Store params to flash"* on the bottom of the page.
+#### Via CONSOLE-Tab
 
-__Please do not modify any other values in the params!__
+With a recent firmware release the `webserver_force_enable` flag (39) does __not appear__ any longer in the param list. So the console tab is the way to go!
 
-### What to do when there is no `webserver_force_enable` on the param tab?!
+1. Go to <http://10.133.70.1/console/>
+2. type `param_get 39` (just to ensure, that the system still know the `webserver_force_enable` parameter) - you can also try to type `param_get webserver_force_enable` [and press the `send` button afterwards] - this should give you some output like this:
+   ```
+   tibber-bridge> param_get 39
+   esp32> param_get 39
+   webserver_force_enable (39):
+   false
+   Command 'param_get 39' executed successfully
+   ```
+3. So if `39` (= `webserver_force_enable`) is still present, then and __only then__ you can continue!
 
-With a recent firmware release the `webserver_force_enable` flag (39) does __not appear__ any longer in the param list. This does __not__ mean that you can't use the integration! [Please have a look at the discussion [_What to do when there is no webserver_force_enable on the param tab of your Tibber Pulse IR Bridge_] in order to find an alternative approach to set the flag](https://github.com/marq24/ha-tibber-pulse-local/discussions/38). Please share also in the discussion, if you had been successful - TIA.
+4. type `param_set 39 TRUE` (the upper case of TRUE is important here) [and press the `send` button afterward]
+5. type `param_store` [and press the `send` button afterward]
+6. for confirmation, you can type again `param_get 39` [and press the `send` button afterward]
+
+#### Via PARAMS-Tab [previously the default procedure]
+
+1. Go to <http://10.133.70.1/params/>
+2. Find the variable `webserver_force_enable` in the list
+3. Set the value to `true` (lower case)
+4. Press *"Store params to flash"* on the bottom of the page.
+
+__Please do not modify any other values in the params list!__
 
 ### 4. Bring your Pulse & Bridge back to normal operation
 
@@ -104,7 +124,7 @@ Personally I have configured my router in a way, that the Pulse Bridge gets allw
 
 When you open the web frontend of the bridge, you always have to provide the user `admin` and the password.
 
-![img|160x90](images/web-frontend.png)
+![img|160x90](https://github.com/marq24/ha-tibber-pulse-local/raw/main/images/web-frontend.png)
 
 Now (when the frontend works for you) almost everything is prepared... Just one more thing to check:
 
@@ -116,10 +136,25 @@ Please double-check by opening the `http://[YOUR_IP]/nodes/` section (you can se
 
 Here you can also check, if the node is listed with the (expected) default NodeId value `1`. If you have a different NodeId, then you need to adjust the expert setting `Node Number (expert setting)` when configure this integration.
 
+#### Part III: Check 'Last seen' & 'Last data' [update frequency]
+
+1. Go to `http://[YOUR-IP]/nodes/` (just like in part II)
+2. Take a look at the value `Last data`
+   
+   This last data value is the last time (in seconds) the bridge have received a data update from the reading head. This value should not be higher than 2.5-5seconds.
+  
+   If your `Last data` is frequently recently greater than this, then this integration can't work in a reliable way.
+   
+   __Rotate the reading head few degrees anti-clock wise in order to check, if the update frequency will be better (smaller).__ 
+   
+   ![img|20x20](https://github.com/marq24/ha-tibber-pulse-local/raw/main/images/rotate_head.png)
+   
+   Please also have a [look at the post from @ckarrie](https://github.com/marq24/ha-tibber-pulse-local/issues/6#issuecomment-1791117188) in order to learn a difference even few degrees can make!
+
 
 #### Finally, you are done!
 
-When part I & II is completed/confirmed, __then__ you can install and use this `Tibber Local Polling` integration
+When part I, II & III are completed/confirmed, __then__ you can install and use this `Tibber Local Polling` integration.
 
 ## Setup / Installation
 
