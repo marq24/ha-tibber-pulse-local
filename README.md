@@ -158,25 +158,32 @@ When part I, II & III are completed/confirmed, __then__ you can install and use 
 
 ## Setup / Installation
 
-### Installation using HACS
+### Step I: Install the integration
+
+#### Option 1: via HACS
 
 - Install [Home Assistant Community Store (HACS)](https://hacs.xyz/)
 - Add integration repository (search for "Tibber Pulse Local" in "Explore & Download Repositories")
-  - Select latest version or `main`
-- Restart Home Assistant to install all dependencies
+- Use the 3-dots at the right of the list entry (not at the top bar!) to download/install the custom integration - the latest release version is automatically selected. Only select a different version if you have specific reasons.
+- After you presses download and the process has completed, you must __Restart Home Assistant__ to install all dependencies
+- Setup the custom integration as described below (see _Step II: Adding or enabling the integration_)
 
-### Manual installation
+#### Option 2: manual steps
 
 - Copy all files from `custom_components/tibber_local/` to `custom_components/tibber_local/` inside your config Home Assistant directory.
 - Restart Home Assistant to install all dependencies
 
-### Adding or enabling integration
+### Step II: Adding or enabling the integration
 
-#### My Home Assistant (2021.3+)
+__You must have installed the integration (manually or via HACS before)!__
+
+#### Option 1: My Home Assistant (2021.3+)
+
+Just click the following Button to start the configuration automatically (for the rest see _Option 2: Manually steps by step_):
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=tibber_local)
 
-#### Manual
+#### Option 2: Manually steps by step
 
 Add custom integration using the web interface and follow instruction on screen.
 
