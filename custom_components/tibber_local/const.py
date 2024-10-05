@@ -1,12 +1,11 @@
-from typing import Final
 from dataclasses import dataclass
+from typing import Final
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntityDescription,
     SensorStateClass,
 )
-
 from homeassistant.const import (
     UnitOfElectricPotential,
     UnitOfElectricCurrent,
@@ -15,7 +14,6 @@ from homeassistant.const import (
     UnitOfPower,
     DEGREE,
 )
-from homeassistant.helpers.entity import EntityCategory
 
 DOMAIN: Final = "tibber_local"
 MANUFACTURE: Final = "Tibber"
@@ -133,7 +131,7 @@ SENSOR_TYPES = [
         name="Potential L1",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         icon="mdi:lightning-bolt",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Spannung L2
@@ -142,7 +140,7 @@ SENSOR_TYPES = [
         name="Potential L2",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         icon="mdi:lightning-bolt",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Spannung L3
@@ -151,7 +149,7 @@ SENSOR_TYPES = [
         name="Potential L3",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         icon="mdi:lightning-bolt",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
 
@@ -161,7 +159,7 @@ SENSOR_TYPES = [
         name="Current L1",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         icon="mdi:current-ac",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Strom L2
@@ -170,7 +168,7 @@ SENSOR_TYPES = [
         name="Current L2",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         icon="mdi:current-ac",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Strom L3
@@ -179,7 +177,7 @@ SENSOR_TYPES = [
         name="Current L3",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         icon="mdi:current-ac",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
     ),
 
@@ -200,7 +198,7 @@ SENSOR_TYPES = [
         suggested_display_precision=1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
-        device_class=SensorDeviceClass.POWER,
+        device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Phasenabweichung Spannungen L1/L3
@@ -210,7 +208,7 @@ SENSOR_TYPES = [
         suggested_display_precision=1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
-        device_class=SensorDeviceClass.POWER,
+        device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
     ),
 
@@ -221,7 +219,7 @@ SENSOR_TYPES = [
         suggested_display_precision=1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Phasenabweichung Strom/Spannung L2
@@ -231,7 +229,7 @@ SENSOR_TYPES = [
         suggested_display_precision=1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     # Phasenabweichung Strom/Spannung L3
@@ -241,7 +239,7 @@ SENSOR_TYPES = [
         suggested_display_precision=1,
         native_unit_of_measurement=DEGREE,
         icon="mdi:sine-wave",
-        device_class=SensorDeviceClass.ENERGY,
+        device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
     ),
 ]
