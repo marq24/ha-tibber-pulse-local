@@ -4,6 +4,11 @@ import re
 from datetime import timedelta
 
 import voluptuous as vol
+from smllib import SmlStreamReader
+from smllib.const import UNITS
+from smllib.errors import CrcError
+from smllib.sml import SmlListEntry, ObisCode
+
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant
@@ -11,11 +16,6 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import EntityDescription, Entity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from smllib import SmlStreamReader
-from smllib.const import UNITS
-from smllib.errors import CrcError
-from smllib.sml import SmlListEntry, ObisCode
-
 from .const import (
     DOMAIN,
     MANUFACTURE,
@@ -349,6 +349,12 @@ class TibberLocalBridge:
                 try:
                     # a patch for invalid reading?!
                     # a_line = a_line.replace('."55*', '.255*')
+
+                    # looks like that in the format 'IEC-62056-21' there are the '1-0:' is missing ?! [this is really
+                    # a very DUMP implementation]
+                    if a_line[1] != '-' and a_line[3] != ':' and '*' in a_line and '(' in a_line and ')' in a_line:
+                        a_line = '1-0:' + a_line
+                        pass
 
                     # obis pattern is 'a-b:c.d.e*f'
                     parts = re.split(self.PLAIN_TEXT_LINE, a_line)
