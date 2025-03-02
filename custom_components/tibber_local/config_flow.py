@@ -3,13 +3,14 @@ import logging
 
 import voluptuous as vol
 from aiohttp import ClientResponseError
+from requests.exceptions import HTTPError, Timeout
+
+from custom_components.tibber_local import TibberLocalBridge
 from homeassistant import config_entries
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from requests.exceptions import HTTPError, Timeout
-
-from custom_components.tibber_local import TibberLocalBridge
+from homeassistant.util import slugify
 from .const import (
     DOMAIN,
     DEFAULT_NAME,
@@ -29,19 +30,27 @@ _LOGGER = logging.getLogger(__name__)
 def tibber_local_entries(hass: HomeAssistant):
     conf_hosts = []
     for entry in hass.config_entries.async_entries(DOMAIN):
-        if hasattr(entry, 'options') and CONF_HOST in entry.options:
-            conf_hosts.append(entry.options[CONF_HOST])
-        else:
-            conf_hosts.append(entry.data[CONF_HOST])
+        a_host = entry.data[CONF_HOST]
+        a_node = entry.data[CONF_NODE_NUMBER]
+
+        if hasattr(entry, 'options'):
+            if CONF_HOST in entry.options:
+                a_host = entry.options[CONF_HOST]
+            if CONF_NODE_NUMBER in entry.options:
+                a_node = entry.options[CONF_NODE_NUMBER]
+
+        conf_hosts.append(f"{a_node}@@{a_host}")
     return conf_hosts
 
 
 @staticmethod
-def _host_in_configuration_exists(host: str, hass: HomeAssistant) -> bool:
-    if host in tibber_local_entries(hass):
+def _host_in_configuration_exists(a_host: str, a_node, hass: HomeAssistant) -> bool:
+    if f"{a_node}@@{a_host}" in tibber_local_entries(hass):
         return True
     return False
 
+def _config_title_exists(a_title: str, hass: HomeAssistant) -> bool:
+    return slugify(a_title) in [slugify(a_entry.title) for a_entry in hass.config_entries.async_entries(DOMAIN)]
 
 class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
@@ -113,8 +122,11 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             scan = user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
             node_num = user_input.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)
 
-            if _host_in_configuration_exists(host, self.hass):
+            if _config_title_exists(name, self.hass):
+                self._errors[CONF_NAME] = "already_configured"
+            elif _host_in_configuration_exists(host, node_num, self.hass):
                 self._errors[CONF_HOST] = "already_configured"
+                self._errors[CONF_NODE_NUMBER] = "already_configured"
             else:
                 if await self._test_connection_tibber_local(host, pwd, node_num):
 
@@ -195,18 +207,19 @@ class TibberLocalOptionsFlowHandler(config_entries.OptionsFlow):
                 host_entry = host_entry.replace("http://", "")
             if host_entry.startswith('https://'):
                 host_entry = host_entry.replace("https://", "")
-
             user_input[CONF_HOST] = host_entry
 
+            node_num = user_input[CONF_NODE_NUMBER]
             self.options.update(user_input)
-            if self.data.get(CONF_HOST) != self.options.get(CONF_HOST):
+            if self.data.get(CONF_HOST) != self.options.get(CONF_HOST) or self.data.get(CONF_NODE_NUMBER) != self.options.get(CONF_NODE_NUMBER):
                 # ok looks like the host has been changed... we need to do some things...
-                if _host_in_configuration_exists(host_entry, self.hass):
+                if _host_in_configuration_exists(host_entry, node_num, self.hass):
                     self._errors[CONF_HOST] = "already_configured"
+                    self._errors[CONF_NODE_NUMBER] = "already_configured"
                 else:
                     return self._update_options()
             else:
-                # host did not change...
+                # host/node-number did not change...
                 return self._update_options()
 
         return self.async_show_form(
