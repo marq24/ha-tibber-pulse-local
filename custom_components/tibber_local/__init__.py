@@ -6,8 +6,8 @@ from datetime import timedelta
 import voluptuous as vol
 from smllib import SmlStreamReader
 from smllib.const import UNITS
-from smllib.errors import CrcError
-from smllib.sml import SmlListEntry, ObisCode
+from smllib.errors import CrcError, SmlLibException
+from smllib.sml import SmlListEntry, ObisCode, SmlGetListResponse, SmlCloseResponse, SmlOpenResponse
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
@@ -443,10 +443,36 @@ class TibberLocalBridge:
             else:
                 self._obis_values = {}
                 self._obis_values_by_short = {}
-                # Shortcut to extract all values without parsing the whole frame
-                for entry in sml_frame.get_obis():
-                    self._obis_values[entry.obis] = entry
-                    self._obis_values_by_short[entry.obis.obis_short] = entry
+                try:
+                    # Shortcut to extract all values without parsing the whole frame
+                    sml_list = sml_frame.get_obis()
+
+                except SmlLibException as source_exc:
+                    # see issue https://github.com/marq24/ha-tibber-pulse-local/issues/64
+                    # there exist some devices that will provide a more complex SML message structure...
+                    sml_list = None
+                    for msg in sml_frame.parse_frame():
+                        # ok we check, if there are multiple messages in the frame... (and we just need to get
+                        # the first one that contains the 'val_list' - so we can extract the values)
+                        if isinstance(msg.message_body, SmlGetListResponse) and hasattr(msg.message_body, "val_list"):
+                            temp_sml_list = msg.message_body.val_list
+                            if len(temp_sml_list) > 0 and isinstance(temp_sml_list[0], SmlListEntry):
+                                sml_list = temp_sml_list
+                                break
+                            else:
+                                _LOGGER.debug(f"skipping a SmlMessage(SmlGetListResponse): {msg.format_msg()}")
+                        elif isinstance(msg.message_body, (SmlOpenResponse, SmlCloseResponse)):
+                            _LOGGER.debug(f"skipping open or close message: {msg.message_body}")
+                        else:
+                            _LOGGER.debug(f"skipping a SmlMessage: {msg.format_msg()}")
+
+                    if sml_list is None and not self.ignore_parse_errors:
+                        _LOGGER.debug(f"Exception {source_exc} while 'sml_frame.get_obis()' (frame parsing did not work either) - payload: {payload}")
+
+                if sml_list is not None and len(sml_list) > 0:
+                    for entry in sml_list:
+                        self._obis_values[entry.obis] = entry
+                        self._obis_values_by_short[entry.obis.obis_short] = entry
 
         except CrcError as crc:
             if not self.ignore_parse_errors:
