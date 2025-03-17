@@ -449,24 +449,16 @@ class TibberLocalBridge:
 
                 except SmlLibException as source_exc:
                     # see issue https://github.com/marq24/ha-tibber-pulse-local/issues/64
-                    # there exist some devices that will provide a more complex SML message structure...
-                    sml_list = None
+                    # there exist some devices that can't be parsed via 'get_obis()'
+                    # see also my issue @ https://github.com/spacemanspiff2007/SmlLib/issues/28
+                    sml_list = []
                     for msg in sml_frame.parse_frame():
-                        # ok we check, if there are multiple messages in the frame... (and we just need to get
-                        # the first one that contains the 'val_list' - so we can extract the values)
-                        if isinstance(msg.message_body, SmlGetListResponse) and hasattr(msg.message_body, "val_list"):
-                            temp_sml_list = msg.message_body.val_list
-                            if len(temp_sml_list) > 0 and isinstance(temp_sml_list[0], SmlListEntry):
-                                sml_list = temp_sml_list
-                                break
-                            else:
-                                _LOGGER.debug(f"skipping a SmlMessage(SmlGetListResponse): {msg.format_msg()}")
-                        elif isinstance(msg.message_body, (SmlOpenResponse, SmlCloseResponse)):
-                            _LOGGER.debug(f"skipping open or close message: {msg.message_body}")
-                        else:
-                            _LOGGER.debug(f"skipping a SmlMessage: {msg.format_msg()}")
+                        # we simply get through all message bodies and check if we can find the 'val_list' - if so
+                        # we just add them to our result.
+                        for val in getattr(msg.message_body, 'val_list', []):
+                            sml_list.append(val)
 
-                    if sml_list is None and not self.ignore_parse_errors:
+                    if len(sml_list) == 0 and not self.ignore_parse_errors:
                         _LOGGER.debug(f"Exception {source_exc} while 'sml_frame.get_obis()' (frame parsing did not work either) - payload: {payload}")
 
                 if sml_list is not None and len(sml_list) > 0:
