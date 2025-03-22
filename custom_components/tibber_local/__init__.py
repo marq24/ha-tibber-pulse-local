@@ -7,7 +7,7 @@ import voluptuous as vol
 from smllib import SmlStreamReader
 from smllib.const import UNITS
 from smllib.errors import CrcError, SmlLibException
-from smllib.sml import SmlListEntry, ObisCode, SmlGetListResponse, SmlCloseResponse, SmlOpenResponse
+from smllib.sml import SmlListEntry, ObisCode
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
@@ -251,6 +251,9 @@ class TibberLocalBridge:
         self._obis_values = {}
         self._obis_values_by_short = {}
 
+        self._fallback_usage_counter = 0
+        self._use_fallback_by_default = False
+
     async def detect_com_mode(self):
         await self.detect_com_mode_from_node_param27()
         _LOGGER.debug(f"detect_com_mode: after detect_com_mode_from_node_param27 mode is: {self._com_mode}")
@@ -441,13 +444,26 @@ class TibberLocalBridge:
                     await asyncio.sleep(2.5)
                     await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
             else:
+                use_fallback_impl = self._use_fallback_by_default
+                a_source_exc = None
                 self._obis_values = {}
                 self._obis_values_by_short = {}
-                try:
-                    # Shortcut to extract all values without parsing the whole frame
-                    sml_list = sml_frame.get_obis()
 
-                except SmlLibException as source_exc:
+                if not use_fallback_impl:
+                    try:
+                        # Shortcut to extract all values without parsing the whole frame
+                        sml_list = sml_frame.get_obis()
+
+                    except SmlLibException as source_exc:
+                        use_fallback_impl = True
+                        a_source_exc = source_exc
+
+                        # if we have multiple times the same exception - we switch to the fallback implementation
+                        self._fallback_usage_counter = self._fallback_usage_counter + 1
+                        if self._fallback_usage_counter > 20:
+                            self._use_fallback_by_default = True
+
+                if use_fallback_impl:
                     # see issue https://github.com/marq24/ha-tibber-pulse-local/issues/64
                     # there exist some devices that can't be parsed via 'get_obis()'
                     # see also my issue @ https://github.com/spacemanspiff2007/SmlLib/issues/28
@@ -458,10 +474,10 @@ class TibberLocalBridge:
                         for val in getattr(msg.message_body, 'val_list', []):
                             sml_list.append(val)
 
-                    if len(sml_list) == 0 and not self.ignore_parse_errors:
-                        _LOGGER.debug(f"Exception {source_exc} while 'sml_frame.get_obis()' (frame parsing did not work either) - payload: {payload}")
+                    if a_source_exc is not None and len(sml_list) == 0 and not self.ignore_parse_errors:
+                        _LOGGER.debug(f"Exception {a_source_exc} while 'sml_frame.get_obis()' (frame parsing did not work either) - payload: {payload}")
 
-                if sml_list is not None and len(sml_list) > 0:
+            if sml_list is not None and len(sml_list) > 0:
                     for entry in sml_list:
                         self._obis_values[entry.obis] = entry
                         self._obis_values_by_short[entry.obis.obis_short] = entry
