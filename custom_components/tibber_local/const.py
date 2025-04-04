@@ -96,7 +96,7 @@ SENSOR_TYPES = [
     ),
     SensorEntityDescription(
         key="0100010801ff_in_k",
-        name="Import total (kWh)",
+        name="Import tariff 1 (kWh)",
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
@@ -105,7 +105,7 @@ SENSOR_TYPES = [
     ),
     SensorEntityDescription(
         key="0100010802ff_in_k",
-        name="Import total (kWh)",
+        name="Import tariff 2 (kWh)",
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
