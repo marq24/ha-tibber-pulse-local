@@ -27,11 +27,23 @@
       "0100010800ff": {
         "name": "Import total"
       },
+      "0100010801ff": {
+        "name": "Import tariff 1"
+      },
+      "0100010802ff": {
+        "name": "Import tariff 2"
+      },
       "0100020800ff": {
         "name": "Export total"
       },
       "0100010800ff_in_k": {
         "name": "Import total (kWh)"
+      },
+      "0100010801ff_in_k": {
+        "name": "Import tarrif 1 (kWh)"
+      },
+      "0100010802ff_in_k": {
+        "name": "Import tariff 2 (kWh)"
       },
       "0100020800ff_in_k": {
         "name": "Export total (kWh)"

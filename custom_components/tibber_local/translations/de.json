@@ -43,11 +43,23 @@
       "0100010800ff": {
         "name": "Gesamtbezug (Wh)"
       },
+      "0100010801ff": {
+        "name": "Bezug Tarif 1 (Wh)"
+      },
+      "0100010802ff": {
+        "name": "Bezug Tarif 2 (Wh)"
+      },
       "0100020800ff": {
         "name": "Gesamteinspeisung (Wh)"
       },
       "0100010800ff_in_k": {
         "name": "Gesamtbezug (kWh)"
+      },
+      "0100010801ff_in_k": {
+        "name": "Bezug Tarif 1 (kWh)"
+      },
+      "0100010802ff_in_k": {
+        "name": "Bezug Tarif 2 (kWh)"
       },
       "0100020800ff_in_k": {
         "name": "Gesamteinspeisung (kWh)"
