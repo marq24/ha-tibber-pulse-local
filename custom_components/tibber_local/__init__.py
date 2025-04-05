@@ -445,7 +445,9 @@ class TibberLocalBridge:
                     await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
             else:
                 use_fallback_impl = self._use_fallback_by_default
+                sml_list = None
                 a_source_exc = None
+
                 self._obis_values = {}
                 self._obis_values_by_short = {}
 
@@ -477,7 +479,8 @@ class TibberLocalBridge:
                     if a_source_exc is not None and len(sml_list) == 0 and not self.ignore_parse_errors:
                         _LOGGER.debug(f"Exception {a_source_exc} while 'sml_frame.get_obis()' (frame parsing did not work either) - payload: {payload}")
 
-            if sml_list is not None and len(sml_list) > 0:
+                # if we have a list of SML entries - we can process them
+                if sml_list is not None and len(sml_list) > 0:
                     for entry in sml_list:
                         self._obis_values[entry.obis] = entry
                         self._obis_values_by_short[entry.obis.obis_short] = entry
