@@ -586,6 +586,22 @@ class TibberLocalBridge:
         return self._get_value_internal('0100010802ff', divisor=1000)
 
     @property
+    def attr0100010803ff(self) -> float:
+        return self._get_value_internal('0100010803ff')
+
+    @property
+    def attr0100010803ff_in_k(self) -> float:
+        return self._get_value_internal('0100010803ff', divisor=1000)
+
+    @property
+    def attr0100010804ff(self) -> float:
+        return self._get_value_internal('0100010804ff')
+
+    @property
+    def attr0100010804ff_in_k(self) -> float:
+        return self._get_value_internal('0100010804ff', divisor=1000)
+
+    @property
     def attr0100020800ff(self) -> float:
         return self._get_value_internal('0100020800ff')
 

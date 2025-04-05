@@ -75,6 +75,26 @@ SENSOR_TYPES = [
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
+    # Zählerstand Tarif 3
+    SensorEntityDescription(
+        key="0100010803ff",
+        name="Import tariff 3",
+        entity_registry_enabled_default=False,
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        icon="mdi:home-import-outline",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    # Zählerstand Tarif 4
+    SensorEntityDescription(
+        key="0100010804ff",
+        name="Import tariff 4",
+        entity_registry_enabled_default=False,
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        icon="mdi:home-import-outline",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
     # Wirkenergie Total
     SensorEntityDescription(
         key="0100020800ff",
@@ -97,6 +117,7 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="0100010801ff_in_k",
         name="Import tariff 1 (kWh)",
+        entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
@@ -106,6 +127,27 @@ SENSOR_TYPES = [
     SensorEntityDescription(
         key="0100010802ff_in_k",
         name="Import tariff 2 (kWh)",
+        entity_registry_enabled_default=False,
+        suggested_display_precision=5,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        icon="mdi:home-import-outline",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    SensorEntityDescription(
+        key="0100010803ff_in_k",
+        name="Import tariff 3 (kWh)",
+        entity_registry_enabled_default=False,
+        suggested_display_precision=5,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        icon="mdi:home-import-outline",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    SensorEntityDescription(
+        key="0100010804ff_in_k",
+        name="Import tariff 4 (kWh)",
+        entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
@@ -121,7 +163,6 @@ SENSOR_TYPES = [
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
-
     # aktuelle Wirkleistung
     ExtSensorEntityDescription(
         key="0100100700ff",
