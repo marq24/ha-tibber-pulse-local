@@ -27,6 +27,7 @@ from .const import (
     MODE_UNKNOWN,
     MODE_0_AutoScanMode,
     MODE_3_SML_1_04,
+    MODE_10_ImpressionsAmbient,
     MODE_99_PLAINTEXT,
     MODE_1_IEC_62056_21,
     ENUM_IMPLEMENTATIONS,
@@ -279,14 +280,17 @@ class TibberLocalBridge:
             self._com_mode = mode_1
             _LOGGER.debug(f"detect_com_mode 1 SUCCESS -> _com_mode: {self._com_mode}")
         else:
-            _LOGGER.debug(f"detect_com_mode 1 is {self._com_mode}: {mode_1} failed - will try to read {mode_2}")
-            await self.read_tibber_local(mode_2, False, log_payload=True)
-            if len(self._obis_values) > 0:
-                self._com_mode = mode_2
-                _LOGGER.debug(f"detect_com_mode 2 SUCCESS -> _com_mode: {self._com_mode}")
+            if (mode_2 != -1):
+                _LOGGER.debug(f"detect_com_mode 1 is {self._com_mode}: {mode_1} failed - will try to read {mode_2}")
+                await self.read_tibber_local(mode_2, False, log_payload=True)
+                if len(self._obis_values) > 0:
+                    self._com_mode = mode_2
+                    _LOGGER.debug(f"detect_com_mode 2 SUCCESS -> _com_mode: {self._com_mode}")
+                else:
+                    _LOGGER.debug(f"detect_com_mode 2 is {self._com_mode}: {mode_1} failed and {mode_2} failed")
+                    pass
             else:
-                _LOGGER.debug(f"detect_com_mode 2 is {self._com_mode}: {mode_1} failed and {mode_2} failed")
-                pass
+                _LOGGER.debug(f"detect_com_mode 1 is {self._com_mode}: {mode_1} failed")
 
     async def detect_com_mode_from_node_param27(self):
         try:
@@ -321,6 +325,8 @@ class TibberLocalBridge:
                 if res.status == 200:
                     if mode == MODE_3_SML_1_04:
                         await self.read_sml(await res.read(), retry, log_payload)
+                    elif mode == MODE_10_ImpressionsAmbient:
+                        await self.read_json_impressions_ambient(await res.json(), retry, log_payload)
                     elif mode == MODE_99_PLAINTEXT:
                         await self.read_plaintext(await res.text(), retry, log_payload)
                 else:
@@ -425,8 +431,47 @@ class TibberLocalBridge:
                 return aUnit[0]
         return None
 
+    async def read_json_impressions_ambient(self, data: dict, retry: bool, log_payload: bool):
+        # {"$type": "imp_data", "timestamp_ms": 2122625,"delta_ms": 9879,"kw":0.364409, "kwh": 0.0040}
+        temp_obis_values = []
+
+        if log_payload:
+            _LOGGER.debug(f"mode 10 payload: {data}")
+
+        if "$type" in data and data["$type"] == "imp_data":
+            if "kw" in data:
+                kw = data.get("kw")
+                if kw is not None:
+                    # this is hardcoded '0100100700ff' (Wirkleistung) - but the value in kW... and the sensor
+                    # is in W - so we have to multiply it with 1000
+                    entry = SmlListEntry()
+                    entry.obis = ObisCode('0100100700ff')
+                    entry.unit = 27 # 27 is the unit: Watt
+                    entry.scaler = 0
+                    entry.value = kw * 1000
+                    temp_obis_values.append(entry)
+
+            if "kwh" in data:
+                # to do/implement...
+                kwh = data.get("kwh")
+                if kwh is not None:
+                    entry = SmlListEntry()
+                    entry.obis = ObisCode('0100010800ff')
+                    entry.unit = 30 # 30 is the unit: Wh
+                    entry.scaler = 0
+                    entry.value = kwh * 1000
+                    temp_obis_values.append(entry)
+
+        if len(temp_obis_values) > 0:
+            self._obis_values = {}
+            self._obis_values_by_short = {}
+            for entry in temp_obis_values:
+                self._obis_values[entry.obis] = entry
+                self._obis_values_by_short[entry.obis.obis_short] = entry
+
+
     async def read_sml(self, payload: bytes, retry: bool, log_payload: bool):
-        # for what ever reason the data that can be read from the TibberPulse Webserver is
+        # for whatever reason, the data that can be read from the TibberPulse Webserver is
         # not always valid! [I guess there is a issue with an internal buffer in the webserver
         # implementation] - in any case the bytes received contain sometimes invalid characters
         # so the 'stream.get_frame()' method will not be able to parse the data...
@@ -550,6 +595,8 @@ class TibberLocalBridge:
             return f"{self.attr010060320101}-{self.attr0100605a0201}"
         elif self.attr0100600100ff is not None:
             return f"{self.attr0100600100ff}"
+        else:
+            return "UNKNOWN_SERIAL"
 
     @property
     def attr010060320101(self) -> str:  # XYZ

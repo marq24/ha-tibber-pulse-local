@@ -37,7 +37,7 @@ MODE_99_PLAINTEXT = 99
 ENUM_MODES = [MODE_0_AutoScanMode, MODE_1_IEC_62056_21, MODE_2_Logarex, MODE_3_SML_1_04, MODE_10_ImpressionsAmbient,
               MODE_11_ImpressionsIR]
 
-ENUM_IMPLEMENTATIONS = [MODE_3_SML_1_04, MODE_99_PLAINTEXT]
+ENUM_IMPLEMENTATIONS = [MODE_3_SML_1_04, MODE_10_ImpressionsAmbient, MODE_99_PLAINTEXT]
 
 @dataclass
 class ExtSensorEntityDescription(SensorEntityDescription):
