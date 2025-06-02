@@ -76,35 +76,35 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._errors[CONF_HOST] = "unknown_mode"
                 _LOGGER.warning(f"ValueError: {val_err}")
 
-        except (OSError, HTTPError, Timeout, ClientResponseError):
+        except (OSError, HTTPError, Timeout, ClientResponseError) as exc:
             self._errors[CONF_HOST] = "cannot_connect"
-            _LOGGER.warning("Could not connect to local Tibber Pulse Bridge at %s, check host/ip address", host)
+            _LOGGER.warning(f"Could not connect to local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc)} -> {exc}")
         return False
 
     async def _test_data_available(self, bridge: TibberLocalBridge, host: str) -> bool:
         try:
-            await bridge.update()
+            await bridge.update_and_log()
             _data_available = len(bridge._obis_values.keys()) > 0
             if _data_available:
                 self._serial = bridge.serial
-                _LOGGER.info("Successfully connect to local Tibber Pulse Bridge at %s", host)
+                _LOGGER.info(f"Successfully connect to local Tibber Pulse Bridge at {host}")
                 return True
             else:
                 await asyncio.sleep(2)
-                await bridge.update()
+                await bridge.update_and_log()
                 _data_available = len(bridge._obis_values.keys()) > 0
                 if _data_available:
                     self._serial = bridge.serial
-                    _LOGGER.info("Successfully connect to local Tibber Pulse Bridge at %s", host)
+                    _LOGGER.info(f"Successfully connect to local Tibber Pulse Bridge at {host}")
                     return True
                 else:
-                    _LOGGER.warning("No data from Tibber Pulse Bridge at %s", host)
+                    _LOGGER.warning(f"No data from Tibber Pulse Bridge at {host}")
                     self._errors[CONF_HOST] = "no_data"
                     return False
 
-        except (OSError, HTTPError, Timeout, ClientResponseError):
+        except (OSError, HTTPError, Timeout, ClientResponseError) as exc:
             self._errors[CONF_HOST] = "cannot_connect"
-            _LOGGER.warning("Could not read data from local Tibber Pulse Bridge at %s, check host/ip address", host)
+            _LOGGER.warning(f"Could not read data from local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc)} -> {exc}")
         return False
 
     async def async_step_user(self, user_input=None):

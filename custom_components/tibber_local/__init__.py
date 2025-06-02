@@ -269,7 +269,7 @@ class TibberLocalBridge:
             # looks like we can parse 'IEC_62056_21' as plaintext?!
             await self._check_modes_internal(MODE_99_PLAINTEXT, MODE_3_SML_1_04)
 
-        # finally raise value error if not implemented yet!
+        # finally, raise value error if not implemented yet!
         if self._com_mode not in ENUM_IMPLEMENTATIONS:
             raise ValueError(f"NOT IMPLEMENTED yet! - Mode: {self._com_mode}")
 
@@ -318,24 +318,49 @@ class TibberLocalBridge:
     async def update(self):
         await self.read_tibber_local(mode=self._com_mode, retry=True)
 
+    async def update_and_log(self):
+        await self.read_tibber_local(mode=self._com_mode, retry=True, log_payload=True)
+
     async def read_tibber_local(self, mode: int, retry: bool, log_payload: bool = False):
+        _LOGGER.debug(f"read_tibber_local: start - mode: {mode} request: {self.url_data}")
         async with self.websession.get(self.url_data, ssl=False, timeout=10.0) as res:
             try:
                 res.raise_for_status()
                 if res.status == 200:
+
+                    data = None
                     if mode == MODE_3_SML_1_04:
-                        await self.read_sml(await res.read(), retry, log_payload)
+                        # we need to bytes...
+                        data = await res.read()
                     elif mode == MODE_10_ImpressionsAmbient:
-                        await self.read_json_impressions_ambient(await res.json(), retry, log_payload)
+                        # cool it's a real json response
+                        data = await res.json()
                     elif mode == MODE_99_PLAINTEXT:
-                        await self.read_plaintext(await res.text(), retry, log_payload)
+                        # classic plain text response
+                        data = await res.text()
+
+                    if data is not None:
+                        if log_payload:
+                            _LOGGER.debug(f"read_tibber_local: after request - mode: {mode} - data: '{data}'")
+
+                        if mode == MODE_3_SML_1_04:
+                            await self.read_sml(data, retry, log_payload)
+                        elif mode == MODE_10_ImpressionsAmbient:
+                            await self.read_json_impressions_ambient(data, retry, log_payload)
+                        elif mode == MODE_99_PLAINTEXT:
+                            await self.read_plaintext(data, retry, log_payload)
+
+                        _LOGGER.debug(f"read_tibber_local: after read - found OBIS entries: '{self._obis_values}'")
+                    else:
+                        _LOGGER.debug(f"read_tibber_local: NO DATA read")
                 else:
                     if res is not None:
                         _LOGGER.warning(f"access to bridge failed with code {res.status} - res: {res}")
                     else:
-                        _LOGGER.warning(f"access to bridge failed (UNKNOWN reason)")
-            except Exception as exec:
-                _LOGGER.warning(f"access to bridge failed with exception: {exec}")
+                        _LOGGER.warning(f"access to bridge failed (UNKNOWN reason - 'res' is None)")
+
+            except BaseException as exec:
+                _LOGGER.warning(f"access to bridge failed with exception: {type(exec)} - {exec}")
 
     def check_first_six_parts_for_digits_or_last_is_none(self, parts: list[str]) -> bool:
         return (self.ONLY_DIGITS.match(parts[1]) is not None and
