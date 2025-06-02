@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 import re
 from datetime import timedelta
 
@@ -148,7 +149,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
 async def async_reload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
     if await async_unload_entry(hass, config_entry):
-        await asyncio.sleep(2)
+        await asyncio.sleep(random.uniform(1.8, 2.5))
         await async_setup_entry(hass, config_entry)
 
 
@@ -235,6 +236,40 @@ class TibberLocalBridge:
     ONLY_DIGITS: re.Pattern = re.compile("^[0-9]+$")
     PLAIN_TEXT_LINE: re.Pattern = re.compile('(.*?)-(.*?):(.*?)\\.(.*?)\\.(.*?)(?:\\*(.*?)|)\\((.*?)\\)')
 
+    @staticmethod
+    def find_unit_int_from_string(unit_str: str):
+        for aUnit in UNITS.items():
+            if aUnit[1] == unit_str:
+                return aUnit[0]
+        return None
+
+    def _get_value_internal(self, key, divisor: int = 1):
+        if isinstance(key, list):
+            val = None
+            for a_key in key:
+                if val is None:
+                    val = self._get_value_internal(a_key, divisor)
+            return val
+
+        if key in self._obis_values:
+            a_obis = self._obis_values.get(key)
+            if hasattr(a_obis, 'scaler'):
+                return a_obis.value * 10 ** int(a_obis.scaler) / divisor
+            else:
+                return a_obis.value / divisor
+
+    def _get_str_internal(self, key):
+        if key in self._obis_values:
+            return self._obis_values.get(key).value
+
+    def check_first_six_parts_for_digits_or_last_is_none(self, parts: list[str]) -> bool:
+        return (self.ONLY_DIGITS.match(parts[1]) is not None and
+                self.ONLY_DIGITS.match(parts[2]) is not None and
+                self.ONLY_DIGITS.match(parts[3]) is not None and
+                self.ONLY_DIGITS.match(parts[4]) is not None and
+                self.ONLY_DIGITS.match(parts[5]) is not None and
+                (parts[6] is None or self.ONLY_DIGITS.match(parts[6]) is not None))
+
     # _communication_mode 'MODE_3_SML_1_04' is the initial implemented mode (reading binary sml data)...
     # 'all' other modes have to be implemented... also it could be, that the bridge does
     # not return a value for param_id=27
@@ -254,6 +289,10 @@ class TibberLocalBridge:
 
         self._fallback_usage_counter = 0
         self._use_fallback_by_default = False
+        if com_mode == MODE_3_SML_1_04:
+            self.MAX_READ_RETRIES = 5
+        else:
+            self.MAX_READ_RETRIES = 1
 
     async def detect_com_mode(self):
         await self.detect_com_mode_from_node_param27()
@@ -316,61 +355,37 @@ class TibberLocalBridge:
             _LOGGER.warning(f"access to bridge failed with exception: {exec}")
 
     async def update(self):
-        await self.read_tibber_local(mode=self._com_mode, retry=True)
+        await self.read_tibber_local(mode=self._com_mode, retry_count=0)
 
     async def update_and_log(self):
-        await self.read_tibber_local(mode=self._com_mode, retry=True, log_payload=True)
+        await self.read_tibber_local(mode=self._com_mode, retry_count=0, log_payload=True)
 
-    async def read_tibber_local(self, mode: int, retry: bool, log_payload: bool = False):
-        _LOGGER.debug(f"read_tibber_local: start - mode: {mode} request: {self.url_data}")
+    async def read_tibber_local(self, mode: int, retry_count: int, log_payload: bool = False):
+        _LOGGER.debug(f"read_tibber_local: start{retry_count} - mode: {mode} request: {self.url_data}")
         async with self.websession.get(self.url_data, ssl=False, timeout=10.0) as res:
             try:
                 res.raise_for_status()
                 if res.status == 200:
-
-                    data = None
                     if mode == MODE_3_SML_1_04:
-                        # we need to bytes...
-                        data = await res.read()
+                        await self.mode_03_read_sml(await res.read(), retry_count, log_payload)
+
                     elif mode == MODE_10_ImpressionsAmbient:
-                        # cool it's a real json response
-                        data = await res.json()
+                        await self.mode_10_read_json_impressions_ambient(await res.json(), retry_count, log_payload)
+
                     elif mode == MODE_99_PLAINTEXT:
-                        # classic plain text response
-                        data = await res.text()
+                        await self.mode_99_read_plaintext(await res.text(), retry_count, log_payload)
 
-                    if data is not None:
-                        if log_payload:
-                            _LOGGER.debug(f"read_tibber_local: after request - mode: {mode} - data: '{data}'")
-
-                        if mode == MODE_3_SML_1_04:
-                            await self.read_sml(data, retry, log_payload)
-                        elif mode == MODE_10_ImpressionsAmbient:
-                            await self.read_json_impressions_ambient(data, retry, log_payload)
-                        elif mode == MODE_99_PLAINTEXT:
-                            await self.read_plaintext(data, retry, log_payload)
-
-                        _LOGGER.debug(f"read_tibber_local: after read - found OBIS entries: '{self._obis_values}'")
-                    else:
-                        _LOGGER.debug(f"read_tibber_local: NO DATA read")
+                    _LOGGER.debug(f"read_tibber_local: after read - found OBIS entries: '{self._obis_values}'")
                 else:
                     if res is not None:
                         _LOGGER.warning(f"access to bridge failed with code {res.status} - res: {res}")
                     else:
                         _LOGGER.warning(f"access to bridge failed (UNKNOWN reason - 'res' is None)")
 
-            except BaseException as exec:
-                _LOGGER.warning(f"access to bridge failed with exception: {type(exec)} - {exec}")
+            except BaseException as exc:
+                _LOGGER.warning(f"access to bridge failed with exception: {type(exc)} - {exc}")
 
-    def check_first_six_parts_for_digits_or_last_is_none(self, parts: list[str]) -> bool:
-        return (self.ONLY_DIGITS.match(parts[1]) is not None and
-                self.ONLY_DIGITS.match(parts[2]) is not None and
-                self.ONLY_DIGITS.match(parts[3]) is not None and
-                self.ONLY_DIGITS.match(parts[4]) is not None and
-                self.ONLY_DIGITS.match(parts[5]) is not None and
-                (parts[6] is None or self.ONLY_DIGITS.match(parts[6]) is not None))
-
-    async def read_plaintext(self, plaintext: str, retry: bool, log_payload: bool):
+    async def mode_99_read_plaintext(self, plaintext: str, retry_count: int, log_payload: bool):
         try:
             temp_obis_values = []
             if log_payload:
@@ -445,18 +460,12 @@ class TibberLocalBridge:
         except Exception as exc:
             if not self.ignore_parse_errors:
                 _LOGGER.warning(f"Exception {exc} while process data - plaintext: {plaintext}")
-            if retry:
-                await asyncio.sleep(2.5)
-                await self.read_tibber_local(mode=MODE_99_PLAINTEXT, retry=False)
+            if retry_count < self.MAX_READ_RETRIES:
+                retry_count = retry_count + 1
+                await asyncio.sleep(random.uniform(0.2, 1.2))
+                await self.read_tibber_local(mode=MODE_99_PLAINTEXT, retry_count=retry_count)
 
-    @staticmethod
-    def find_unit_int_from_string(unit_str: str):
-        for aUnit in UNITS.items():
-            if aUnit[1] == unit_str:
-                return aUnit[0]
-        return None
-
-    async def read_json_impressions_ambient(self, data: dict, retry: bool, log_payload: bool):
+    async def mode_10_read_json_impressions_ambient(self, data: dict, retry_count: int, log_payload: bool):
         # {"$type": "imp_data", "timestamp_ms": 2122625,"delta_ms": 9879,"kw":0.364409, "kwh": 0.0040}
         temp_obis_values = []
 
@@ -494,11 +503,10 @@ class TibberLocalBridge:
                 self._obis_values[entry.obis] = entry
                 self._obis_values_by_short[entry.obis.obis_short] = entry
 
-
-    async def read_sml(self, payload: bytes, retry: bool, log_payload: bool):
+    async def mode_03_read_sml(self, payload: bytes, retry_count: int, log_payload: bool):
         # for whatever reason, the data that can be read from the TibberPulse Webserver is
-        # not always valid! [I guess there is a issue with an internal buffer in the webserver
-        # implementation] - in any case the bytes received contain sometimes invalid characters
+        # not always valid! [I guess there is an issue with an internal buffer in the webserver
+        # implementation] - in any case, the bytes received contain sometimes invalid characters,
         # so the 'stream.get_frame()' method will not be able to parse the data...
         if log_payload:
             _LOGGER.debug(f"sml payload: {payload}")
@@ -510,9 +518,10 @@ class TibberLocalBridge:
             if sml_frame is None:
                 if not self.ignore_parse_errors:
                     _LOGGER.info(f"Bytes missing - payload: {payload}")
-                if retry:
-                    await asyncio.sleep(2.5)
-                    await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
+                if retry_count < self.MAX_READ_RETRIES:
+                    retry_count = retry_count + 1
+                    await asyncio.sleep(random.uniform(0.2, 1.2))
+                    await self.read_tibber_local(mode=MODE_3_SML_1_04, retry_count=retry_count)
             else:
                 use_fallback_impl = self._use_fallback_by_default
                 sml_list = None
@@ -549,44 +558,23 @@ class TibberLocalBridge:
                     if a_source_exc is not None and len(sml_list) == 0 and not self.ignore_parse_errors:
                         _LOGGER.debug(f"Exception {a_source_exc} while 'sml_frame.get_obis()' (frame parsing did not work either) - payload: {payload}")
 
-                # if we have a list of SML entries - we can process them
+                # if we have a list of SML entries, we can process them
                 if sml_list is not None and len(sml_list) > 0:
                     for entry in sml_list:
                         self._obis_values[entry.obis] = entry
                         self._obis_values_by_short[entry.obis.obis_short] = entry
 
-        except CrcError as crc:
+        except (CrcError, BaseException) as exc:
             if not self.ignore_parse_errors:
-                _LOGGER.info(f"CRC while parse data - payload: {payload}")
-            if retry:
-                await asyncio.sleep(2.5)
-                await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
+                if isinstance(exc, CrcError):
+                    _LOGGER.info(f"CRC while parse data - payload: {payload}")
+                else:
+                    _LOGGER.warning(f"Exception {type(exc)} - {exc} while parse data - payload: {payload}")
 
-        except Exception as exc:
-            if not self.ignore_parse_errors:
-                _LOGGER.warning(f"Exception {exc} while parse data - payload: {payload}")
-            if retry:
-                await asyncio.sleep(2.5)
-                await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=False)
-
-    def _get_value_internal(self, key, divisor: int = 1):
-        if isinstance(key, list):
-            val = None
-            for a_key in key:
-                if val is None:
-                    val = self._get_value_internal(a_key, divisor)
-            return val
-
-        if key in self._obis_values:
-            a_obis = self._obis_values.get(key)
-            if hasattr(a_obis, 'scaler'):
-                return a_obis.value * 10 ** int(a_obis.scaler) / divisor
-            else:
-                return a_obis.value / divisor
-
-    def _get_str_internal(self, key):
-        if key in self._obis_values:
-            return self._obis_values.get(key).value
+            if retry_count < self.MAX_READ_RETRIES:
+                retry_count = retry_count + 1
+                await asyncio.sleep(random.uniform(0.2, 1.2))
+                await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=retry_count)
 
     # obis: https://www.promotic.eu/en/pmdoc/Subsystems/Comm/PmDrivers/IEC62056_OBIS.htm
     # units: https://github.com/spacemanspiff2007/SmlLib/blob/master/src/smllib/const.py
