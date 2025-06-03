@@ -314,14 +314,14 @@ class TibberLocalBridge:
 
     async def _check_modes_internal(self, mode_1: int, mode_2: int):
         _LOGGER.debug(f"detect_com_mode is {self._com_mode}: will try to read {mode_1}")
-        await self.read_tibber_local(mode_1, False, log_payload=True)
+        await self.read_tibber_local(mode_1, retry_count=0, log_payload=True)
         if len(self._obis_values) > 0:
             self._com_mode = mode_1
             _LOGGER.debug(f"detect_com_mode 1 SUCCESS -> _com_mode: {self._com_mode}")
         else:
             if (mode_2 != -1):
                 _LOGGER.debug(f"detect_com_mode 1 is {self._com_mode}: {mode_1} failed - will try to read {mode_2}")
-                await self.read_tibber_local(mode_2, False, log_payload=True)
+                await self.read_tibber_local(mode_2, retry_count=0, log_payload=True)
                 if len(self._obis_values) > 0:
                     self._com_mode = mode_2
                     _LOGGER.debug(f"detect_com_mode 2 SUCCESS -> _com_mode: {self._com_mode}")
@@ -574,7 +574,7 @@ class TibberLocalBridge:
             if retry_count < self.MAX_READ_RETRIES:
                 retry_count = retry_count + 1
                 await asyncio.sleep(random.uniform(0.2, 1.2))
-                await self.read_tibber_local(mode=MODE_3_SML_1_04, retry=retry_count)
+                await self.read_tibber_local(mode=MODE_3_SML_1_04, retry_count=retry_count)
 
     # obis: https://www.promotic.eu/en/pmdoc/Subsystems/Comm/PmDrivers/IEC62056_OBIS.htm
     # units: https://github.com/spacemanspiff2007/SmlLib/blob/master/src/smllib/const.py
