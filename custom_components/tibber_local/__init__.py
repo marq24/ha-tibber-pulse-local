@@ -234,7 +234,8 @@ class IntBasedObisCode:
 
 class TibberLocalBridge:
     ONLY_DIGITS: re.Pattern = re.compile("^[0-9]+$")
-    PLAIN_TEXT_LINE: re.Pattern = re.compile('(.*?)-(.*?):(.*?)\\.(.*?)\\.(.*?)(?:\\*(.*?)|)\\((.*?)\\)')
+    PLAIN_TEXT_LINE: re.Pattern = re.compile(r'(.*?)-(.*?):(.*?)\.(.*?)\.(.*?)(?:\*(.*?)|)\((.*?)\)')
+    TWO_DIGIT_CODE_PATTERN = re.compile(r'^([^.]*\.[^.]*)(\(.*$)')
 
     @staticmethod
     def find_unit_int_from_string(unit_str: str):
@@ -399,11 +400,18 @@ class TibberLocalBridge:
                     # a patch for invalid reading?!
                     # a_line = a_line.replace('."55*', '.255*')
 
-                    # looks like that in the format 'IEC-62056-21' there are the '1-0:' is missing ?! [this is really
-                    # a very DUMP implementation]
-                    if a_line[1] != '-' and a_line[3] != ':' and '*' in a_line and '(' in a_line and ')' in a_line:
+                    # if there are not at least 2 dot's before the opening '(', we must insert a '.0' before
+                    # the opening '(' [see issue #73]
+                    if self.TWO_DIGIT_CODE_PATTERN.match(a_line):
+                        a_line = re.sub(self.TWO_DIGIT_CODE_PATTERN, r'\1.0\2', a_line)
+
+                    # it looks like that in the format 'IEC-62056-21' there are the '1-0:' is missing ?! [this is really
+                    # a very DUMP implementation] - but we check, if the line has at least
+                    # 1. '(' [value start]
+                    # 2. ')' [value end]
+                    # 3. '*' [the unit delimiter]
+                    if len(a_line) >= 4 and a_line[1] != '-' and a_line[3] != ':' and '*' in a_line and '(' in a_line and ')' in a_line:
                         a_line = '1-0:' + a_line
-                        pass
 
                     # obis pattern is 'a-b:c.d.e*f'
                     parts = re.split(self.PLAIN_TEXT_LINE, a_line)
@@ -539,7 +547,7 @@ class TibberLocalBridge:
                         use_fallback_impl = True
                         a_source_exc = source_exc
 
-                        # if we have multiple times the same exception - we switch to the fallback implementation
+                        # if we have multiple times the same exception, we switch to the fallback implementation
                         self._fallback_usage_counter = self._fallback_usage_counter + 1
                         if self._fallback_usage_counter > 20:
                             self._use_fallback_by_default = True
@@ -576,8 +584,9 @@ class TibberLocalBridge:
                 await asyncio.sleep(random.uniform(0.2, 1.2))
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry_count=retry_count)
 
-    # obis: https://www.promotic.eu/en/pmdoc/Subsystems/Comm/PmDrivers/IEC62056_OBIS.htm
+    # obis: https://www.promotic.eu/en/pmdoc/Subsystems/Comm/PmDrivers/PmIEC62056/IEC62056_OBIS.htm
     # units: https://github.com/spacemanspiff2007/SmlLib/blob/master/src/smllib/const.py
+    # https://onemeter.com/docs/device/obis/
 
     # <obis: 010060320101, value: XYZ>
     # <obis: 0100600100ff, value: 0a123b4c567890d12e34>
