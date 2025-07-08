@@ -10,7 +10,7 @@ from smllib.const import UNITS
 from smllib.errors import CrcError, SmlLibException
 from smllib.sml import SmlListEntry, ObisCode
 
-from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -83,8 +83,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
-    if config_entry.state != ConfigEntryState.LOADED:
-        config_entry.add_update_listener(async_reload_entry)
+    config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
 
     return True
 
@@ -140,6 +139,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
+    _LOGGER.debug(f"async_unload_entry() called for entry: {config_entry.entry_id}")
     unload_ok = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
     if unload_ok:
         if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
@@ -147,10 +147,9 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     return unload_ok
 
 
-async def async_reload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
-    if await async_unload_entry(hass, config_entry):
-        await asyncio.sleep(random.uniform(1.8, 2.5))
-        await async_setup_entry(hass, config_entry)
+async def entry_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    _LOGGER.debug(f"entry_update_listener() called for entry: {config_entry.entry_id}")
+    await hass.config_entries.async_reload(config_entry.entry_id)
 
 
 class TibberLocalEntity(Entity):

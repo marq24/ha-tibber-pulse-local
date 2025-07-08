@@ -1,7 +1,8 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Integration ist bereits eingerichtet"
+      "already_configured": "Integration ist bereits eingerichtet",
+      "reauth_successful": "Die erneute Authentifizierung war erfolgreich"
     },
     "error": {
       "login_failed": "Login fehlgeschlagen – bitte Host und/oder Passwort prüfen",

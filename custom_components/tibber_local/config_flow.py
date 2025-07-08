@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Any
 
 import voluptuous as vol
 from aiohttp import ClientResponseError
@@ -7,8 +8,9 @@ from requests.exceptions import HTTPError, Timeout
 
 from custom_components.tibber_local import TibberLocalBridge
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult, SOURCE_RECONFIGURE
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import slugify
 from .const import (
@@ -19,8 +21,8 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     ENUM_IMPLEMENTATIONS,
     CONF_NODE_NUMBER,
-    CONF_IGNORE_READING_ERRORS,
-    DEFAULT_NODE_NUMBER
+    DEFAULT_NODE_NUMBER,
+    CONFIG_VERSION, CONFIG_MINOR_VERSION
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,11 +55,18 @@ def _config_title_exists(a_title: str, hass: HomeAssistant) -> bool:
     return slugify(a_title) in [slugify(a_entry.title) for a_entry in hass.config_entries.async_entries(DOMAIN)]
 
 class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 1
+    VERSION = CONFIG_VERSION
+    MINOR_VERSION = CONFIG_MINOR_VERSION
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     def __init__(self):
         self._errors = {}
+        self._default_name = DEFAULT_NAME
+        self._default_host = DEFAULT_HOST
+        self._default_pwd = DEFAULT_PWD
+        self._default_scan_interval = DEFAULT_SCAN_INTERVAL
+        self._default_node_number = DEFAULT_NODE_NUMBER
+
 
     async def _test_connection_tibber_local(self, host, pwd, node_num):
         self._errors = {}
@@ -107,6 +116,15 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.warning(f"Could not read data from local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc)} -> {exc}")
         return False
 
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        entry_data = self._get_reconfigure_entry().data
+        self._default_name = entry_data.get(CONF_NAME, DEFAULT_NAME)
+        self._default_host = entry_data.get(CONF_HOST, DEFAULT_HOST)
+        self._default_pwd = entry_data.get(CONF_PASSWORD, DEFAULT_PWD)
+        self._default_scan_interval = entry_data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        self._default_node_number = entry_data.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)
+        return await self.async_step_user()
+
     async def async_step_user(self, user_input=None):
         self._errors = {}
         if user_input is not None:
@@ -138,112 +156,103 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                               CONF_ID: self._serial,
                               CONF_MODE: self._con_mode}
 
-                    return self.async_create_entry(title=name, data=a_data)
-
+                    self._abort_if_unique_id_configured()
+                    if self.source == SOURCE_RECONFIGURE:
+                        return self.async_update_reload_and_abort(entry=self._get_reconfigure_entry(), data=a_data)
+                    else:
+                        return self.async_create_entry(title=name, data=a_data)
                 else:
                     _LOGGER.error("Could not connect to Tibber Pulse Bridge at %s, check host ip address", host)
         else:
             user_input = {}
-            user_input[CONF_NAME] = DEFAULT_NAME
-            user_input[CONF_HOST] = DEFAULT_HOST
-            user_input[CONF_PASSWORD] = DEFAULT_PWD
-            user_input[CONF_SCAN_INTERVAL] = DEFAULT_SCAN_INTERVAL
-            user_input[CONF_NODE_NUMBER] = DEFAULT_NODE_NUMBER
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_NAME, default=user_input.get(CONF_NAME, DEFAULT_NAME)
-                    ): str,
-                    vol.Required(
-                        CONF_HOST, default=user_input.get(CONF_HOST, DEFAULT_HOST)
-                    ): str,
-                    vol.Required(
-                        CONF_PASSWORD, default=user_input.get(CONF_PASSWORD, DEFAULT_PWD)
-                    ): str,
-                    vol.Required(
-                        CONF_SCAN_INTERVAL, default=user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-                    ): int,
-                    vol.Required(
-                        CONF_NODE_NUMBER, default=user_input.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)
-                    ): int,
-                }
-            ),
-            last_step=True,
-            errors=self._errors,
-        )
-
-    @staticmethod
-    @callback
-    def async_get_options_flow(config_entry):
-        return TibberLocalOptionsFlowHandler(config_entry)
-
-
-class TibberLocalOptionsFlowHandler(config_entries.OptionsFlow):
-
-    def __init__(self, config_entry):
-        """Initialize HACS options flow."""
-        self.data = dict(config_entry.data);
-        if len(dict(config_entry.options)) == 0:
-            self.options = {}
-        else:
-            self.options = dict(config_entry.options)
-
-    async def async_step_init(self, user_input=None):  # pylint: disable=unused-argument
-        """Manage the options."""
-        return await self.async_step_user()
-
-    async def async_step_user(self, user_input=None):
-        """Handle a flow initialized by the user."""
-        self._errors = {}
-        if user_input is not None:
-
-            # verify the entered host...
-            host_entry = user_input.get(CONF_HOST, DEFAULT_HOST).lower()
-            # make sure we just handle host/ip's - removing http/https
-            if host_entry.startswith("http://"):
-                host_entry = host_entry.replace("http://", "")
-            if host_entry.startswith('https://'):
-                host_entry = host_entry.replace("https://", "")
-            user_input[CONF_HOST] = host_entry
-
-            node_num = user_input[CONF_NODE_NUMBER]
-            self.options.update(user_input)
-            if self.data.get(CONF_HOST) != self.options.get(CONF_HOST) or self.data.get(CONF_NODE_NUMBER) != self.options.get(CONF_NODE_NUMBER):
-                # ok looks like the host has been changed... we need to do some things...
-                if _host_in_configuration_exists(host_entry, node_num, self.hass):
-                    self._errors[CONF_HOST] = "already_configured"
-                    self._errors[CONF_NODE_NUMBER] = "already_configured"
-                else:
-                    return self._update_options()
-            else:
-                # host/node-number did not change...
-                return self._update_options()
+            user_input[CONF_NAME] = self._default_name
+            user_input[CONF_HOST] = self._default_host
+            user_input[CONF_PASSWORD] = self._default_pwd
+            user_input[CONF_SCAN_INTERVAL] = self._default_scan_interval
+            user_input[CONF_NODE_NUMBER] = self._default_node_number
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
-                vol.Required(CONF_NAME,
-                             default=self.options.get(CONF_NAME, self.data.get(CONF_NAME, DEFAULT_NAME))): str,
-                vol.Required(CONF_HOST,
-                             default=self.options.get(CONF_HOST, self.data.get(CONF_HOST, DEFAULT_HOST))): str,
-                vol.Required(CONF_PASSWORD,
-                             default=self.options.get(CONF_PASSWORD, self.data.get(CONF_PASSWORD, DEFAULT_PWD))): str,
-                vol.Required(CONF_SCAN_INTERVAL, default=self.options.get(CONF_SCAN_INTERVAL,
-                                                                          self.data.get(CONF_SCAN_INTERVAL,
-                                                                                        DEFAULT_SCAN_INTERVAL))): int,
-                vol.Required(CONF_NODE_NUMBER, default=self.options.get(CONF_NODE_NUMBER,
-                                                                        self.data.get(CONF_NODE_NUMBER,
-                                                                                      DEFAULT_NODE_NUMBER))): int,
-                vol.Required(CONF_IGNORE_READING_ERRORS, default=self.options.get(CONF_IGNORE_READING_ERRORS,
-                                                                                  self.data.get(
-                                                                                      CONF_IGNORE_READING_ERRORS,
-                                                                                      False))): bool
+                vol.Required(CONF_NAME, default=user_input.get(CONF_NAME, DEFAULT_NAME)): str,
+                vol.Required(CONF_HOST, default=user_input.get(CONF_HOST, DEFAULT_HOST)): str,
+                vol.Required(CONF_PASSWORD, default=user_input.get(CONF_PASSWORD, DEFAULT_PWD)): str,
+                vol.Required(CONF_SCAN_INTERVAL, default=user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
+                vol.Required(CONF_NODE_NUMBER, default=user_input.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)): int,
             }),
+            last_step=True,
+            errors=self._errors,
         )
 
-    def _update_options(self):
-        """Update config entry options."""
-        return self.async_create_entry(data=self.options)
+    # @staticmethod
+    # @callback
+    # def async_get_options_flow(config_entry):
+    #     return TibberLocalOptionsFlowHandler(config_entry)
+
+
+# class TibberLocalOptionsFlowHandler(config_entries.OptionsFlow):
+#
+#     def __init__(self, config_entry):
+#         """Initialize HACS options flow."""
+#         self.data = dict(config_entry.data);
+#         if len(dict(config_entry.options)) == 0:
+#             self.options = {}
+#         else:
+#             self.options = dict(config_entry.options)
+#
+#     async def async_step_init(self, user_input=None):  # pylint: disable=unused-argument
+#         """Manage the options."""
+#         return await self.async_step_user()
+#
+#     async def async_step_user(self, user_input=None):
+#         """Handle a flow initialized by the user."""
+#         self._errors = {}
+#         if user_input is not None:
+#
+#             # verify the entered host...
+#             host_entry = user_input.get(CONF_HOST, DEFAULT_HOST).lower()
+#             # make sure we just handle host/ip's - removing http/https
+#             if host_entry.startswith("http://"):
+#                 host_entry = host_entry.replace("http://", "")
+#             if host_entry.startswith('https://'):
+#                 host_entry = host_entry.replace("https://", "")
+#             user_input[CONF_HOST] = host_entry
+#
+#             node_num = user_input[CONF_NODE_NUMBER]
+#             self.options.update(user_input)
+#             if self.data.get(CONF_HOST) != self.options.get(CONF_HOST) or self.data.get(CONF_NODE_NUMBER) != self.options.get(CONF_NODE_NUMBER):
+#                 # ok looks like the host has been changed... we need to do some things...
+#                 if _host_in_configuration_exists(host_entry, node_num, self.hass):
+#                     self._errors[CONF_HOST] = "already_configured"
+#                     self._errors[CONF_NODE_NUMBER] = "already_configured"
+#                 else:
+#                     return self._update_options()
+#             else:
+#                 # host/node-number did not change...
+#                 return self._update_options()
+#
+#         return self.async_show_form(
+#             step_id="user",
+#             data_schema=vol.Schema({
+#                 vol.Required(CONF_NAME,
+#                              default=self.options.get(CONF_NAME, self.data.get(CONF_NAME, DEFAULT_NAME))): str,
+#                 vol.Required(CONF_HOST,
+#                              default=self.options.get(CONF_HOST, self.data.get(CONF_HOST, DEFAULT_HOST))): str,
+#                 vol.Required(CONF_PASSWORD,
+#                              default=self.options.get(CONF_PASSWORD, self.data.get(CONF_PASSWORD, DEFAULT_PWD))): str,
+#                 vol.Required(CONF_SCAN_INTERVAL, default=self.options.get(CONF_SCAN_INTERVAL,
+#                                                                           self.data.get(CONF_SCAN_INTERVAL,
+#                                                                                         DEFAULT_SCAN_INTERVAL))): int,
+#                 vol.Required(CONF_NODE_NUMBER, default=self.options.get(CONF_NODE_NUMBER,
+#                                                                         self.data.get(CONF_NODE_NUMBER,
+#                                                                                       DEFAULT_NODE_NUMBER))): int,
+#                 vol.Required(CONF_IGNORE_READING_ERRORS, default=self.options.get(CONF_IGNORE_READING_ERRORS,
+#                                                                                   self.data.get(
+#                                                                                       CONF_IGNORE_READING_ERRORS,
+#                                                                                       False))): bool
+#             }),
+#         )
+#
+#     def _update_options(self):
+#         """Update config entry options."""
+#         return self.async_create_entry(data=self.options)
