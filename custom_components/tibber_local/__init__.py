@@ -32,6 +32,7 @@ from .const import (
     MODE_99_PLAINTEXT,
     MODE_1_IEC_62056_21,
     ENUM_IMPLEMENTATIONS,
+    CONFIG_VERSION, CONFIG_MINOR_VERSION
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,6 +55,19 @@ def mask_map(d):
             d.pop(k)
             d[k] = v
     return d
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
+    if config_entry.version < CONFIG_VERSION:
+        if config_entry.data is not None and len(config_entry.data) > 0:
+            _LOGGER.debug(f"Migrating configuration from version {config_entry.version}.{config_entry.minor_version}")
+            if config_entry.options is not None and len(config_entry.options):
+                new_data = {**config_entry.data, **config_entry.options}
+            else:
+                new_data = config_entry.data
+            hass.config_entries.async_update_entry(config_entry, data=new_data, options={}, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
+            _LOGGER.debug(f"Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
+    return True
 
 
 async def async_setup(hass: HomeAssistant, config: dict):

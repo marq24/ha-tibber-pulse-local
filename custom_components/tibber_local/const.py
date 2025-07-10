@@ -17,27 +17,30 @@ from homeassistant.const import (
 
 DOMAIN: Final = "tibber_local"
 MANUFACTURE: Final = "Tibber"
-DEFAULT_NAME = "ltibber"
-DEFAULT_HOST = "tibber-bridge"
-DEFAULT_PWD = ""
-DEFAULT_SCAN_INTERVAL = 10
+DEFAULT_NAME: Final = "ltibber"
+DEFAULT_HOST: Final = "tibber-bridge"
+DEFAULT_PWD: Final = ""
+DEFAULT_SCAN_INTERVAL: Final = 10
 
-CONF_NODE_NUMBER = "node_num"
-CONF_IGNORE_READING_ERRORS = "ignore_errors"
-DEFAULT_NODE_NUMBER = 1
+CONFIG_VERSION: Final = 2
+CONFIG_MINOR_VERSION: Final = 0
 
-MODE_UNKNOWN = -1
-MODE_0_AutoScanMode = 0
-MODE_1_IEC_62056_21 = 1
-MODE_2_Logarex = 2
-MODE_3_SML_1_04 = 3
-MODE_10_ImpressionsAmbient = 10
-MODE_11_ImpressionsIR = 11
-MODE_99_PLAINTEXT = 99
-ENUM_MODES = [MODE_0_AutoScanMode, MODE_1_IEC_62056_21, MODE_2_Logarex, MODE_3_SML_1_04, MODE_10_ImpressionsAmbient,
+CONF_NODE_NUMBER: Final = "node_num"
+CONF_IGNORE_READING_ERRORS: Final = "ignore_errors"
+DEFAULT_NODE_NUMBER: Final = 1
+
+MODE_UNKNOWN: Final = -1
+MODE_0_AutoScanMode: Final = 0
+MODE_1_IEC_62056_21: Final = 1
+MODE_2_Logarex: Final = 2
+MODE_3_SML_1_04: Final = 3
+MODE_10_ImpressionsAmbient : Final= 10
+MODE_11_ImpressionsIR: Final = 11
+MODE_99_PLAINTEXT: Final = 99
+ENUM_MODES: Final = [MODE_0_AutoScanMode, MODE_1_IEC_62056_21, MODE_2_Logarex, MODE_3_SML_1_04, MODE_10_ImpressionsAmbient,
               MODE_11_ImpressionsIR]
 
-ENUM_IMPLEMENTATIONS = [MODE_3_SML_1_04, MODE_10_ImpressionsAmbient, MODE_99_PLAINTEXT]
+ENUM_IMPLEMENTATIONS: Final = [MODE_3_SML_1_04, MODE_10_ImpressionsAmbient, MODE_99_PLAINTEXT]
 
 @dataclass
 class ExtSensorEntityDescription(SensorEntityDescription):
