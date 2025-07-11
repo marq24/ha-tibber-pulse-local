@@ -7,7 +7,7 @@ from aiohttp import ClientResponseError
 from requests.exceptions import HTTPError, Timeout
 
 from custom_components.tibber_local import TibberLocalBridge
-from homeassistant import config_entries
+from homeassistant import config_entries, data_entry_flow
 from homeassistant.config_entries import ConfigFlowResult, SOURCE_RECONFIGURE
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant
@@ -128,23 +128,25 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         self._errors = {}
         if user_input is not None:
-            host = user_input.get(CONF_HOST, DEFAULT_HOST).lower()
+            host = user_input[CONF_HOST].lower()
             # make sure we just handle host/ip's - removing http/https
             if host.startswith("http://"):
                 host = host.replace("http://", "")
             if host.startswith('https://'):
                 host = host.replace("https://", "")
 
-            name = user_input.get(CONF_NAME, f"ltibber_{host}")
-            pwd = user_input.get(CONF_PASSWORD, "")
-            scan = user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-            node_num = user_input.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)
+            name = user_input[CONF_NAME]
+            pwd = user_input[CONF_PASSWORD]
+            scan = user_input[CONF_SCAN_INTERVAL]
+            node_num = user_input[CONF_NODE_NUMBER]
 
             if _config_title_exists(name, self.hass):
                 self._errors[CONF_NAME] = "already_configured"
+                raise data_entry_flow.AbortFlow("already_configured")
             elif _host_in_configuration_exists(host, node_num, self.hass):
                 self._errors[CONF_HOST] = "already_configured"
                 self._errors[CONF_NODE_NUMBER] = "already_configured"
+                raise data_entry_flow.AbortFlow("already_configured")
             else:
                 if await self._test_connection_tibber_local(host, pwd, node_num):
 
@@ -174,11 +176,11 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
-                vol.Required(CONF_NAME, default=user_input.get(CONF_NAME, DEFAULT_NAME)): str,
-                vol.Required(CONF_HOST, default=user_input.get(CONF_HOST, DEFAULT_HOST)): str,
-                vol.Required(CONF_PASSWORD, default=user_input.get(CONF_PASSWORD, DEFAULT_PWD)): str,
-                vol.Required(CONF_SCAN_INTERVAL, default=user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
-                vol.Required(CONF_NODE_NUMBER, default=user_input.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)): int,
+                vol.Required(CONF_NAME, default=user_input[CONF_NAME]): str,
+                vol.Required(CONF_HOST, default=user_input[CONF_HOST]): str,
+                vol.Required(CONF_PASSWORD, default=user_input[CONF_PASSWORD]): str,
+                vol.Required(CONF_SCAN_INTERVAL, default=user_input[CONF_SCAN_INTERVAL]): int,
+                vol.Required(CONF_NODE_NUMBER, default=user_input[CONF_NODE_NUMBER]): int,
             }),
             last_step=True,
             errors=self._errors,
