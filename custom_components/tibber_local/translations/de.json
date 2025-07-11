@@ -2,7 +2,7 @@
   "config": {
     "abort": {
       "already_configured": "Integration ist bereits eingerichtet",
-      "reauth_successful": "Die erneute Authentifizierung war erfolgreich"
+      "reconfigure_successful": "Die Neukonfiguration war erfolgreich"
     },
     "error": {
       "login_failed": "Login fehlgeschlagen – bitte Host und/oder Passwort prüfen",
@@ -14,20 +14,6 @@
     "step": {
       "user": {
         "description": "Bitte gib die lokalen Verbindungsdaten zu Deiner Tibber Pulse Bridge an.\n\n\nDu musst zuvor das 'webserver_force_enable'-Flag aktiviert haben!\n\n\nZusätzliche Informationen zur Einrichtung findest Du hier: https://github.com/marq24/ha-tibber-pulse-local",
-        "data": {
-          "name": "Anzeigename",
-          "host": "IP oder Hostname der Tibber Pulse Bridge",
-          "password": "Bridge-Passwort (steht auf der Tibber Bridge unter dem QR-Code)",
-          "scan_interval": "Aktualisierungsintervall in Sekunden",
-          "node_num": "Node-Nummer (Experteneinstellung)"
-        }
-      }
-    }
-  },
-  "options": {
-    "step": {
-      "user": {
-        "description": "Wenn Du Hilfe benötigst, findest Du sie hier: https://github.com/marq24/ha-tibber-pulse-local",
         "data": {
           "name": "Anzeigename",
           "host": "IP oder Hostname der Tibber Pulse Bridge",

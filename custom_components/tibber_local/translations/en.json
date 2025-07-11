@@ -19,20 +19,6 @@
           "host": "IP or hostname of the Tibber Pulse Bridge",
           "password": "Your bridge password - [You find the password on the Tibber Bridge - below the QR-Code]",
           "scan_interval": "Polling Interval in seconds",
-          "node_num": "Node Number (expert setting)"
-        }
-      }
-    }
-  },
-  "options": {
-    "step": {
-      "user": {
-        "description": "If you need help with the configuration have a look here: https://github.com/marq24/ha-tibber-pulse-local",
-        "data": {
-          "name": "Display name",
-          "host": "IP or hostname of the Tibber Pulse Bridge",
-          "password": "Your bridge password - [You find the password on the Tibber Bridge - below the QR-Code]",
-          "scan_interval": "Polling Interval in seconds",
           "node_num": "Node Number (expert setting)",
           "ignore_errors": "Do not LOG errors or warnings while parsing data"
         }

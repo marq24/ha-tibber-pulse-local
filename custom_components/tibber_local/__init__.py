@@ -76,9 +76,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     global SCAN_INTERVAL
-    SCAN_INTERVAL = timedelta(seconds=config_entry.options.get(CONF_SCAN_INTERVAL,
-                                                               config_entry.data.get(CONF_SCAN_INTERVAL,
-                                                                                     DEFAULT_SCAN_INTERVAL)))
+    SCAN_INTERVAL = timedelta(seconds=config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
 
     _LOGGER.info(
         f"Starting TibberLocal with interval: {SCAN_INTERVAL} - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
@@ -104,14 +102,14 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
 class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, config_entry):
-        self._host = config_entry.options.get(CONF_HOST, config_entry.data[CONF_HOST])
-        the_pwd = config_entry.options.get(CONF_PASSWORD, config_entry.data[CONF_PASSWORD])
+        self._host = config_entry.data[CONF_HOST]
+        the_pwd = config_entry.data[CONF_PASSWORD]
 
         # support for systems where node != 1
-        node_num = int(config_entry.options.get(CONF_NODE_NUMBER, config_entry.data.get(CONF_NODE_NUMBER, 1)))
+        node_num = int(config_entry.data.get(CONF_NODE_NUMBER, 1))
 
         # ignore parse errors is only in the OPTIONS (not part of the initial setup)
-        ignore_parse_errors = bool(config_entry.options.get(CONF_IGNORE_READING_ERRORS, False))
+        ignore_parse_errors = bool(config_entry.data.get(CONF_IGNORE_READING_ERRORS, False))
 
         # the communication_mode is not "adjustable" via the options - it will be only set during the
         # initial configuration phase - so we read it from the config_entry.data ONLY!
@@ -179,7 +177,7 @@ class TibberLocalEntity(Entity):
 
     @property
     def device_info(self) -> dict:
-        # "hw_version": self.coordinator._config_entry.options.get(CONF_DEV_NAME, self.coordinator._config_entry.data.get(CONF_DEV_NAME)),
+        # "hw_version": self.coordinator._config_entry.data.get(CONF_DEV_NAME, self.coordinator._config_entry.data.get(CONF_DEV_NAME)),
         return {
             "identifiers": {(DOMAIN, self.coordinator._host, self._stitle)},
             "name": "Tibber Pulse Bridge local polling",

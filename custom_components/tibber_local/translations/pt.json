@@ -18,20 +18,6 @@
           "host": "IP ou hostname da Tibber Pulse Bridge",
           "password": "A sua palavra-passe da bridge - [A palavra-passe encontra-se na Tibber Bridge - abaixo do código QR]",
           "scan_interval": "Intervalo de sondagem em segundos",
-          "node_num": "Número do Nó (configuração avançada)"
-        }
-      }
-    }
-  },
-  "options": {
-    "step": {
-      "user": {
-        "description": "Se precisar de ajuda com a configuração, consulte aqui: https://github.com/marq24/ha-tibber-pulse-local",
-        "data": {
-          "name": "Nome de exibição",
-          "host": "IP ou hostname da Tibber Pulse Bridge",
-          "password": "A sua palavra-passe da bridge - [A palavra-passe encontra-se na Tibber Bridge - abaixo do código QR]",
-          "scan_interval": "Intervalo de sondagem em segundos",
           "node_num": "Número do Nó (configuração avançada)",
           "ignore_errors": "Não registar erros ou avisos ao analisar dados"
         }

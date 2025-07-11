@@ -21,6 +21,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     ENUM_IMPLEMENTATIONS,
     CONF_NODE_NUMBER,
+    CONF_IGNORE_READING_ERRORS,
     DEFAULT_NODE_NUMBER,
     CONFIG_VERSION, CONFIG_MINOR_VERSION
 )
@@ -66,6 +67,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._default_pwd = DEFAULT_PWD
         self._default_scan_interval = DEFAULT_SCAN_INTERVAL
         self._default_node_number = DEFAULT_NODE_NUMBER
+        self._default_ignore_errors = False
 
 
     async def _test_connection_tibber_local(self, host, pwd, node_num):
@@ -123,6 +125,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._default_pwd = entry_data.get(CONF_PASSWORD, DEFAULT_PWD)
         self._default_scan_interval = entry_data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         self._default_node_number = entry_data.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)
+        self._default_ignore_errors = entry_data.get(CONF_IGNORE_READING_ERRORS, False)
         return await self.async_step_user()
 
     async def async_step_user(self, user_input=None):
@@ -140,31 +143,31 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             scan = user_input[CONF_SCAN_INTERVAL]
             node_num = user_input[CONF_NODE_NUMBER]
 
-            if _config_title_exists(name, self.hass):
-                self._errors[CONF_NAME] = "already_configured"
-                raise data_entry_flow.AbortFlow("already_configured")
-            elif _host_in_configuration_exists(host, node_num, self.hass):
-                self._errors[CONF_HOST] = "already_configured"
-                self._errors[CONF_NODE_NUMBER] = "already_configured"
-                raise data_entry_flow.AbortFlow("already_configured")
-            else:
-                if await self._test_connection_tibber_local(host, pwd, node_num):
+            if self.source != SOURCE_RECONFIGURE:
+                if _config_title_exists(name, self.hass):
+                    self._errors[CONF_NAME] = "already_configured"
+                    raise data_entry_flow.AbortFlow("already_configured")
+                elif _host_in_configuration_exists(host, node_num, self.hass):
+                    self._errors[CONF_HOST] = "already_configured"
+                    self._errors[CONF_NODE_NUMBER] = "already_configured"
+                    raise data_entry_flow.AbortFlow("already_configured")
 
-                    a_data = {CONF_NAME: name,
-                              CONF_HOST: host,
-                              CONF_PASSWORD: pwd,
-                              CONF_SCAN_INTERVAL: scan,
-                              CONF_NODE_NUMBER: node_num,
-                              CONF_ID: self._serial,
-                              CONF_MODE: self._con_mode}
+            if await self._test_connection_tibber_local(host, pwd, node_num):
+                a_data = {CONF_NAME: name,
+                          CONF_HOST: host,
+                          CONF_PASSWORD: pwd,
+                          CONF_SCAN_INTERVAL: scan,
+                          CONF_NODE_NUMBER: node_num,
+                          CONF_ID: self._serial,
+                          CONF_MODE: self._con_mode}
 
-                    self._abort_if_unique_id_configured()
-                    if self.source == SOURCE_RECONFIGURE:
-                        return self.async_update_reload_and_abort(entry=self._get_reconfigure_entry(), data=a_data)
-                    else:
-                        return self.async_create_entry(title=name, data=a_data)
+                self._abort_if_unique_id_configured()
+                if self.source == SOURCE_RECONFIGURE:
+                    return self.async_update_reload_and_abort(entry=self._get_reconfigure_entry(), data=a_data)
                 else:
-                    _LOGGER.error("Could not connect to Tibber Pulse Bridge at %s, check host ip address", host)
+                    return self.async_create_entry(title=name, data=a_data)
+            else:
+                _LOGGER.error("Could not connect to Tibber Pulse Bridge at %s, check host ip address", host)
         else:
             user_input = {}
             user_input[CONF_NAME] = self._default_name
@@ -172,6 +175,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input[CONF_PASSWORD] = self._default_pwd
             user_input[CONF_SCAN_INTERVAL] = self._default_scan_interval
             user_input[CONF_NODE_NUMBER] = self._default_node_number
+            user_input[CONF_IGNORE_READING_ERRORS] = self._default_ignore_errors
 
         return self.async_show_form(
             step_id="user",
@@ -181,6 +185,8 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_PASSWORD, default=user_input[CONF_PASSWORD]): str,
                 vol.Required(CONF_SCAN_INTERVAL, default=user_input[CONF_SCAN_INTERVAL]): int,
                 vol.Required(CONF_NODE_NUMBER, default=user_input[CONF_NODE_NUMBER]): int,
+                vol.Required(CONF_IGNORE_READING_ERRORS, default=user_input[CONF_IGNORE_READING_ERRORS]): bool
+
             }),
             last_step=True,
             errors=self._errors,
