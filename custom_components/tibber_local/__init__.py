@@ -1,22 +1,30 @@
 import asyncio
+import base64
 import logging
 import random
 import re
+import time
+from asyncio import CancelledError
 from datetime import timedelta
+from typing import Final
 
+import aiohttp
 import voluptuous as vol
+from aiohttp import ClientConnectorError, ClientConnectionError, ClientResponseError
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE, \
+    EVENT_HOMEASSISTANT_STARTED
+from homeassistant.core import HomeAssistant, CoreState
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.entity import EntityDescription, Entity
+from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from smllib import SmlStreamReader
 from smllib.const import UNITS
 from smllib.errors import CrcError, SmlLibException
 from smllib.sml import SmlListEntry, ObisCode
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.entity import EntityDescription, Entity
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from .const import (
     DOMAIN,
     MANUFACTURE,
@@ -40,7 +48,7 @@ SCAN_INTERVAL = timedelta(seconds=10)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS = ["sensor"]
-
+WEBSOCKET_WATCHDOG_INTERVAL: Final = timedelta(seconds=64)
 
 def mask_map(d):
     for k, v in d.copy().items():
@@ -86,21 +94,31 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         hass.data.setdefault(DOMAIN, {"manifest_version": value})
 
     coordinator = TibberLocalDataUpdateCoordinator(hass, config_entry)
-    if not coordinator.last_update_success:
+    await coordinator.async_refresh()  # Get initial data
+    if not coordinator.last_update_success: #or coordinator.data is None:
         raise ConfigEntryNotReady
     else:
         await coordinator.init_on_load()
 
-    hass.data[DOMAIN][config_entry.entry_id] = coordinator
+        com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
+        if com_mode != MODE_10_ImpressionsAmbient:
+            # ws watchdog...
+            if hass.state is CoreState.running:
+                await coordinator.start_watchdog()
+            else:
+                hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, coordinator.start_watchdog)
 
-    await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
-    config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
+        hass.data[DOMAIN][config_entry.entry_id] = coordinator
 
-    return True
+        await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
+        config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
+
+        return True
 
 class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
+
     def __init__(self, hass: HomeAssistant, config_entry):
         self._host = config_entry.data[CONF_HOST]
         the_pwd = config_entry.data[CONF_PASSWORD]
@@ -116,10 +134,15 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
 
         self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=async_get_clientsession(hass),
-                                        node_num=node_num,
-                                        com_mode=com_mode, options={"ignore_parse_errors": ignore_parse_errors})
+                                        node_num=node_num, com_mode=com_mode,
+                                        options={"ignore_parse_errors": ignore_parse_errors},
+                                        coordinator=self)
         self.name = config_entry.title
         self._config_entry = config_entry
+
+        self._watchdog = None
+        self._a_task = None
+
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
 
     # Callable[[Event], Any]
@@ -128,26 +151,72 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
     #    _LOGGER.warning(str(evt))
     #    return True
 
+    async def start_watchdog(self, event=None):
+        """Start websocket watchdog."""
+        await self._async_watchdog_check()
+        self._watchdog = async_track_time_interval(self.hass, self._async_watchdog_check, WEBSOCKET_WATCHDOG_INTERVAL)
+
+    def stop_watchdog(self):
+        if hasattr(self, "_watchdog") and self._watchdog is not None:
+            self._watchdog()
+
+    def _check_for_ws_task_and_cancel_if_running(self):
+        if self._a_task is not None and not self._a_task.done():
+            _LOGGER.debug(f"Watchdog: websocket connect task is still running - canceling it...")
+            try:
+                canceled = self._a_task.cancel()
+                _LOGGER.debug(f"Watchdog: websocket connect task was CANCELED? {canceled}")
+            except BaseException as ex:
+                _LOGGER.info(f"Watchdog: websocket connect task cancel failed: {type(ex).__name__} - {ex}")
+
+            self._a_task = None
+
+    async def _async_watchdog_check(self, *_):
+        """Reconnect the websocket if it fails."""
+        if not self.bridge.ws_supported:
+            _LOGGER.info(f"Watchdog: terminated, cause bridge reported 'ws_supported' = false")
+            self._watchdog()
+        else:
+            if not self.bridge.ws_connected:
+                self._check_for_ws_task_and_cancel_if_running()
+                _LOGGER.info(f"Watchdog: websocket connect required")
+                self._a_task = self._config_entry.async_create_background_task(self.hass, self.bridge.ws_connect(), "ws_connection")
+                if self._a_task is not None:
+                    _LOGGER.debug(f"Watchdog: task created {self._a_task.get_coro()}")
+            else:
+                _LOGGER.debug(f"Watchdog: websocket is connected")
+                if not self.bridge.ws_check_last_update():
+                    self._check_for_ws_task_and_cancel_if_running()
+
     async def init_on_load(self):
-        try:
-            await self.bridge.update()
-            _LOGGER.info(f"after init - found OBIS entries: '{self.bridge._obis_values}'")
-        except Exception as exception:
-            _LOGGER.warning(f"init caused {exception}")
+        if self.bridge._obis_values is None or len(self.bridge._obis_values) == 0:
+            try:
+                await self.bridge.update()
+            except Exception as exception:
+                _LOGGER.warning(f"init caused {exception}")
+
+        _LOGGER.info(f"after init - found OBIS entries: '{self.bridge._obis_values}'")
+
 
     async def _async_update_data(self):
         try:
-            await self.bridge.update()
-            return self.bridge
-        except UpdateFailed as exception:
-            raise UpdateFailed() from exception
+            if self.bridge.ws_connected:
+                _LOGGER.debug("_async_update_data called (but websocket is active - no data will be requested!)")
+                return self.bridge
+            else:
+                _LOGGER.debug(f"_async_update_data called")
+                await self.bridge.update()
+                return self.bridge
 
-    # async def _async_switch_to_state(self, switch_key, state):
-    #    try:
-    #        await self.bridge.switch(switch_key, state)
-    #        return self.bridge
-    #    except UpdateFailed as exception:
-    #        raise UpdateFailed() from exception
+        except UpdateFailed as exception:
+            _LOGGER.warning(f"UpdateFailed: {exception}")
+            raise UpdateFailed() from exception
+        except ClientConnectorError as exception:
+            _LOGGER.warning(f"UpdateFailed cause of ClientConnectorError: {exception}")
+            raise UpdateFailed() from exception
+        except Exception as other:
+            _LOGGER.warning(f"UpdateFailed unexpected: {type(other)} - {other}")
+            raise UpdateFailed() from other
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
@@ -155,6 +224,8 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     unload_ok = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
     if unload_ok:
         if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
+            coordinator = hass.data[DOMAIN][config_entry.entry_id]
+            coordinator.stop_watchdog()
             hass.data[DOMAIN].pop(config_entry.entry_id)
     return unload_ok
 
@@ -243,17 +314,48 @@ class IntBasedObisCode:
             return out
 
 
+@staticmethod
+def ws_parse_header_string(payload_head):
+    # Parse device and topic
+    device = None
+    topic = None
+    try:
+        header_str = payload_head.strip('<>')
+        parts = header_str.split()
+
+        for part in parts:
+            if part.startswith('device:'):
+                device = part.split(':', 1)[1]
+            elif part.startswith('topic:'):
+                topic = part.split(':', 1)[1]
+
+        topic = topic.strip('"')
+        #_LOGGER.debug(f"ws_parse_header(): device: {device}, topic: {topic}")
+
+    except (UnicodeDecodeError, ValueError) as e:
+        _LOGGER.info(f"ws(): Failed to parse string header: {e}")
+
+    return topic
+
+@staticmethod
+def ws_parse_header_bytes(sml_head: bytes):
+    try:
+        return ws_parse_header_string(sml_head.decode('utf-8'))
+    except (UnicodeDecodeError, ValueError) as e:
+        _LOGGER.info(f"ws(): Failed to parse bytes header: {e}")
+    return None
+
+@staticmethod
+def find_unit_int_from_string(unit_str: str):
+    for aUnit in UNITS.items():
+        if aUnit[1] == unit_str:
+            return aUnit[0]
+    return None
+
 class TibberLocalBridge:
     ONLY_DIGITS: re.Pattern = re.compile("^[0-9]+$")
     PLAIN_TEXT_LINE: re.Pattern = re.compile(r'(.*?)-(.*?):(.*?)\.(.*?)\.(.*?)(?:\*(.*?)|)\((.*?)\)')
     TWO_DIGIT_CODE_PATTERN = re.compile(r'^([^.]*\.[^.]*)(\(.*$)')
-
-    @staticmethod
-    def find_unit_int_from_string(unit_str: str):
-        for aUnit in UNITS.items():
-            if aUnit[1] == unit_str:
-                return aUnit[0]
-        return None
 
     def _get_value_internal(self, key, divisor: int = 1):
         if isinstance(key, list):
@@ -285,13 +387,27 @@ class TibberLocalBridge:
     # _communication_mode 'MODE_3_SML_1_04' is the initial implemented mode (reading binary sml data)...
     # 'all' other modes have to be implemented... also it could be, that the bridge does
     # not return a value for param_id=27
-    def __init__(self, host, pwd, websession, node_num: int = 1, com_mode: int = MODE_3_SML_1_04, options: dict = None):
+    def __init__(self, host, pwd, websession, node_num: int = 1, com_mode: int = MODE_3_SML_1_04, options: dict = None, coordinator: DataUpdateCoordinator = None):
         if websession is not None:
-            _LOGGER.info(
-                f"restarting TibberLocalBridge integration... for host: '{host}' node: '{node_num}' com_mode: '{com_mode}' with options: {options}")
+            _LOGGER.info(f"restarting TibberLocalBridge integration... for host: '{host}' node: '{node_num}' com_mode: '{com_mode}' with options: {options}")
             self.websession = websession
             self.url_data = f"http://admin:{pwd}@{host}/data.json?node_id={node_num}"
+            self.url_data_logging  = f"http://admin:<MASKED>@{host}/data.json?node_id={node_num}"
             self.url_mode = f"http://admin:{pwd}@{host}/node_params.json?node_id={node_num}"
+
+            # websocket stuff...
+            self.url_ws = f"http://{host}/ws"
+            int_auth_info = f"admin:{pwd}"
+            self.REQ_HEADERS_WS = {
+                "Accept-Language": "en",
+                "Authorization": f"Basic {base64.b64encode(int_auth_info.encode('utf-8')).decode('utf-8')}",
+            }
+
+        self._ws_LAST_UPDATE = 0
+        self.ws_connected = False
+        self.ws_supported = True
+        self._ws_debounced_update_task: asyncio.Task | None = None
+
         self._com_mode = com_mode
         self.ignore_parse_errors = False
         if options is not None and "ignore_parse_errors" in options:
@@ -305,6 +421,8 @@ class TibberLocalBridge:
             self.MAX_READ_RETRIES = 5
         else:
             self.MAX_READ_RETRIES = 1
+
+        self._coordinator = coordinator
 
     async def detect_com_mode(self):
         await self.detect_com_mode_from_node_param27()
@@ -373,7 +491,7 @@ class TibberLocalBridge:
         await self.read_tibber_local(mode=self._com_mode, retry_count=0, log_payload=True)
 
     async def read_tibber_local(self, mode: int, retry_count: int, log_payload: bool = False):
-        _LOGGER.debug(f"read_tibber_local: start{retry_count} - mode: {mode} request: {self.url_data}")
+        _LOGGER.debug(f"read_tibber_local: start{retry_count} - mode: {mode} request: {self.url_data_logging}")
         async with self.websession.get(self.url_data, ssl=False, timeout=10.0) as res:
             try:
                 res.raise_for_status()
@@ -444,7 +562,7 @@ class TibberLocalBridge:
                                     value = value * 1000
                                     val_with_unit[1] = val_with_unit[1][1:]
 
-                                unit = self.find_unit_int_from_string(val_with_unit[1])
+                                unit = find_unit_int_from_string(val_with_unit[1])
 
                             # creating finally the "right" object from the parsed information
                             if hasattr(int_obc, "obis_hex"):
@@ -594,6 +712,131 @@ class TibberLocalBridge:
                 retry_count = retry_count + 1
                 await asyncio.sleep(random.uniform(0.2, 1.2))
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry_count=retry_count)
+
+    # websocket implementation from here...
+    async def ws_connect(self):
+        try:
+            async with self.websession.ws_connect(self.url_ws, headers=self.REQ_HEADERS_WS) as ws:
+                self.ws_connected = True
+                _LOGGER.info(f"connected to websocket: {self.url_ws}")
+                async for msg in ws:
+                    self._ws_LAST_UPDATE = time.time()
+                    new_data_arrived = False
+
+                    if msg.type == aiohttp.WSMsgType.BINARY:
+                        try:
+                            binary_data = msg.data
+                            # Find the position of '>' and extract everything after it
+                            separator_pos = binary_data.index(b'>')
+                            if separator_pos > 0:
+                                binary_head = binary_data[:separator_pos + 1]
+                                #LOGGER.debug(f'SML head: {sml_head}')
+                                topic = ws_parse_header_bytes(binary_head)
+
+                                if "sml" in topic.lower():
+                                    binary_body = binary_data[separator_pos + 1:]
+                                    #_LOGGER.debug(f"SML data length: {len(sml_body)} bytes {sml_body.hex()}")
+                                    await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                    new_data_arrived = True
+                                else:
+                                    _LOGGER.debug(f"ws: UNKNOWN topic '{topic}' in: {binary_data}")
+                            else:
+                                _LOGGER.debug(f"ws: invalid data (no '>' found) in: {binary_data}")
+
+                        except Exception as e:
+                            _LOGGER.debug(f"Could not read WSMsgType.BINARY from: {msg} - caused {type(e).__name__} {e}")
+
+                    elif msg.type == aiohttp.WSMsgType.TEXT:
+                        try:
+                            payload_data = msg.data.decode('utf-8')
+                            separator_pos = payload_data.index('>')
+                            if separator_pos > 0:
+                                payload_head = payload_data[:separator_pos + 1]
+
+                                _LOGGER.debug(f'PLAINTEXT head: {payload_head}')
+                                topic = ws_parse_header_string(payload_head)
+
+                                if topic is not None:
+                                    payload_body = payload_data[separator_pos + 1:]
+                                    _LOGGER.debug(f'PLAINTEXT body: {payload_body}')
+                                    await self.mode_99_read_plaintext(payload_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                    new_data_arrived = True
+                            else:
+                                _LOGGER.debug(f"ws: invalid data (no '>' found) in: {binary_data}")
+
+                        except Exception as e:
+                            _LOGGER.debug(f"Could not read WSMsgType.TEXT from: {msg} - caused {type(e).__name__} {e}")
+
+                    elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                        _LOGGER.debug(f"received: {msg}")
+                        break
+
+
+                    # do we need to push new data event to the coordinator?
+                    if new_data_arrived:
+                        self._ws_notify_for_new_data()
+
+
+        except ClientResponseError as cre:
+            if hasattr(cre, "status") and cre.status == 404:
+                _LOGGER.info(f"ws_connect(): Could not connect to websocket at {self.url_ws} - [HTTP:404] - looks like firmware update not installed")
+                self.ws_supported = False
+            else:
+                _LOGGER.error(f"ws_connect(): Could not connect to websocket: {type(cre).__name__} - {cre}")
+        except ClientConnectorError as con:
+            _LOGGER.error(f"ws_connect(): Could not connect to websocket: {type(con).__name__} - {con}")
+        except ClientConnectionError as err:
+            _LOGGER.error(f"ws_connect(): ??? {type(err).__name__} - {err}")
+        except asyncio.TimeoutError as time_exc:
+            _LOGGER.debug(f"ws_connect(): TimeoutError: No WebSocket message received within timeout period")
+        except CancelledError as canceled:
+            _LOGGER.info(f"ws_connect(): Terminated? - {type(canceled).__name__} - {canceled}")
+        except BaseException as x:
+            _LOGGER.error(f"ws_connect(): !!! {type(x).__name__} - {x}")
+
+        _LOGGER.debug(f"ws_connect() ENDED")
+        try:
+            await self.ws_close(ws)
+        except UnboundLocalError as is_unbound:
+            _LOGGER.debug(f"ws_connect(): skipping ws_close() (since ws is unbound)")
+        except BaseException as e:
+            _LOGGER.error(f"ws_connect(): Error while calling ws_close(): {type(e).__name__} - {e}")
+
+        self.ws_connected = False
+        return None
+
+    def _ws_notify_for_new_data(self):
+        if self._ws_debounced_update_task is not None and not self._ws_debounced_update_task.done():
+            self._ws_debounced_update_task.cancel()
+        self._ws_debounced_update_task = asyncio.create_task(self._ws_debounce_coordinator_update())
+
+    async def _ws_debounce_coordinator_update(self):
+        await asyncio.sleep(0.3)
+        if self._coordinator is not None:
+            self._coordinator.async_set_updated_data(self._obis_values)
+
+    async def ws_close(self, ws):
+        """Close the WebSocket connection cleanly."""
+        _LOGGER.debug(f"ws_close(): called")
+        self.ws_connected = False
+        if ws is not None:
+            try:
+                await ws.close()
+                _LOGGER.debug(f"ws_close(): connection closed successfully")
+            except BaseException as e:
+                _LOGGER.info(f"ws_close(): Error closing WebSocket connection: {type(e).__name__} - {e}")
+            finally:
+                ws = None
+        else:
+            _LOGGER.debug(f"ws_close(): No active WebSocket connection to close (ws is None)")
+
+    def ws_check_last_update(self) -> bool:
+        if self._ws_LAST_UPDATE + 50 > time.time():
+            _LOGGER.debug(f"ws_check_last_update(): all good! [last update: {int(time.time()-self._ws_LAST_UPDATE)} sec ago]")
+            return True
+        else:
+            _LOGGER.info(f"ws_check_last_update(): force reconnect...")
+            return False
 
     # obis: https://www.promotic.eu/en/pmdoc/Subsystems/Comm/PmDrivers/PmIEC62056/IEC62056_OBIS.htm
     # units: https://github.com/spacemanspiff2007/SmlLib/blob/master/src/smllib/const.py

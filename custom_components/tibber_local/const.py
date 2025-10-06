@@ -37,8 +37,14 @@ MODE_3_SML_1_04: Final = 3
 MODE_10_ImpressionsAmbient : Final= 10
 MODE_11_ImpressionsIR: Final = 11
 MODE_99_PLAINTEXT: Final = 99
-ENUM_MODES: Final = [MODE_0_AutoScanMode, MODE_1_IEC_62056_21, MODE_2_Logarex, MODE_3_SML_1_04, MODE_10_ImpressionsAmbient,
-              MODE_11_ImpressionsIR]
+ENUM_MODES: Final = [
+    MODE_0_AutoScanMode,
+    MODE_1_IEC_62056_21,
+    MODE_2_Logarex,
+    MODE_3_SML_1_04,
+    MODE_10_ImpressionsAmbient,
+    MODE_11_ImpressionsIR
+]
 
 ENUM_IMPLEMENTATIONS: Final = [MODE_3_SML_1_04, MODE_10_ImpressionsAmbient, MODE_99_PLAINTEXT]
 
