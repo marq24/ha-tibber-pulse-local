@@ -100,6 +100,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     else:
         await coordinator.init_on_load()
 
+        # currently websocket support not for 'MODE_10_ImpressionsAmbient'
         com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
         if com_mode != MODE_10_ImpressionsAmbient:
             # ws watchdog...
@@ -110,12 +111,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
 
         hass.data[DOMAIN][config_entry.entry_id] = coordinator
-
         await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
-
         config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
 
         return True
+
 
 class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
 
@@ -156,9 +156,11 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         await self._async_watchdog_check()
         self._watchdog = async_track_time_interval(self.hass, self._async_watchdog_check, WEBSOCKET_WATCHDOG_INTERVAL)
 
+
     def stop_watchdog(self):
         if hasattr(self, "_watchdog") and self._watchdog is not None:
             self._watchdog()
+
 
     def _check_for_ws_task_and_cancel_if_running(self):
         if self._a_task is not None and not self._a_task.done():
@@ -170,6 +172,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.info(f"Watchdog: websocket connect task cancel failed: {type(ex).__name__} - {ex}")
 
             self._a_task = None
+
 
     async def _async_watchdog_check(self, *_):
         """Reconnect the websocket if it fails."""
@@ -188,14 +191,16 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                 if not self.bridge.ws_check_last_update():
                     self._check_for_ws_task_and_cancel_if_running()
 
+
     async def init_on_load(self):
         if self.bridge._obis_values is None or len(self.bridge._obis_values) == 0:
+            _LOGGER.info(f"init_on_load(): UPDATE required...")
             try:
                 await self.bridge.update()
             except Exception as exception:
                 _LOGGER.warning(f"init caused {exception}")
 
-        _LOGGER.info(f"after init - found OBIS entries: '{self.bridge._obis_values}'")
+        _LOGGER.info(f"init_on_load(): after init - found OBIS entries: '{self.bridge._obis_values}'")
 
 
     async def _async_update_data(self):
@@ -333,7 +338,7 @@ def ws_parse_header_string(payload_head):
         #_LOGGER.debug(f"ws_parse_header(): device: {device}, topic: {topic}")
 
     except (UnicodeDecodeError, ValueError) as e:
-        _LOGGER.info(f"ws(): Failed to parse string header: {e}")
+        _LOGGER.info(f"ws_parse_header_string(): Failed to parse string header: {e}")
 
     return topic
 
@@ -342,7 +347,7 @@ def ws_parse_header_bytes(sml_head: bytes):
     try:
         return ws_parse_header_string(sml_head.decode('utf-8'))
     except (UnicodeDecodeError, ValueError) as e:
-        _LOGGER.info(f"ws(): Failed to parse bytes header: {e}")
+        _LOGGER.info(f"ws_parse_header_bytes(): Failed to parse bytes header: {e}")
     return None
 
 @staticmethod
@@ -403,9 +408,9 @@ class TibberLocalBridge:
                 "Authorization": f"Basic {base64.b64encode(int_auth_info.encode('utf-8')).decode('utf-8')}",
             }
 
-        self._ws_LAST_UPDATE = 0
         self.ws_connected = False
         self.ws_supported = True
+        self._ws_LAST_UPDATE = 0
         self._ws_debounced_update_task: asyncio.Task | None = None
 
         self._com_mode = com_mode
@@ -718,10 +723,14 @@ class TibberLocalBridge:
         try:
             async with self.websession.ws_connect(self.url_ws, headers=self.REQ_HEADERS_WS) as ws:
                 self.ws_connected = True
-                _LOGGER.info(f"connected to websocket: {self.url_ws}")
+                _LOGGER.info(f"ws_connect(): connected to websocket: {self.url_ws} - in COM MODE: {self._com_mode}")
                 async for msg in ws:
                     self._ws_LAST_UPDATE = time.time()
                     new_data_arrived = False
+
+                    # self._com_mode == MODE_3_SML_1_04
+                    # self._com_mode == MODE_10_ImpressionsAmbient
+                    # self._com_mode == MODE_99_PLAINTEXT
 
                     if msg.type == aiohttp.WSMsgType.BINARY:
                         try:
@@ -730,56 +739,74 @@ class TibberLocalBridge:
                             separator_pos = binary_data.index(b'>')
                             if separator_pos > 0:
                                 binary_head = binary_data[:separator_pos + 1]
-                                #LOGGER.debug(f'SML head: {sml_head}')
+                                _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY head: {binary_head}")
                                 topic = ws_parse_header_bytes(binary_head)
+                                if topic is not None:
+                                    topic_lc = topic.lower()
+                                    if "sml" in topic_lc and self._com_mode == MODE_3_SML_1_04:
+                                        binary_body = binary_data[separator_pos + 1:]
+                                        _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body '{topic}' [len:{len(binary_body)}]: {binary_body}")
+                                        try:
+                                            await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                            new_data_arrived = True
+                                        except Exception as e:
+                                            _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_03_read_sml' caused {type(e).__name__} [{text_data}] {e}")
 
-                                if "sml" in topic.lower():
-                                    binary_body = binary_data[separator_pos + 1:]
-                                    #_LOGGER.debug(f"SML data length: {len(sml_body)} bytes {sml_body.hex()}")
-                                    await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                    new_data_arrived = True
+                                    elif ("txt" in topic_lc or "text" in topic_lc or "plain" in topic_lc) and self._com_mode == MODE_99_PLAINTEXT:
+                                        text_body = binary_data[separator_pos + 1:].decode('utf-8')
+                                        _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as text) '{topic}' [len:{len(text_body)}]: {text_body}")
+                                        try:
+                                            await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                            new_data_arrived = True
+                                        except Exception as e:
+                                            _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_99_read_plaintext' caused {type(e).__name__} [{text_data}] {e}")
+                                    else:
+                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'UNKNOWN' topic '{topic}'/mode_'{self._com_mode}' in: {binary_data}")
                                 else:
-                                    _LOGGER.debug(f"ws: UNKNOWN topic '{topic}' in: {binary_data}")
+                                    _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'NONE' topic '{topic}'/mode_'{self._com_mode}' in: {binary_data}")
                             else:
-                                _LOGGER.debug(f"ws: invalid data (no '>' found) in: {binary_data}")
+                                _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY invalid data (NO '>' FOUND) in: {binary_data}")
 
                         except Exception as e:
-                            _LOGGER.debug(f"Could not read WSMsgType.BINARY from: {msg} - caused {type(e).__name__} {e}")
+                            _LOGGER.debug(f"ws_connect(): Could not read WSMsgType.BINARY from: {msg} - caused {type(e).__name__} {e}")
 
                     elif msg.type == aiohttp.WSMsgType.TEXT:
                         try:
-                            payload_data = msg.data.decode('utf-8')
-                            separator_pos = payload_data.index('>')
+                            text_data = msg.data.decode('utf-8')
+                            separator_pos = text_data.index('>')
                             if separator_pos > 0:
-                                payload_head = payload_data[:separator_pos + 1]
+                                text_head = text_data[:separator_pos + 1]
 
-                                _LOGGER.debug(f'PLAINTEXT head: {payload_head}')
-                                topic = ws_parse_header_string(payload_head)
+                                _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT head: {text_head}")
+                                topic = ws_parse_header_string(text_head)
 
-                                if topic is not None:
-                                    payload_body = payload_data[separator_pos + 1:]
-                                    _LOGGER.debug(f'PLAINTEXT body: {payload_body}')
-                                    await self.mode_99_read_plaintext(payload_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                    new_data_arrived = True
+                                if topic is not None and self._com_mode == MODE_99_PLAINTEXT:
+                                    text_body = text_data[separator_pos + 1:]
+                                    _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT body '{topic}' [len:{len(text_body)}]: {text_body}")
+                                    try:
+                                        await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                        new_data_arrived = True
+                                    except Exception as e:
+                                        _LOGGER.warning(f"ws_connect(): WSMsgType.TEXT 'mode_99_read_plaintext' caused {type(e).__name__} [{text_data}] {e}")
+                                else:
+                                    _LOGGER.warning(f"ws_connect(): WSMsgType.TEXT 'UNHANDLED' topic '{topic}'/mode_'{self._com_mode}' in: {text_data}")
                             else:
-                                _LOGGER.debug(f"ws: invalid data (no '>' found) in: {binary_data}")
+                                _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT invalid data (NO '>' FOUND) in: {text_data}")
 
                         except Exception as e:
-                            _LOGGER.debug(f"Could not read WSMsgType.TEXT from: {msg} - caused {type(e).__name__} {e}")
+                            _LOGGER.debug(f"ws_connect(): Could not read WSMsgType.TEXT from: {msg} - caused {type(e).__name__} {e}")
 
                     elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
-                        _LOGGER.debug(f"received: {msg}")
+                        _LOGGER.debug(f"ws_connect(): received: {msg}")
                         break
-
 
                     # do we need to push new data event to the coordinator?
                     if new_data_arrived:
                         self._ws_notify_for_new_data()
 
-
         except ClientResponseError as cre:
             if hasattr(cre, "status") and cre.status == 404:
-                _LOGGER.info(f"ws_connect(): Could not connect to websocket at {self.url_ws} - [HTTP:404] - looks like firmware update not installed")
+                _LOGGER.info(f"ws_connect(): Could not connect to websocket at {self.url_ws} - [HTTP:404] - looks like bridge firmware update '1428-6debbaf6/795-379a5e21' not installed")
                 self.ws_supported = False
             else:
                 _LOGGER.error(f"ws_connect(): Could not connect to websocket: {type(cre).__name__} - {cre}")
