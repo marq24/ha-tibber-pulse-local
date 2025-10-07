@@ -345,7 +345,7 @@ def ws_parse_header_string(payload_head):
 @staticmethod
 def ws_parse_header_bytes(sml_head: bytes):
     try:
-        return ws_parse_header_string(sml_head.decode('utf-8'))
+        return ws_parse_header_string(sml_head.decode('ascii', errors='ignore'))
     except (UnicodeDecodeError, ValueError) as e:
         _LOGGER.info(f"ws_parse_header_bytes(): Failed to parse bytes header: {e}")
     return None
@@ -718,6 +718,7 @@ class TibberLocalBridge:
                 await asyncio.sleep(random.uniform(0.2, 1.2))
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry_count=retry_count)
 
+
     # websocket implementation from here...
     async def ws_connect(self):
         try:
@@ -741,29 +742,27 @@ class TibberLocalBridge:
                                 binary_head = binary_data[:separator_pos + 1]
                                 _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY head: {binary_head}")
                                 topic = ws_parse_header_bytes(binary_head)
-                                if topic is not None:
-                                    topic_lc = topic.lower()
-                                    if "sml" in topic_lc and self._com_mode == MODE_3_SML_1_04:
-                                        binary_body = binary_data[separator_pos + 1:]
-                                        _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body '{topic}' [len:{len(binary_body)}]: {binary_body}")
-                                        try:
-                                            await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                            new_data_arrived = True
-                                        except Exception as e:
-                                            _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_03_read_sml' caused {type(e).__name__} [{text_data}] {e}")
 
-                                    elif ("txt" in topic_lc or "text" in topic_lc or "plain" in topic_lc) and self._com_mode == MODE_99_PLAINTEXT:
-                                        text_body = binary_data[separator_pos + 1:].decode('utf-8')
-                                        _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as text) '{topic}' [len:{len(text_body)}]: {text_body}")
-                                        try:
-                                            await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                            new_data_arrived = True
-                                        except Exception as e:
-                                            _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_99_read_plaintext' caused {type(e).__name__} [{text_data}] {e}")
-                                    else:
-                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'UNKNOWN' topic '{topic}'/mode_'{self._com_mode}' in: {binary_data}")
+                                if topic is not None and "sml" in topic.lower() and self._com_mode == MODE_3_SML_1_04:
+                                    binary_body = binary_data[separator_pos + 1:]
+                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body '{topic}' [len:{len(binary_body)}]: {binary_body}")
+                                    try:
+                                        await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                        new_data_arrived = True
+                                    except Exception as e:
+                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_03_read_sml' caused {type(e).__name__} [{text_data}] {e}")
+
+                                elif topic is not None and self._com_mode == MODE_99_PLAINTEXT:
+                                    text_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
+                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as TEXT) '{topic}' [len:{len(text_body)}]: {text_body}")
+                                    try:
+                                        await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                        new_data_arrived = True
+                                    except Exception as e:
+                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_99_read_plaintext' caused {type(e).__name__} [{text_data}] {e}")
+
                                 else:
-                                    _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'NONE' topic '{topic}'/mode_'{self._com_mode}' in: {binary_data}")
+                                    _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY topic '{topic}'/mode_'{self._com_mode}' in: {binary_data}")
                             else:
                                 _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY invalid data (NO '>' FOUND) in: {binary_data}")
 
@@ -772,7 +771,7 @@ class TibberLocalBridge:
 
                     elif msg.type == aiohttp.WSMsgType.TEXT:
                         try:
-                            text_data = msg.data.decode('utf-8')
+                            text_data = msg.data.decode('ascii', errors='ignore')
                             separator_pos = text_data.index('>')
                             if separator_pos > 0:
                                 text_head = text_data[:separator_pos + 1]
