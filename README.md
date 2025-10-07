@@ -57,7 +57,7 @@ To enable the web frontend permanently, one local variable needs to be set in th
 ### 1. Start AP-Mode
 
 > [!TIP]
-> While you have unplugged the bridge you might like to use the opportunity to get the password from the bottom of the plug (see also step 2: 'Connect to the Pulse Bridge WiFi AccessPoint').   
+> While you have unplugged the bridge you might like to use the opportunity to get the password from the bottom of the plug - e.g. by taking a photo (see also step 2: 'Connect to the Pulse Bridge WiFi AccessPoint').   
 
 * Unplug the Tibber bridge.
 * After three seconds, plug the Tibber bridge.
