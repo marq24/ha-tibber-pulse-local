@@ -16,7 +16,7 @@ from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PAS
     EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant, CoreState
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.entity import EntityDescription, Entity
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -133,7 +133,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         # initial configuration phase - so we read it from the config_entry.data ONLY!
         com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
 
-        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=async_get_clientsession(hass),
+        self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=async_create_clientsession(hass),
                                         node_num=node_num, com_mode=com_mode,
                                         options={"ignore_parse_errors": ignore_parse_errors},
                                         coordinator=self)
@@ -230,6 +230,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if unload_ok:
         if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
             coordinator = hass.data[DOMAIN][config_entry.entry_id]
+            await coordinator.bridge.ws_close_and_prepare_to_terminate()
             coordinator.stop_watchdog()
             hass.data[DOMAIN].pop(config_entry.entry_id)
     return unload_ok
@@ -410,6 +411,7 @@ class TibberLocalBridge:
 
         self.ws_connected = False
         self.ws_supported = True
+        self.ws_obj = None
         self._ws_LAST_UPDATE = 0
         self._ws_debounced_update_task: asyncio.Task | None = None
 
@@ -724,6 +726,7 @@ class TibberLocalBridge:
         try:
             async with self.websession.ws_connect(self.url_ws, headers=self.REQ_HEADERS_WS) as ws:
                 self.ws_connected = True
+                self.ws_obj = ws
                 _LOGGER.info(f"ws_connect(): connected to websocket: {self.url_ws} - in COM MODE: {self._com_mode}")
                 async for msg in ws:
                     self._ws_LAST_UPDATE = time.time()
@@ -745,7 +748,7 @@ class TibberLocalBridge:
 
                                 if topic is not None and "sml" in topic.lower() and self._com_mode == MODE_3_SML_1_04:
                                     binary_body = binary_data[separator_pos + 1:]
-                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body '{topic}' [len:{len(binary_body)}]: {binary_body}")
+                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body '{topic}' [len:{len(binary_body)}]: {binary_body if len(binary_body) <= 15 else binary_body[:15]}...")
                                     try:
                                         await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
                                         new_data_arrived = True
@@ -754,7 +757,7 @@ class TibberLocalBridge:
 
                                 elif topic is not None and self._com_mode == MODE_99_PLAINTEXT:
                                     text_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
-                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as TEXT) '{topic}' [len:{len(text_body)}]: {text_body}")
+                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as TEXT) '{topic}' [len:{len(text_body)}]: {text_body if len(text_body) <= 15 else text_body[:15]}...")
                                     try:
                                         await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
                                         new_data_arrived = True
@@ -816,11 +819,11 @@ class TibberLocalBridge:
         except asyncio.TimeoutError as time_exc:
             _LOGGER.debug(f"ws_connect(): TimeoutError: No WebSocket message received within timeout period")
         except CancelledError as canceled:
-            _LOGGER.info(f"ws_connect(): Terminated? - {type(canceled).__name__} - {canceled}")
+            _LOGGER.debug(f"ws_connect(): Terminated? - {type(canceled).__name__} - {canceled}")
         except BaseException as x:
             _LOGGER.error(f"ws_connect(): !!! {type(x).__name__} - {x}")
 
-        _LOGGER.debug(f"ws_connect() ENDED")
+        _LOGGER.debug(f"ws_connect(): -- END HAS REACHED --")
         try:
             await self.ws_close(ws)
         except UnboundLocalError as is_unbound:
@@ -829,6 +832,7 @@ class TibberLocalBridge:
             _LOGGER.error(f"ws_connect(): Error while calling ws_close(): {type(e).__name__} - {e}")
 
         self.ws_connected = False
+        self.ws_obj = None
         return None
 
     def _ws_notify_for_new_data(self):
@@ -853,8 +857,29 @@ class TibberLocalBridge:
                 _LOGGER.info(f"ws_close(): Error closing WebSocket connection: {type(e).__name__} - {e}")
             finally:
                 ws = None
+                self.ws_obj = None
         else:
             _LOGGER.debug(f"ws_close(): No active WebSocket connection to close (ws is None)")
+
+    async def ws_close_and_prepare_to_terminate(self):
+        try:
+            if self.ws_obj is not None:
+                await self.ws_close(self.ws_obj)
+                await asyncio.sleep(4)
+                if not self.ws_connected and self.ws_obj is None:
+                    _LOGGER.debug(f"ws_close_and_prepare_to_terminate(): completed! -- ALL iS FINE --")
+                else:
+                    _LOGGER.debug(f"ws_close_and_prepare_to_terminate(): completed, but ws_connected: {self.ws_connected} | ws_obj: {self.ws_obj}")
+
+                # funny this code can close the websession... but this will bring HA into trouble,,,
+                #await self.websession.connector.close()
+                #self.websession.detach()
+                #_LOGGER.debug(f"ws_close_and_prepare_to_terminate(): websession is detached!")
+
+        except UnboundLocalError as is_unbound:
+            _LOGGER.debug(f"ws_close_and_prepare_to_terminate(): skipping (since ws is unbound) {type(is_unbound).__name__} - {is_unbound}")
+        except BaseException as e:
+            _LOGGER.error(f"ws_close_and_prepare_to_terminate(): Error: {type(e).__name__} - {e}")
 
     def ws_check_last_update(self) -> bool:
         if self._ws_LAST_UPDATE + 50 > time.time():
