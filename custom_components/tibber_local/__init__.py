@@ -1,6 +1,6 @@
-import json
 import asyncio
 import base64
+import json
 import logging
 import random
 import re
@@ -752,7 +752,7 @@ class TibberLocalBridge:
                                         await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
                                         new_data_arrived = True
                                     except Exception as e:
-                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_03_read_sml' caused {type(e).__name__} [{text_data}] {e}")
+                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_03_read_sml' caused {type(e).__name__} [{binary_body}] {e}")
 
                                 elif topic is not None and self._com_mode == MODE_99_PLAINTEXT:
                                     text_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
@@ -761,7 +761,7 @@ class TibberLocalBridge:
                                         await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
                                         new_data_arrived = True
                                     except Exception as e:
-                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_99_read_plaintext' caused {type(e).__name__} [{text_data}] {e}")
+                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_99_read_plaintext' caused {type(e).__name__} [{text_body}] {e}")
 
                                 elif topic is not None and self._com_mode == MODE_10_ImpressionsAmbient:
                                     json_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
@@ -770,7 +770,7 @@ class TibberLocalBridge:
                                         await self.mode_10_read_json_impressions_ambient(json.loads(json_body), retry_count=self.MAX_READ_RETRIES, log_payload=False)
                                         new_data_arrived = True
                                     except Exception as e:
-                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_10_read_json_impressions_ambient' caused {type(e).__name__} [{text_data}] {e}")
+                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_10_read_json_impressions_ambient' caused {type(e).__name__} [{json_body}] {e}")
 
 
                                 else:
