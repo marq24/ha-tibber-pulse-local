@@ -1,3 +1,4 @@
+import json
 import asyncio
 import base64
 import logging
@@ -40,7 +41,7 @@ from .const import (
     MODE_99_PLAINTEXT,
     MODE_1_IEC_62056_21,
     ENUM_IMPLEMENTATIONS,
-    CONFIG_VERSION, CONFIG_MINOR_VERSION
+    CONFIG_VERSION, CONFIG_MINOR_VERSION, CONF_USE_POLLING, DEFAULT_USE_POLLING
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -100,15 +101,13 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     else:
         await coordinator.init_on_load()
 
-        # currently websocket support not for 'MODE_10_ImpressionsAmbient'
-        com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
-        if com_mode != MODE_10_ImpressionsAmbient:
+        # if polling is NOT enabled - we will use of the websocket implementation...
+        if not config_entry.data.get(CONF_USE_POLLING, DEFAULT_USE_POLLING):
             # ws watchdog...
             if hass.state is CoreState.running:
                 await coordinator.start_watchdog()
             else:
                 hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, coordinator.start_watchdog)
-
 
         hass.data[DOMAIN][config_entry.entry_id] = coordinator
         await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
@@ -764,6 +763,16 @@ class TibberLocalBridge:
                                     except Exception as e:
                                         _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_99_read_plaintext' caused {type(e).__name__} [{text_data}] {e}")
 
+                                elif topic is not None and self._com_mode == MODE_10_ImpressionsAmbient:
+                                    json_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
+                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as JSON) '{topic}' [len:{len(json_body)}]: {json_body if len(json_body) <= 15 else json_body[:15]}...")
+                                    try:
+                                        await self.mode_10_read_json_impressions_ambient(json.loads(json_body), retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                        new_data_arrived = True
+                                    except Exception as e:
+                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_10_read_json_impressions_ambient' caused {type(e).__name__} [{text_data}] {e}")
+
+
                                 else:
                                     _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY topic '{topic}'/mode_'{self._com_mode}' in: {binary_data}")
                             else:
@@ -841,7 +850,6 @@ class TibberLocalBridge:
         self._ws_debounced_update_task = asyncio.create_task(self._ws_debounce_coordinator_update())
 
     async def _ws_debounce_coordinator_update(self):
-        await asyncio.sleep(0.3)
         if self._coordinator is not None:
             self._coordinator.async_set_updated_data(self._obis_values)
 

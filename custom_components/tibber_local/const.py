@@ -20,12 +20,14 @@ MANUFACTURE: Final = "Tibber"
 DEFAULT_NAME: Final = "ltibber"
 DEFAULT_HOST: Final = "tibber-bridge"
 DEFAULT_PWD: Final = ""
+DEFAULT_USE_POLLING: Final = False
 DEFAULT_SCAN_INTERVAL: Final = 10
 
 CONFIG_VERSION: Final = 2
 CONFIG_MINOR_VERSION: Final = 0
 
 CONF_NODE_NUMBER: Final = "node_num"
+CONF_USE_POLLING: Final = "use_polling"
 CONF_IGNORE_READING_ERRORS: Final = "ignore_errors"
 DEFAULT_NODE_NUMBER: Final = 1
 

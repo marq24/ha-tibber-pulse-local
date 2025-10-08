@@ -17,10 +17,16 @@
         "data": {
           "name": "Display name",
           "host": "IP or hostname of the Tibber Pulse Bridge",
-          "password": "Your bridge password - [You find the password on the Tibber Bridge - below the QR-Code]",
+          "password": "Your bridge password",
+          "use_polling": "Use old polling procedure / request data cyclically from Bridge",
           "scan_interval": "Polling Interval in seconds",
           "node_num": "Node Number (expert setting)",
           "ignore_errors": "Do not LOG errors or warnings while parsing data"
+        },
+        "data_description": {
+          "password": "[You find the password on the Tibber Bridge - below the QR-Code]",
+          "use_polling": "Only check this option if the communication via websocket is causing issues for you.",
+          "scan_interval": "Only relevant, when you enabled 'Use old polling procedure'"
         }
       }
     }

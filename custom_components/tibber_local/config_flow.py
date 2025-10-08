@@ -18,12 +18,15 @@ from .const import (
     DEFAULT_NAME,
     DEFAULT_HOST,
     DEFAULT_PWD,
+    DEFAULT_USE_POLLING,
     DEFAULT_SCAN_INTERVAL,
     ENUM_IMPLEMENTATIONS,
     CONF_NODE_NUMBER,
     CONF_IGNORE_READING_ERRORS,
+    CONF_USE_POLLING,
     DEFAULT_NODE_NUMBER,
-    CONFIG_VERSION, CONFIG_MINOR_VERSION
+    CONFIG_VERSION,
+    CONFIG_MINOR_VERSION
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -65,6 +68,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._default_name = DEFAULT_NAME
         self._default_host = DEFAULT_HOST
         self._default_pwd = DEFAULT_PWD
+        self._default_use_polling = DEFAULT_USE_POLLING
         self._default_scan_interval = DEFAULT_SCAN_INTERVAL
         self._default_node_number = DEFAULT_NODE_NUMBER
         self._default_ignore_errors = False
@@ -123,6 +127,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._default_name = entry_data.get(CONF_NAME, DEFAULT_NAME)
         self._default_host = entry_data.get(CONF_HOST, DEFAULT_HOST)
         self._default_pwd = entry_data.get(CONF_PASSWORD, DEFAULT_PWD)
+        self._default_use_polling = entry_data.get(CONF_USE_POLLING, DEFAULT_USE_POLLING)
         self._default_scan_interval = entry_data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         self._default_node_number = entry_data.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)
         self._default_ignore_errors = entry_data.get(CONF_IGNORE_READING_ERRORS, False)
@@ -140,6 +145,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             name = user_input[CONF_NAME]
             pwd = user_input[CONF_PASSWORD]
+            use_polling = user_input[CONF_USE_POLLING]
             scan = user_input[CONF_SCAN_INTERVAL]
             node_num = user_input[CONF_NODE_NUMBER]
 
@@ -156,6 +162,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 a_data = {CONF_NAME: name,
                           CONF_HOST: host,
                           CONF_PASSWORD: pwd,
+                          CONF_USE_POLLING: use_polling,
                           CONF_SCAN_INTERVAL: scan,
                           CONF_NODE_NUMBER: node_num,
                           CONF_ID: self._serial,
@@ -173,6 +180,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input[CONF_NAME] = self._default_name
             user_input[CONF_HOST] = self._default_host
             user_input[CONF_PASSWORD] = self._default_pwd
+            user_input[CONF_USE_POLLING] = self._default_use_polling
             user_input[CONF_SCAN_INTERVAL] = self._default_scan_interval
             user_input[CONF_NODE_NUMBER] = self._default_node_number
             user_input[CONF_IGNORE_READING_ERRORS] = self._default_ignore_errors
@@ -183,10 +191,10 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_NAME, default=user_input[CONF_NAME]): str,
                 vol.Required(CONF_HOST, default=user_input[CONF_HOST]): str,
                 vol.Required(CONF_PASSWORD, default=user_input[CONF_PASSWORD]): str,
+                vol.Required(CONF_USE_POLLING, default=user_input[CONF_USE_POLLING]): bool,
                 vol.Required(CONF_SCAN_INTERVAL, default=user_input[CONF_SCAN_INTERVAL]): int,
                 vol.Required(CONF_NODE_NUMBER, default=user_input[CONF_NODE_NUMBER]): int,
                 vol.Required(CONF_IGNORE_READING_ERRORS, default=user_input[CONF_IGNORE_READING_ERRORS]): bool
-
             }),
             last_step=True,
             errors=self._errors,

@@ -17,10 +17,18 @@
         "data": {
           "name": "Anzeigename",
           "host": "IP oder Hostname der Tibber Pulse Bridge",
-          "password": "Bridge-Passwort (steht auf der Tibber Bridge unter dem QR-Code)",
+          "password": "Bridge-Passwort",
+          "use_polling": "Altes Polling verfahren nutzen / Daten zyklisch von Bridge anfordern",
           "scan_interval": "Aktualisierungsintervall in Sekunden",
-          "node_num": "Node-Nummer (Experteneinstellung)",
+          "node_num": "Node-Nummer",
           "ignore_errors": "Fehler und Warnungen beim Lesen der Daten nicht protokollieren"
+        },
+        "data_description": {
+          "host": "Bitte gib nur den Host (oder die IP) an - die Kommunikation erfolgt immer über http/ws.",
+          "password": "Das Passwort findest Du auf der Tibber Bridge unter dem QR-Code.",
+          "use_polling": "Diese Option solltest Du nur dann aktivieren, wenn die Kommunikation via WebSocket bei Dir Probleme verursacht.",
+          "scan_interval": "Nur relevant, wenn Du die Option 'Altes Polling verfahren nutzen' aktiviert hast.",
+          "node_num": "Experteneinstellung (wenn Dein Pulse nicht als Node1 in der Bridge gelistet wird)"
         }
       }
     }
