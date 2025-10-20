@@ -28,6 +28,7 @@ CONFIG_MINOR_VERSION: Final = 0
 
 CONF_NODE_NUMBER: Final = "node_num"
 CONF_USE_POLLING: Final = "use_polling"
+CONF_OBIS_CODES: Final = "obis_codes"
 CONF_IGNORE_READING_ERRORS: Final = "ignore_errors"
 DEFAULT_NODE_NUMBER: Final = 1
 

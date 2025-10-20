@@ -13,8 +13,14 @@ import aiohttp
 import voluptuous as vol
 from aiohttp import ClientConnectorError, ClientConnectionError, ClientResponseError
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ID, CONF_HOST, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE, \
+from homeassistant.const import (
+    CONF_ID,
+    CONF_HOST,
+    CONF_SCAN_INTERVAL,
+    CONF_PASSWORD,
+    CONF_MODE,
     EVENT_HOMEASSISTANT_STARTED
+)
 from homeassistant.core import HomeAssistant, CoreState
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
@@ -31,6 +37,8 @@ from .const import (
     MANUFACTURE,
     DEFAULT_HOST,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_USE_POLLING,
+    CONF_USE_POLLING,
     CONF_NODE_NUMBER,
     CONF_IGNORE_READING_ERRORS,
     ENUM_MODES,
@@ -41,7 +49,7 @@ from .const import (
     MODE_99_PLAINTEXT,
     MODE_1_IEC_62056_21,
     ENUM_IMPLEMENTATIONS,
-    CONFIG_VERSION, CONFIG_MINOR_VERSION, CONF_USE_POLLING, DEFAULT_USE_POLLING
+    CONFIG_VERSION, CONFIG_MINOR_VERSION
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -497,7 +505,7 @@ class TibberLocalBridge:
         await self.read_tibber_local(mode=self._com_mode, retry_count=0, log_payload=True)
 
     async def read_tibber_local(self, mode: int, retry_count: int, log_payload: bool = False):
-        _LOGGER.debug(f"read_tibber_local: start{retry_count} - mode: {mode} request: {self.url_data_logging}")
+        _LOGGER.debug(f"read_tibber_local: start[{retry_count}] - mode: {mode} request: {self.url_data_logging}")
         async with self.websession.get(self.url_data, ssl=False, timeout=10.0) as res:
             try:
                 res.raise_for_status()
@@ -511,7 +519,7 @@ class TibberLocalBridge:
                     elif mode == MODE_99_PLAINTEXT:
                         await self.mode_99_read_plaintext(await res.text(), retry_count, log_payload)
 
-                    _LOGGER.debug(f"read_tibber_local: after read - found OBIS entries: '{self._obis_values}'")
+                    _LOGGER.debug(f"read_tibber_local: after[{retry_count}] read - found OBIS entries: '{self._obis_values}'")
                 else:
                     if res is not None:
                         _LOGGER.warning(f"access to bridge failed with code {res.status} - res: {res}")

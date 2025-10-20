@@ -5,10 +5,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import StateType
 from homeassistant.util import slugify
+
 from . import TibberLocalDataUpdateCoordinator, TibberLocalEntity
 from .const import (
     DOMAIN,
-    SENSOR_TYPES
+    SENSOR_TYPES,
+    CONF_OBIS_CODES
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -20,13 +22,24 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     if hasattr(coordinator, 'bridge' ):
         if hasattr(coordinator.bridge, '_obis_values'):
             if len(coordinator.bridge._obis_values) > 0:
-                available_sensors = coordinator.bridge._obis_values.keys()
-                _LOGGER.info(f"available sensors found: {available_sensors}")
+                available_sensors = list(coordinator.bridge._obis_values.keys())
+                _LOGGER.info(f"available obis codes found: {available_sensors}")
+
+                # we store the available OBIS codes (so that we are able to use
+                # them later - when startup fails for some reason)
+                if len(config_entry.data.get(CONF_OBIS_CODES, [])) < len(available_sensors):
+                    new_data = config_entry.data.copy()
+                    new_data[CONF_OBIS_CODES] = available_sensors
+                    hass.config_entries.async_update_entry(config_entry, data=new_data)
+                    _LOGGER.info(f"Updated obis codes stored in config_entry: {new_data[CONF_OBIS_CODES]}")
+                else:
+                    _LOGGER.debug(f"Stored obis codes in config_entry: {config_entry.data.get(CONF_OBIS_CODES, [])}")
             else:
-                _LOGGER.warning(f"no sensors found @ bridge")
+                available_sensors = config_entry.data.get(CONF_OBIS_CODES, [])
+                _LOGGER.warning(f"no sensors found @ bridge [we check, if we have stored obis codes in our config_entry: {available_sensors}]")
 
     if available_sensors is None or len(available_sensors) == 0:
-        _LOGGER.warning(f"could not detect available sensors (obis-codes) using just 'import total' and 'power current' as default!")
+        _LOGGER.warning(f"could not detect available obis codes using just 'import total' and 'power current' as default!")
         # ok looks like, that we do not have any information about available sensors - so we just use two simple
         # obis codes 'import total' and 'power current'
         available_sensors = ["0100010800ff", "0100100700ff"]

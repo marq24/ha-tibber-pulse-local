@@ -4,15 +4,15 @@ from typing import Any
 
 import voluptuous as vol
 from aiohttp import ClientResponseError
-from requests.exceptions import HTTPError, Timeout
-
-from custom_components.tibber_local import TibberLocalBridge
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.config_entries import ConfigFlowResult, SOURCE_RECONFIGURE
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import slugify
+from requests.exceptions import HTTPError, Timeout
+
+from custom_components.tibber_local import TibberLocalBridge
 from .const import (
     DOMAIN,
     DEFAULT_NAME,
@@ -24,6 +24,7 @@ from .const import (
     CONF_NODE_NUMBER,
     CONF_IGNORE_READING_ERRORS,
     CONF_USE_POLLING,
+    CONF_OBIS_CODES,
     DEFAULT_NODE_NUMBER,
     CONFIG_VERSION,
     CONFIG_MINOR_VERSION
@@ -72,7 +73,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._default_scan_interval = DEFAULT_SCAN_INTERVAL
         self._default_node_number = DEFAULT_NODE_NUMBER
         self._default_ignore_errors = False
-
+        self._default_obis_codes = None
 
     async def _test_connection_tibber_local(self, host, pwd, node_num):
         self._errors = {}
@@ -131,6 +132,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._default_scan_interval = entry_data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         self._default_node_number = entry_data.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER)
         self._default_ignore_errors = entry_data.get(CONF_IGNORE_READING_ERRORS, False)
+        self._default_obis_codes = entry_data.get(CONF_OBIS_CODES, None)
         return await self.async_step_user()
 
     async def async_step_user(self, user_input=None):
@@ -167,6 +169,10 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                           CONF_NODE_NUMBER: node_num,
                           CONF_ID: self._serial,
                           CONF_MODE: self._con_mode}
+
+                # just store again the obis codes (that have been previously available in the config_entry)
+                if self._default_obis_codes is not None:
+                    a_data[CONF_OBIS_CODES] = self._default_obis_codes
 
                 self._abort_if_unique_id_configured()
                 if self.source == SOURCE_RECONFIGURE:
