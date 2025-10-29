@@ -53,7 +53,6 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-SCAN_INTERVAL = timedelta(seconds=10)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS = ["sensor"]
@@ -92,11 +91,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    global SCAN_INTERVAL
-    SCAN_INTERVAL = timedelta(seconds=config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
-
-    _LOGGER.info(
-        f"Starting TibberLocal with interval: {SCAN_INTERVAL} - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
+    _LOGGER.info(f"Starting TibberLocal - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
 
     if DOMAIN not in hass.data:
         value = "UNKOWN"
@@ -130,6 +125,9 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         self._host = config_entry.data[CONF_HOST]
         the_pwd = config_entry.data[CONF_PASSWORD]
 
+        # the polling interval
+        interval = timedelta(seconds=config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
+
         # support for systems where node != 1
         node_num = int(config_entry.data.get(CONF_NODE_NUMBER, 1))
 
@@ -144,13 +142,14 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                                         node_num=node_num, com_mode=com_mode,
                                         options={"ignore_parse_errors": ignore_parse_errors},
                                         coordinator=self)
+
         self.name = config_entry.title
         self._config_entry = config_entry
 
         self._watchdog = None
         self._a_task = None
 
-        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
+        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=interval)
 
     # Callable[[Event], Any]
     # def __call__(self, evt: Event) -> bool:
