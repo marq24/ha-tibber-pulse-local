@@ -51,7 +51,7 @@ ENUM_MODES: Final = [
 
 ENUM_IMPLEMENTATIONS: Final = [MODE_3_SML_1_04, MODE_10_ImpressionsAmbient, MODE_99_PLAINTEXT]
 
-@dataclass
+@dataclass(frozen=True)
 class ExtSensorEntityDescription(SensorEntityDescription):
     aliases: list[str] | None = None
 

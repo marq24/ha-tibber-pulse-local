@@ -28,7 +28,7 @@ from homeassistant.helpers.entity import EntityDescription, Entity
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from smllib import SmlStreamReader
-from smllib.const import UNITS
+from smllib.const import UNITS, OBIS_NAMES
 from smllib.errors import CrcError, SmlLibException
 from smllib.sml import SmlListEntry, ObisCode
 
@@ -206,7 +206,8 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             except Exception as exception:
                 _LOGGER.warning(f"init caused {exception}")
 
-        _LOGGER.info(f"init_on_load(): after init - found OBIS entries: '{self.bridge._obis_values}'")
+        if _LOGGER.isEnabledFor(logging.INFO):
+            _LOGGER.info(f"init_on_load(): after init - found OBIS entries: '{gen_log_list(self.bridge._obis_values)}'")
 
 
     async def _async_update_data(self):
@@ -325,6 +326,58 @@ class IntBasedObisCode:
         else:
             return out
 
+@staticmethod
+def gen_log_list(obis_values:dict)-> list:
+    a_list = []
+    try:
+        for a_obis in obis_values.values():
+            a_list.append(format_entry_short(a_obis))
+    except BaseException:
+        pass
+    return a_list
+
+@staticmethod
+def format_entry(entry: SmlListEntry):
+    try:
+        r = f'{entry.obis.obis_code} ({entry.obis})'
+        summary = ''
+        if entry.unit:
+            val = entry.get_value()
+            u = UNITS.get(entry.unit)
+            if u is None:
+                u = f' ?:{entry.unit}'
+            summary += f'{val}{u}'
+
+        desc = OBIS_NAMES.get(entry.obis)
+        if desc is not None:
+            summary += f'{" " if summary else ""}({desc})'
+        if summary:
+            r += f': {summary:s}'
+        else:
+            r += f': {entry.get_value():s}'
+        return r
+    except BaseException:
+        return 'A_ERROR_OBIS_LONG'
+
+@staticmethod
+def format_entry_short(entry: SmlListEntry):
+    try:
+        r = f'{entry.obis.obis_short} ({entry.obis})'
+        summary = ''
+        if entry.unit:
+            val = entry.get_value()
+            u = UNITS.get(entry.unit)
+            if u is None:
+                u = f' ?:{entry.unit}'
+            summary += f'{val}{u}'
+
+        if summary:
+            r += f': {summary:s}'
+        else:
+            r += f': {entry.get_value():s}'
+        return r
+    except BaseException:
+        return 'A_ERROR_OBIS_SHORT'
 
 @staticmethod
 def ws_parse_header_string(payload_head):
@@ -518,7 +571,8 @@ class TibberLocalBridge:
                     elif mode == MODE_99_PLAINTEXT:
                         await self.mode_99_read_plaintext(await res.text(), retry_count, log_payload)
 
-                    _LOGGER.debug(f"read_tibber_local: after[{retry_count}] read - found OBIS entries: '{self._obis_values}'")
+                    if _LOGGER.isEnabledFor(logging.DEBUG):
+                        _LOGGER.debug(f"read_tibber_local: after[{retry_count}] read - found OBIS entries: '{gen_log_list(self._obis_values)}'")
                 else:
                     if res is not None:
                         _LOGGER.warning(f"access to bridge failed with code {res.status} - res: {res}")
@@ -858,6 +912,8 @@ class TibberLocalBridge:
 
     async def _ws_debounce_coordinator_update(self):
         if self._coordinator is not None:
+            if _LOGGER.isEnabledFor(logging.DEBUG):
+                _LOGGER.debug(f"{self.url_ws} received: {gen_log_list(self._obis_values)}")
             self._coordinator.async_set_updated_data(self._obis_values)
 
     async def ws_close(self, ws):
