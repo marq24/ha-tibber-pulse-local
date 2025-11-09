@@ -9,7 +9,8 @@
       "cannot_connect": "Keine Verbindung möglich",
       "unknown": "Unbekannter Fehler",
       "no_data": "Es konnten keine Daten abgerufen werden",
-      "unknown_mode": "Bitte prüfe die IP/Host bzw. die Node-Nummer - wenn Du dir sicher bist, dass Deine Informationen korrekt sind, dann kommuniziert der Tibber Pulse über ein noch nicht implementiertes Protokoll. Bitte erstell doch bitte auf GitHub ein Issue mit entsprechenden DEBUG-Log Informationen - ich benötige Beispieldaten. Danke im Voraus!"
+      "unknown_mode": "Bitte prüfe die IP/Host bzw. die Node-Nummer - Wenn Du dir sicher bist, dass Deine Informationen korrekt sind, dann kommuniziert der Tibber Pulse über ein noch nicht implementiertes Protokoll. Bitte erstell doch bitte auf GitHub ein Issue mit entsprechenden DEBUG-Log Informationen - ich benötige Beispieldaten. Danke im Voraus!",
+      "unknown_device": "Bitte prüfe die IP/Host bzw. die Node-Nummer - Es konnte keine Geräte-ID ermittelt werden - prüfe die URL: `http://admin:[BRIDGE_PASSWORD]@[DEINE_IP]/nodes.json`"
     },
     "step": {
       "user": {

@@ -97,15 +97,16 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         value = "UNKOWN"
         hass.data.setdefault(DOMAIN, {"manifest_version": value})
 
+    # if polling is NOT enabled - we will use of the websocket implementation...
+    use_websocket = not config_entry.data.get(CONF_USE_POLLING, DEFAULT_USE_POLLING)
     coordinator = TibberLocalDataUpdateCoordinator(hass, config_entry)
-    await coordinator.async_refresh()  # Get initial data
-    if not coordinator.last_update_success: #or coordinator.data is None:
+    init_succeeded = await coordinator.init_on_load(use_websocket)
+    _LOGGER.info(f"TibberLocal - init_succeeded: {init_succeeded}")
+
+    if not init_succeeded: #or coordinator.data is None:
         raise ConfigEntryNotReady
     else:
-        await coordinator.init_on_load()
-
-        # if polling is NOT enabled - we will use of the websocket implementation...
-        if not config_entry.data.get(CONF_USE_POLLING, DEFAULT_USE_POLLING):
+        if use_websocket:
             # ws watchdog...
             if hass.state is CoreState.running:
                 await coordinator.start_watchdog()
@@ -129,7 +130,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         interval = timedelta(seconds=config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
 
         # support for systems where node != 1
-        node_num = int(config_entry.data.get(CONF_NODE_NUMBER, 1))
+        self.node_num = int(config_entry.data.get(CONF_NODE_NUMBER, 1))
 
         # ignore parse errors is only in the OPTIONS (not part of the initial setup)
         ignore_parse_errors = bool(config_entry.data.get(CONF_IGNORE_READING_ERRORS, False))
@@ -139,7 +140,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
 
         self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=async_create_clientsession(hass),
-                                        node_num=node_num, com_mode=com_mode,
+                                        node_num=self.node_num, com_mode=com_mode,
                                         options={"ignore_parse_errors": ignore_parse_errors},
                                         coordinator=self)
 
@@ -198,16 +199,29 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                     self._check_for_ws_task_and_cancel_if_running()
 
 
-    async def init_on_load(self):
+    async def init_on_load(self, use_websocket: bool = False):
+        if use_websocket:
+            try:
+                await self.bridge.get_eui_for_node()
+                _LOGGER.debug(f"init_on_load(): using device_id: {self.bridge.node_device_id} for node: {self.node_num}")
+            except BaseException as exception:
+                _LOGGER.warning(f"init_on_load(): (self.bridge.get_eui_for_node) caused {exception}")
+
         if self.bridge._obis_values is None or len(self.bridge._obis_values) == 0:
-            _LOGGER.info(f"init_on_load(): UPDATE required...")
+            _LOGGER.info(f"init_on_load(): fetch initial data...")
             try:
                 await self.bridge.update()
             except Exception as exception:
-                _LOGGER.warning(f"init caused {exception}")
+                _LOGGER.warning(f"init_on_load(): caused {exception}")
 
         if _LOGGER.isEnabledFor(logging.INFO):
             _LOGGER.info(f"init_on_load(): after init - found OBIS entries: '{gen_log_list(self.bridge._obis_values)}'")
+
+        # was the init successful ?!
+        if use_websocket:
+            return self.bridge.node_device_id is not None
+        else:
+            return len(self.bridge._obis_values) > 0
 
 
     async def _async_update_data(self):
@@ -264,7 +278,7 @@ class TibberLocalEntity(Entity):
         # "hw_version": self.coordinator._config_entry.data.get(CONF_DEV_NAME, self.coordinator._config_entry.data.get(CONF_DEV_NAME)),
         return {
             "identifiers": {(DOMAIN, self.coordinator._host, self._stitle)},
-            "name": "Tibber Pulse Bridge local polling",
+            "name": "Tibber Pulse Bridge local push",
             "model": "Tibber Pulse+Bridge",
             "sw_version": self.coordinator._config_entry.data.get(CONF_ID, "-unknown-"),
             "manufacturer": MANUFACTURE,
@@ -395,12 +409,13 @@ def ws_parse_header_string(payload_head):
                 topic = part.split(':', 1)[1]
 
         topic = topic.strip('"')
+        device = device.lower()
         #_LOGGER.debug(f"ws_parse_header(): device: {device}, topic: {topic}")
 
     except (UnicodeDecodeError, ValueError) as e:
         _LOGGER.info(f"ws_parse_header_string(): Failed to parse string header: {e}")
 
-    return topic
+    return (topic, device)
 
 @staticmethod
 def ws_parse_header_bytes(sml_head: bytes):
@@ -460,6 +475,11 @@ class TibberLocalBridge:
             self.url_data_logging  = f"http://admin:<MASKED>@{host}/data.json?node_id={node_num}"
             self.url_mode = f"http://admin:{pwd}@{host}/node_params.json?node_id={node_num}"
 
+            # we must fetch the bridge nodes configuration (from all nodes) and get the one,
+            # that match the 'node_num' - since we need the 'eui'
+            self.url_metadata = f"http://admin:{pwd}@{host}/nodes.json"
+            self.node_number = node_num
+
             # websocket stuff...
             self.url_ws = f"http://{host}/ws"
             int_auth_info = f"admin:{pwd}"
@@ -467,6 +487,11 @@ class TibberLocalBridge:
                 "Accept-Language": "en",
                 "Authorization": f"Basic {base64.b64encode(int_auth_info.encode('utf-8')).decode('utf-8')}",
             }
+            # The 'self.ws_device_id' will be needed, if multiple pulse are connected to the
+            # bridge - and the websocket does not include the node_id (node nummer), instead
+            # there is a '<device ...' header that must be used to identify the actual node.
+            # The value will be init by calling 'get_eui_for_node()'
+            self.node_device_id = None
 
         self.ws_connected = False
         self.ws_supported = True
@@ -490,6 +515,23 @@ class TibberLocalBridge:
 
         self._coordinator = coordinator
 
+    async def get_eui_for_node(self):
+        # this must be called, when we need a device_id... (when we receive data via websocket)
+        try:
+            async with self.websession.get(self.url_metadata, ssl=False, timeout=10.0) as res:
+                try:
+                    res.raise_for_status()
+                    if res.status == 200:
+                        json_resp = await res.json()
+                        for a_node_obj in json_resp:
+                            if int(a_node_obj.get("node_id", -1)) == self.node_number:
+                                self.node_device_id = a_node_obj.get("eui").lower()
+                                break
+                except Exception as exec:
+                    _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {exec}")
+        except Exception as exec:
+            _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with OUTER exception: {exec}")
+    
     async def detect_com_mode(self):
         await self.detect_com_mode_from_node_param27()
         _LOGGER.debug(f"detect_com_mode: after detect_com_mode_from_node_param27 mode is: {self._com_mode}")
@@ -546,9 +588,9 @@ class TibberLocalBridge:
                                         self._com_mode = MODE_UNKNOWN
                                     break
                 except Exception as exec:
-                    _LOGGER.warning(f"access to bridge failed with exception: {exec}")
+                    _LOGGER.warning(f"access to bridge failed with INNER exception: {exec}")
         except Exception as exec:
-            _LOGGER.warning(f"access to bridge failed with exception: {exec}")
+            _LOGGER.warning(f"access to bridge failed with OUTER exception: {exec}")
 
     async def update(self):
         await self.read_tibber_local(mode=self._com_mode, retry_count=0)
@@ -804,38 +846,40 @@ class TibberLocalBridge:
                             if separator_pos > 0:
                                 binary_head = binary_data[:separator_pos + 1]
                                 _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY head: {binary_head}")
-                                topic = ws_parse_header_bytes(binary_head)
+                                topic, device_id = ws_parse_header_bytes(binary_head)
 
-                                if topic is not None and "sml" in topic.lower() and self._com_mode == MODE_3_SML_1_04:
-                                    binary_body = binary_data[separator_pos + 1:]
-                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body '{topic}' [len:{len(binary_body)}]: {binary_body if len(binary_body) <= 15 else binary_body[:15]}...")
-                                    try:
-                                        await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                        new_data_arrived = True
-                                    except Exception as e:
-                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_03_read_sml' caused {type(e).__name__} [{binary_body}] {e}")
+                                if self.node_device_id is None or self.node_device_id == device_id:
+                                    if topic is not None and "sml" in topic.lower() and self._com_mode == MODE_3_SML_1_04:
+                                        binary_body = binary_data[separator_pos + 1:]
+                                        _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body '{topic}' [len:{len(binary_body)}]: {binary_body if len(binary_body) <= 15 else binary_body[:15]}...")
+                                        try:
+                                            await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                            new_data_arrived = True
+                                        except Exception as e:
+                                            _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_03_read_sml' caused {type(e).__name__} [{binary_body}] {e}")
 
-                                elif topic is not None and self._com_mode == MODE_99_PLAINTEXT:
-                                    text_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
-                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as TEXT) '{topic}' [len:{len(text_body)}]: {text_body if len(text_body) <= 15 else text_body[:15]}...")
-                                    try:
-                                        await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                        new_data_arrived = True
-                                    except Exception as e:
-                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_99_read_plaintext' caused {type(e).__name__} [{text_body}] {e}")
+                                    elif topic is not None and self._com_mode == MODE_99_PLAINTEXT:
+                                        text_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
+                                        _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as TEXT) '{topic}' [len:{len(text_body)}]: {text_body if len(text_body) <= 15 else text_body[:15]}...")
+                                        try:
+                                            await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                            new_data_arrived = True
+                                        except Exception as e:
+                                            _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_99_read_plaintext' caused {type(e).__name__} [{text_body}] {e}")
 
-                                elif topic is not None and self._com_mode == MODE_10_ImpressionsAmbient:
-                                    json_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
-                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as JSON) '{topic}' [len:{len(json_body)}]: {json_body if len(json_body) <= 15 else json_body[:15]}...")
-                                    try:
-                                        await self.mode_10_read_json_impressions_ambient(json.loads(json_body), retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                        new_data_arrived = True
-                                    except Exception as e:
-                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_10_read_json_impressions_ambient' caused {type(e).__name__} [{json_body}] {e}")
+                                    elif topic is not None and self._com_mode == MODE_10_ImpressionsAmbient:
+                                        json_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
+                                        _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as JSON) '{topic}' [len:{len(json_body)}]: {json_body if len(json_body) <= 15 else json_body[:15]}...")
+                                        try:
+                                            await self.mode_10_read_json_impressions_ambient(json.loads(json_body), retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                            new_data_arrived = True
+                                        except Exception as e:
+                                            _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_10_read_json_impressions_ambient' caused {type(e).__name__} [{json_body}] {e}")
 
-
+                                    else:
+                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY topic '{topic}'/mode_'{self._com_mode}' in: {binary_data}")
                                 else:
-                                    _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY topic '{topic}'/mode_'{self._com_mode}' in: {binary_data}")
+                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY device of node_num '{self.node_device_id}' not matching the device in the message {device_id}")
                             else:
                                 _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY invalid data (NO '>' FOUND) in: {binary_data}")
 
@@ -850,18 +894,21 @@ class TibberLocalBridge:
                                 text_head = text_data[:separator_pos + 1]
 
                                 _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT head: {text_head}")
-                                topic = ws_parse_header_string(text_head)
+                                topic, device_id = ws_parse_header_string(text_head)
 
-                                if topic is not None and self._com_mode == MODE_99_PLAINTEXT:
-                                    text_body = text_data[separator_pos + 1:]
-                                    _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT body '{topic}' [len:{len(text_body)}]: {text_body}")
-                                    try:
-                                        await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                        new_data_arrived = True
-                                    except Exception as e:
-                                        _LOGGER.warning(f"ws_connect(): WSMsgType.TEXT 'mode_99_read_plaintext' caused {type(e).__name__} [{text_data}] {e}")
+                                if self.node_device_id is None or self.node_device_id == device_id:
+                                    if topic is not None and self._com_mode == MODE_99_PLAINTEXT:
+                                        text_body = text_data[separator_pos + 1:]
+                                        _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT body '{topic}' [len:{len(text_body)}]: {text_body}")
+                                        try:
+                                            await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                                            new_data_arrived = True
+                                        except Exception as e:
+                                            _LOGGER.warning(f"ws_connect(): WSMsgType.TEXT 'mode_99_read_plaintext' caused {type(e).__name__} [{text_data}] {e}")
+                                    else:
+                                        _LOGGER.warning(f"ws_connect(): WSMsgType.TEXT 'UNHANDLED' topic '{topic}'/mode_'{self._com_mode}' in: {text_data}")
                                 else:
-                                    _LOGGER.warning(f"ws_connect(): WSMsgType.TEXT 'UNHANDLED' topic '{topic}'/mode_'{self._com_mode}' in: {text_data}")
+                                    _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT device of node_num '{self.node_device_id}' not matching the device in the message {device_id}")
                             else:
                                 _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT invalid data (NO '>' FOUND) in: {text_data}")
 
@@ -990,9 +1037,15 @@ class TibberLocalBridge:
     @property
     def serial(self) -> str:  # XYZ-123a4567
         if self.attr010060320101 is not None:
-            return f"{self.attr010060320101}-{self.attr0100605a0201}"
+            if self.attr0100605a0201 is not None:
+                return f"{self.attr010060320101}-{self.attr0100605a0201}"
+            else:
+                return f"{self.attr010060320101}"
+
         elif self.attr0100600100ff is not None:
             return f"{self.attr0100600100ff}"
+        elif self.attr0100605a0201 is not None:
+            return f"{self.attr0100605a0201}"
         else:
             return "UNKNOWN_SERIAL"
 

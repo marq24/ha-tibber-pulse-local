@@ -81,12 +81,17 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             bridge = TibberLocalBridge(host=host, pwd=pwd, websession=async_get_clientsession(self.hass),
                                        node_num=node_num)
             try:
-                await bridge.detect_com_mode()
-                if bridge._com_mode in ENUM_IMPLEMENTATIONS:
-                    self._con_mode = bridge._com_mode
-                    return await self._test_data_available(bridge, host)
+                # we MUST init the device_id
+                await bridge.get_eui_for_node()
+                if bridge.node_device_id is not None:
+                    await bridge.detect_com_mode()
+                    if bridge._com_mode in ENUM_IMPLEMENTATIONS:
+                        self._con_mode = bridge._com_mode
+                        return await self._test_data_available(bridge, host)
+                    else:
+                        self._errors[CONF_HOST] = "unknown_mode"
                 else:
-                    self._errors[CONF_HOST] = "unknown_mode"
+                    self._errors[CONF_HOST] = "unknown_device"
 
             except ValueError as val_err:
                 self._errors[CONF_HOST] = "unknown_mode"
