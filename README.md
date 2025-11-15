@@ -43,7 +43,7 @@ Please consider [using my personal Tibber invitation link to join Tibber today](
 
 Please use the [GitHub Issues](https://github.com/marq24/ha-tibber-pulse-local/issues) for reporting any issues you encounter with this integration. Please be so kind before creating a new issues, check the closed ones, if your problem have been already reported (& solved). 
 
-In order to speed up the support process, you might like to already prepare and provide DEBUG log output. In the case of a technical issue - like not-supported--yet-communication-mode - I would need this DEBUG log output to be able to help/fix the issue. There is a short [tutorial/guide 'How to provide DEBUG log' here](https://github.com/marq24/ha-senec-v3/blob/master/docs/HA_DEBUG.md) - please take the time to quickly go through it.
+In order to speed up the support process, you might like to already prepare and provide DEBUG log output. In the case of a technical issue - like not-supported--yet-communication-mode - I would need this DEBUG log output to be able to help/fix the issue. There is a short [tutorial/guide 'How to provide DEBUG log' here](https://github.com/marq24/ha-senec-v3/blob/main/docs/HA_DEBUG.md) - please take the time to quickly go through it.
 
 ## Kudos
 

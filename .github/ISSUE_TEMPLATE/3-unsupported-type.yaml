@@ -13,7 +13,7 @@ body:
         - label: I have checked that the issue still exist with a none default __Node number__ (not equals 1) - check 2,3 or 4
           required: true
         - label: I have prepared DEBUG log output (for technical issues) |
-            In most of the cases of a technical error/issue I would have the need to ask for DEBUG log output of the integration. There is a short [tutorial/guide 'How to provide DEBUG log' here](https://github.com/marq24/ha-senec-v3/blob/master/docs/HA_DEBUG.md)
+            In most of the cases of a technical error/issue I would have the need to ask for DEBUG log output of the integration. There is a short [tutorial/guide 'How to provide DEBUG log' here](https://github.com/marq24/ha-senec-v3/blob/main/docs/HA_DEBUG.md)
           required: true
   - type: dropdown
     id: system
