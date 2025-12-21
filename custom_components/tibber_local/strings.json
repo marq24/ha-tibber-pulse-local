@@ -46,13 +46,13 @@
         "name": "Import total (kWh)"
       },
       "0100010801ff_in_k": {
-        "name": "Import tarrif 1 (kWh)"
+        "name": "Import tariff 1 (kWh)"
       },
       "0100010802ff_in_k": {
         "name": "Import tariff 2 (kWh)"
       },
       "0100010803ff_in_k": {
-        "name": "Import tarrif 3 (kWh)"
+        "name": "Import tariff 3 (kWh)"
       },
       "0100010804ff_in_k": {
         "name": "Import tariff 4 (kWh)"
