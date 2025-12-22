@@ -516,7 +516,7 @@ class TibberLocalBridge:
         self._coordinator = coordinator
 
     async def get_eui_for_node(self):
-        # this must be called, when we need a device_id... (when we receive data via websocket)
+        # this must be called when we need a device_id... (when we receive data via websocket)
         try:
             async with self.websession.get(self.url_metadata, ssl=False, timeout=10.0) as res:
                 try:

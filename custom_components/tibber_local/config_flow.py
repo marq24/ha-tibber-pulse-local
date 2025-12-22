@@ -77,6 +77,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _test_connection_tibber_local(self, host, pwd, node_num):
         self._errors = {}
+        self._node_device_id = None
         try:
             bridge = TibberLocalBridge(host=host, pwd=pwd, websession=async_get_clientsession(self.hass),
                                        node_num=node_num)
@@ -84,6 +85,8 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # we MUST init the device_id
                 await bridge.get_eui_for_node()
                 if bridge.node_device_id is not None:
+                    _LOGGER.debug(f"_test_connection_tibber_local(): Found device_id: {bridge.node_device_id} for node: {node_num}")
+                    self._node_device_id = bridge.node_device_id
                     await bridge.detect_com_mode()
                     if bridge._com_mode in ENUM_IMPLEMENTATIONS:
                         self._con_mode = bridge._com_mode
@@ -95,11 +98,11 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             except ValueError as val_err:
                 self._errors[CONF_HOST] = "unknown_mode"
-                _LOGGER.warning(f"ValueError: {val_err}")
+                _LOGGER.warning(f"_test_connection_tibber_local(): ValueError: {val_err}")
 
         except (OSError, HTTPError, Timeout, ClientResponseError) as exc:
             self._errors[CONF_HOST] = "cannot_connect"
-            _LOGGER.warning(f"Could not connect to local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc)} -> {exc}")
+            _LOGGER.warning(f"_test_connection_tibber_local(): Could not connect to local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc)} -> {exc}")
         return False
 
     async def _test_data_available(self, bridge: TibberLocalBridge, host: str) -> bool:
@@ -108,7 +111,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _data_available = len(bridge._obis_values.keys()) > 0
             if _data_available:
                 self._serial = bridge.serial
-                _LOGGER.info(f"Successfully connect to local Tibber Pulse Bridge at {host}")
+                _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host}")
                 return True
             else:
                 await asyncio.sleep(2)
@@ -116,16 +119,16 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _data_available = len(bridge._obis_values.keys()) > 0
                 if _data_available:
                     self._serial = bridge.serial
-                    _LOGGER.info(f"Successfully connect to local Tibber Pulse Bridge at {host}")
+                    _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host}")
                     return True
                 else:
-                    _LOGGER.warning(f"No data from Tibber Pulse Bridge at {host}")
+                    _LOGGER.warning(f"_test_data_available(): No data from Tibber Pulse Bridge at {host}")
                     self._errors[CONF_HOST] = "no_data"
                     return False
 
         except (OSError, HTTPError, Timeout, ClientResponseError) as exc:
             self._errors[CONF_HOST] = "cannot_connect"
-            _LOGGER.warning(f"Could not read data from local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc)} -> {exc}")
+            _LOGGER.warning(f"_test_data_available(): Could not read data from local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc)} -> {exc}")
         return False
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -185,16 +188,18 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 else:
                     return self.async_create_entry(title=name, data=a_data)
             else:
-                _LOGGER.error("Could not connect to Tibber Pulse Bridge at %s, check host ip address", host)
+                if self._node_device_id is not None:
+                    _LOGGER.error(f"async_step_user(): Could not successfully read data from your Tibber Pulse Bridge at '{host}'. The specified host is fine - but the Integration could not detect the protocol - please enable the debug log to receive more details.")
+                else:
+                    _LOGGER.error(f"async_step_user(): Could not connect to Tibber Pulse Bridge at '{host}', check host ip address")
         else:
-            user_input = {}
-            user_input[CONF_NAME] = self._default_name
-            user_input[CONF_HOST] = self._default_host
-            user_input[CONF_PASSWORD] = self._default_pwd
-            user_input[CONF_USE_POLLING] = self._default_use_polling
-            user_input[CONF_SCAN_INTERVAL] = self._default_scan_interval
-            user_input[CONF_NODE_NUMBER] = self._default_node_number
-            user_input[CONF_IGNORE_READING_ERRORS] = self._default_ignore_errors
+            user_input = {CONF_NAME: self._default_name,
+                          CONF_HOST: self._default_host,
+                          CONF_PASSWORD: self._default_pwd,
+                          CONF_USE_POLLING: self._default_use_polling,
+                          CONF_SCAN_INTERVAL: self._default_scan_interval,
+                          CONF_NODE_NUMBER: self._default_node_number,
+                          CONF_IGNORE_READING_ERRORS: self._default_ignore_errors}
 
         return self.async_show_form(
             step_id="user",
