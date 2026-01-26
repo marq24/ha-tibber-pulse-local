@@ -11,7 +11,7 @@ from typing import Final
 
 import aiohttp
 import voluptuous as vol
-from aiohttp import ClientConnectorError, ClientConnectionError, ClientResponseError
+from aiohttp import ClientConnectionError, ClientResponseError
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_ID,
@@ -237,8 +237,8 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         except UpdateFailed as exception:
             _LOGGER.warning(f"UpdateFailed: {exception}")
             raise UpdateFailed() from exception
-        except ClientConnectorError as exception:
-            _LOGGER.warning(f"UpdateFailed cause of ClientConnectorError: {exception}")
+        except ClientConnectionError as exception:
+            _LOGGER.warning(f"UpdateFailed cause of ClientConnectionError: {exception}")
             raise UpdateFailed() from exception
         except Exception as other:
             _LOGGER.warning(f"UpdateFailed unexpected: {type(other)} - {other}")
@@ -531,7 +531,7 @@ class TibberLocalBridge:
                     _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {exec}")
         except Exception as exec:
             _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with OUTER exception: {exec}")
-    
+
     async def detect_com_mode(self):
         await self.detect_com_mode_from_node_param27()
         _LOGGER.debug(f"detect_com_mode: after detect_com_mode_from_node_param27 mode is: {self._com_mode}")
@@ -929,10 +929,8 @@ class TibberLocalBridge:
                 self.ws_supported = False
             else:
                 _LOGGER.error(f"ws_connect(): Could not connect to websocket: {type(cre).__name__} - {cre}")
-        except ClientConnectorError as con:
-            _LOGGER.error(f"ws_connect(): Could not connect to websocket: {type(con).__name__} - {con}")
         except ClientConnectionError as err:
-            _LOGGER.error(f"ws_connect(): ??? {type(err).__name__} - {err}")
+            _LOGGER.error(f"ws_connect(): Could not connect to websocket: {type(err).__name__} - {err}")
         except asyncio.TimeoutError as time_exc:
             _LOGGER.debug(f"ws_connect(): TimeoutError: No WebSocket message received within timeout period")
         except CancelledError as canceled:
