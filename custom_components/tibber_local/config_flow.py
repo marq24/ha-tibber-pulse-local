@@ -4,15 +4,15 @@ from typing import Any
 
 import voluptuous as vol
 from aiohttp import ClientResponseError
+from requests.exceptions import HTTPError, Timeout
+
+from custom_components.tibber_local import TibberLocalBridge
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.config_entries import ConfigFlowResult, SOURCE_RECONFIGURE
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import slugify
-from requests.exceptions import HTTPError, Timeout
-
-from custom_components.tibber_local import TibberLocalBridge
 from .const import (
     DOMAIN,
     DEFAULT_NAME,
@@ -212,6 +212,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_NODE_NUMBER, default=user_input[CONF_NODE_NUMBER]): int,
                 vol.Required(CONF_IGNORE_READING_ERRORS, default=user_input[CONF_IGNORE_READING_ERRORS]): bool
             }),
+            description_placeholders={"repo": "https://github.com/marq24/ha-tibber-pulse-local"},
             last_step=True,
             errors=self._errors,
         )

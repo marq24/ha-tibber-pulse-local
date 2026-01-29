@@ -14,7 +14,7 @@
     },
     "step": {
       "user": {
-        "description": "Bitte gib die lokalen Verbindungsdaten zu Deiner Tibber Pulse Bridge an.\n\n\nDu musst zuvor das 'webserver_force_enable'-Flag aktiviert haben!\n\n\nZusätzliche Informationen zur Einrichtung findest Du hier: https://github.com/marq24/ha-tibber-pulse-local",
+        "description": "Bitte gib die lokalen Verbindungsdaten zu Deiner Tibber Pulse Bridge an.\n\n\nDu musst zuvor das 'webserver_force_enable'-Flag aktiviert haben!\n\n\nZusätzliche Informationen zur Einrichtung findest Du hier: {repo}",
         "data": {
           "name": "Anzeigename",
           "host": "IP oder Hostname der Tibber Pulse Bridge",
