@@ -4,7 +4,7 @@ If you have a Tibber Bridge (and IR sensor) and are not a Tibber customer anymor
 
 ## MQTT Settings
 
-It's crutial that you have a valid mqtt configuration.
+It's crucial that you have a valid mqtt configuration.
 The Tibber Bridge must be able to send mqtt data somewhere.
 Otherwise it believes something is wrong and does not stay in your Wifi after you have performed the normal setup.
 Instead, it reverts to creating a Wifi access point.
@@ -32,7 +32,7 @@ You don't need to use the information that are supplied via mqtt, it's all just 
 
 ## Step-by-Step
 
-1. Reset your Tibber Bridge by plugging/unplugging in 10 times.
+1. Reset your Tibber Bridge by plugging/unplugging it 10 times.
 LED is green now.
 
 1. Sometimes, now the params tab is empty and no file upload works.
@@ -40,11 +40,11 @@ With [this cool method](https://www.photovoltaikforum.com/thread/197149-tibber-p
 Only do this is your params tab is empty.
 
 1. Check the params.
-If there is data in the param `ca_crt` and `certificate` you are good.
+If there is data in the params `ca_crt` and `certificate` you are good.
 They are a root certificate and an IoT certificate.
 If these fields are empty, you must create new values for them.
 You can [use](https://docs.aws.amazon.com/iot/latest/developerguide/device-certs-create.html) e.g. the IoT Console of an AWS Free Tier account for this.
-I believe this is for free.
+This should be free (no guarantee though!).
 There is no need to activate them or attach policies - they are never really used.
 Paste the content of the generated `*-certificate.pem.crt` file to the `certificate` field and the content of the `AmazonRootCA1.pem` file to the `ca_cert` field.
 
