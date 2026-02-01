@@ -12,7 +12,7 @@ Normally, it sends the data to some mqtt server of Tibber.
 If you are not a customer of Tibber anymore, maybe you don't want that.
 For this, you can set up a new or use your own existing mqtt server ( e.g. a [mosquitto](https://mosquitto.org) in your local network).
 
-Here is the mqtt section of my params:
+Here is an example mqtt section of the params:
 
 ```
 mqtt_param:
@@ -28,13 +28,14 @@ mqtt_param:
    42 mqtt_client_id                : '<some id>' 13 bytes.
 ```
 
-I don't use the information that are supplied via mqtt, it's all just to make the Tibber Bridge happy.
+You don't need to use the information that are supplied via mqtt, it's all just to make the Tibber Bridge happy.
 
 ## Step-by-Step
 
-1. Reset your Tibber Bridge by plugging/unplugging in 10 times. LED is green now.
+1. Reset your Tibber Bridge by plugging/unplugging in 10 times.
+LED is green now.
 
-1. In my case, I was now able to logon to it, but the params tab was empty and no file upload worked.
+1. Sometimes, now the params tab is empty and no file upload works.
 With [this cool method](https://www.photovoltaikforum.com/thread/197149-tibber-pulse-einrichtung-installation-geht-nicht/?postID=4199269#post4199269) you can get back to a functioning Tibber bridge.
 Only do this is your params tab is empty.
 
@@ -59,4 +60,4 @@ Paste the content of the generated `*-certificate.pem.crt` file to the `certific
 1. Execute `reboot` in the console or unplug/plug your Tibber bridge once.
 
 1. Now the Tibber Bridge shows in your Wifi and and stays there.
-You can do things like pairing a now and wiggling the IR sensor until you have good readings and so on.
+You can do things like pairing a IR sensor now and wiggling the IR sensor until you have good readings and so on.
