@@ -40,11 +40,12 @@ With [this cool method](https://www.photovoltaikforum.com/thread/197149-tibber-p
 Only do this is your params tab is empty.
 
 1. Check the params.
-If there is data in the param ca_crt and certificate you are good.
+If there is data in the param `ca_crt` and `certificate` you are good.
 They are a root certificate and an IoT certificate.
 If these fields are empty, you must create new values for them.
 You can [use](https://docs.aws.amazon.com/iot/latest/developerguide/device-certs-create.html) e.g. the IoT Console of an AWS Free Tier account for this.
 I believe this is for free.
+There is no need to activate them or attach policies - they are never really used.
 Paste the content of the generated `*-certificate.pem.crt` file to the `certificate` field and the content of the `AmazonRootCA1.pem` file to the `ca_cert` field.
 
 1. Put address and port of your mqtt server into `mqtt_url` resp. `mqtt_port`.
