@@ -2,10 +2,10 @@ import logging
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import StateType
 from homeassistant.util import slugify
-
 from . import TibberLocalDataUpdateCoordinator, TibberLocalEntity
 from .const import (
     DOMAIN,
@@ -77,7 +77,7 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
             self._attr_entity_registry_enabled_default = True
 
         key = self.entity_description.key.lower()
-        self.entity_id = f"sensor.{slugify(self.coordinator._config_entry.title)}_{key}"
+        self.entity_id = f"{Platform.SENSOR}.{slugify(self.coordinator._config_entry.title)}_{key}"
 
         # we use the "key" also as our internal translation-key - and EXTREMELY important we have
         # to set the '_attr_has_entity_name' to trigger the calls to the localization framework!

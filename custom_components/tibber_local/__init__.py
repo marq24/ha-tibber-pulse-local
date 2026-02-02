@@ -12,6 +12,11 @@ from typing import Final
 import aiohttp
 import voluptuous as vol
 from aiohttp import ClientConnectionError, ClientResponseError
+from smllib import SmlStreamReader
+from smllib.const import UNITS, OBIS_NAMES
+from smllib.errors import CrcError, SmlLibException
+from smllib.sml import SmlListEntry, ObisCode
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_ID,
@@ -19,7 +24,8 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
     CONF_PASSWORD,
     CONF_MODE,
-    EVENT_HOMEASSISTANT_STARTED
+    EVENT_HOMEASSISTANT_STARTED,
+    Platform
 )
 from homeassistant.core import HomeAssistant, CoreState
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -27,11 +33,6 @@ from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.entity import EntityDescription, Entity
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from smllib import SmlStreamReader
-from smllib.const import UNITS, OBIS_NAMES
-from smllib.errors import CrcError, SmlLibException
-from smllib.sml import SmlListEntry, ObisCode
-
 from .const import (
     DOMAIN,
     MANUFACTURE,
@@ -55,7 +56,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
-PLATFORMS = ["sensor"]
+PLATFORMS: Final = [Platform.SENSOR]
 WEBSOCKET_WATCHDOG_INTERVAL: Final = timedelta(seconds=64)
 
 def mask_map(d):
