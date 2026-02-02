@@ -37,7 +37,7 @@ LED is green now.
 
 1. Sometimes, now the params tab is empty and no file upload works.
 With [this cool method](https://www.photovoltaikforum.com/thread/197149-tibber-pulse-einrichtung-installation-geht-nicht/?postID=4199269#post4199269) you can get back to a functioning Tibber bridge.
-Only do this is your params tab is empty.
+Only do this if your params tab is empty.
 
 1. Check the params.
 If there is data in the params `ca_crt` and `certificate` you are good.
@@ -47,6 +47,7 @@ You can [use](https://docs.aws.amazon.com/iot/latest/developerguide/device-certs
 This should be free (no guarantee though!).
 There is no need to activate them or attach policies - they are never really used.
 Paste the content of the generated `*-certificate.pem.crt` file to the `certificate` field and the content of the `AmazonRootCA1.pem` file to the `ca_cert` field.
+You can now delete the created files from AWS again.
 
 1. Put address and port of your mqtt server into `mqtt_url` resp. `mqtt_port`.
 
