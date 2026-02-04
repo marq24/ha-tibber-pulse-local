@@ -29,6 +29,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, CoreState
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import entity_registry
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.entity import EntityDescription, Entity
 from homeassistant.helpers.event import async_track_time_interval
@@ -84,6 +85,37 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
                 new_data = config_entry.data
             hass.config_entries.async_update_entry(config_entry, data=new_data, options={}, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
             _LOGGER.debug(f"Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
+
+    if config_entry.version == 2 and config_entry.minor_version == 0:
+        # update from 1.x to 1.2 [ensure that all unique_id's are lower case!]
+        _LOGGER.info(f"async_migrate_entry(): Migration: from v{config_entry.version}.{config_entry.minor_version} to v{CONFIG_VERSION}.{CONFIG_MINOR_VERSION}")
+        registry = entity_registry.async_get(hass)
+
+        # 1'st run - ensure that all 'unique_id' are lower case...
+        entities = entity_registry.async_entries_for_config_entry(registry, config_entry.entry_id)
+        for entity in entities:
+            if entity.unique_id != entity.unique_id.lower():
+                new_unique_id = entity.unique_id.lower()
+                _LOGGER.info(f"Entity ID: {entity.entity_id}, Unique ID: {entity.unique_id} updated!")
+                for already_existing_entity in entities:
+                    if already_existing_entity.unique_id == new_unique_id:
+                        _LOGGER.info(f"Entity ID: {entity.entity_id}, Unique ID: {new_unique_id} already exists! - Will PURGE previous {already_existing_entity.entity_id}")
+                        registry.async_remove(already_existing_entity.entity_id)
+
+                registry.async_update_entity(entity.entity_id, new_unique_id=new_unique_id)
+
+        # 2'nd run - add the DOMAIN...
+        entities = entity_registry.async_entries_for_config_entry(registry, config_entry.entry_id)
+        prefix = f"{DOMAIN.lower()}.".lower()
+        for entity in entities:
+            if not entity.unique_id.startswith(prefix):
+                new_unique_id = f"{DOMAIN}.{entity.unique_id}".lower()
+                _LOGGER.debug(f"Entity ID: {entity.entity_id}, Unique ID: {entity.unique_id} will be updated!")
+                registry.async_update_entity(entity.entity_id, new_unique_id=new_unique_id)
+
+        hass.config_entries.async_update_entry(config_entry, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
+        _LOGGER.info(f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
+
     return True
 
 
@@ -294,7 +326,7 @@ class TibberLocalEntity(Entity):
     def unique_id(self):
         """Return a unique ID to use for this entity."""
         sensor = self.entity_description.key
-        return f"{self._stitle}_{sensor}"
+        return f"{DOMAIN}.{self._stitle}_{sensor}".lower()
 
     async def async_added_to_hass(self):
         """Connect to dispatcher listening for entity data notifications."""

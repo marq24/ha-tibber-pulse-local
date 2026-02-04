@@ -24,7 +24,7 @@ DEFAULT_USE_POLLING: Final = False
 DEFAULT_SCAN_INTERVAL: Final = 10
 
 CONFIG_VERSION: Final = 2
-CONFIG_MINOR_VERSION: Final = 0
+CONFIG_MINOR_VERSION: Final = 1
 
 CONF_NODE_NUMBER: Final = "node_num"
 CONF_USE_POLLING: Final = "use_polling"
