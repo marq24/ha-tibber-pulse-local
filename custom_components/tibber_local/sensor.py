@@ -6,6 +6,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import StateType
 from homeassistant.util import slugify
+
 from . import TibberLocalDataUpdateCoordinator, TibberLocalEntity
 from .const import (
     DOMAIN,
@@ -80,9 +81,7 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
         self.entity_id = f"{Platform.SENSOR}.{slugify(self.coordinator._config_entry.title)}_{key}".lower()
 
         # we use the "key" also as our internal translation-key - and EXTREMELY important we have
-        # to set the '_attr_has_entity_name' to trigger the calls to the localization framework!
         self._attr_translation_key = key
-        self._attr_has_entity_name = True
 
         if hasattr(description, 'suggested_display_precision') and description.suggested_display_precision is not None:
             self._attr_suggested_display_precision = description.suggested_display_precision

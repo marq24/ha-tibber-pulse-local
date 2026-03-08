@@ -12,11 +12,6 @@ from typing import Final
 import aiohttp
 import voluptuous as vol
 from aiohttp import ClientConnectionError, ClientResponseError
-from smllib import SmlStreamReader
-from smllib.const import UNITS, OBIS_NAMES
-from smllib.errors import CrcError, SmlLibException
-from smllib.sml import SmlListEntry, ObisCode
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_ID,
@@ -31,9 +26,15 @@ from homeassistant.core import HomeAssistant, CoreState
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
-from homeassistant.helpers.entity import EntityDescription, Entity
+from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from smllib import SmlStreamReader
+from smllib.const import UNITS, OBIS_NAMES
+from smllib.errors import CrcError, SmlLibException
+from smllib.sml import SmlListEntry, ObisCode
+
 from .const import (
     DOMAIN,
     MANUFACTURE,
@@ -53,6 +54,7 @@ from .const import (
     ENUM_IMPLEMENTATIONS,
     CONFIG_VERSION, CONFIG_MINOR_VERSION
 )
+from .entity import CustomFriendlyNameEntity
 
 _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
@@ -295,8 +297,9 @@ async def entry_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) 
     await hass.config_entries.async_reload(config_entry.entry_id)
 
 
-class TibberLocalEntity(Entity):
+class TibberLocalEntity(CustomFriendlyNameEntity):
     _attr_should_poll = False
+    _attr_has_entity_name = True
 
     def __init__(
             self, coordinator: TibberLocalDataUpdateCoordinator, description: EntityDescription
@@ -341,6 +344,29 @@ class TibberLocalEntity(Entity):
         """Entities do not individually poll."""
         return False
 
+    def _friendly_name_internal(self) -> str | None:
+        """Return the friendly name.
+
+        If has_entity_name is False, this returns self.name
+        If has_entity_name is True, this returns device.name + self.name
+        """
+        name = self.name
+        if name is UNDEFINED:
+            name = None
+
+        if not self.has_entity_name or not (device_entry := self.device_entry):
+            return name
+
+        device_name = device_entry.name_by_user or device_entry.name
+        if name is None and self.use_device_name:
+            return device_name
+
+        # we overwrite the default impl here and just return our 'name'
+        # return f"{device_name} {name}" if device_name else name
+        if device_entry.name_by_user is not None:
+            return f"{device_entry.name_by_user} {name}" if device_name else name
+        else:
+            return name
 
 class IntBasedObisCode:
     # This is for sure a VERY STUPID Python class - but I am a NOOB - would be cool, if someone could teach me
