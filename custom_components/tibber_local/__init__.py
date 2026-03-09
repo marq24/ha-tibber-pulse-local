@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import json
 import logging
 import random
@@ -7,7 +6,7 @@ import re
 import time
 from asyncio import CancelledError
 from datetime import timedelta
-from typing import Final
+from typing import Final, Any
 
 import aiohttp
 import voluptuous as vol
@@ -24,10 +23,10 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, CoreState
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import entity_registry
+from homeassistant.helpers import entity_registry, device_registry as device_reg
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.entity import EntityDescription
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_track_time_interval, async_call_later
 from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from smllib import SmlStreamReader
@@ -61,6 +60,9 @@ CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS: Final = [Platform.SENSOR]
 WEBSOCKET_WATCHDOG_INTERVAL: Final = timedelta(seconds=64)
+
+MIN_RETRY_DELAY: Final = 2.5#0.2
+MAX_RETRY_DELAY: Final = 10 #1.2
 
 def mask_map(d):
     for k, v in d.copy().items():
@@ -185,13 +187,62 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         self._watchdog = None
         self._a_task = None
 
+        self._use_websocket_in_config = not config_entry.data.get(CONF_USE_POLLING, DEFAULT_USE_POLLING)
+        self._device_info = None
+        self._device_info_model_raw = None
+        self._update_device_registry_is_running = False
         super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=interval)
+
+    async def call_later_update_device_registry(self, now:Any):
+        if not self._update_device_registry_is_running:
+            self._update_device_registry_is_running = True
+            try:
+                _LOGGER.debug(f"call_later_update_device_registry(): called with '{now}'")
+                if self._use_websocket_in_config:
+                    if self.hass is not None:
+                        a_device_reg = device_reg.async_get(self.hass)
+                        if a_device_reg is not None:
+                            device = a_device_reg.async_get_device(identifiers=self._device_info["identifiers"])
+                            if device:
+                                _LOGGER.info(f"call_later_update_device_registry(): device registry update triggered for device {device.name}")
+                                if self.bridge.ws_connected and self.bridge.ws_check_last_update():
+                                    f_model = f"{self._device_info_model_raw} ✅"
+                                else:
+                                    f_model = f"{self._device_info_model_raw} ⛔"
+
+                                a_device_reg.async_update_device(
+                                    device.id,
+                                    model=f_model
+                                )
+            except BaseException as ex:
+                _LOGGER.warning(f"call_later_update_device_registry(): failed: {type(ex).__name__} - {ex}")
+
+            self._update_device_registry_is_running = False
 
     # Callable[[Event], Any]
     # def __call__(self, evt: Event) -> bool:
     #    # just as testing the 'event.async_track_entity_registry_updated_event'
     #    _LOGGER.warning(str(evt))
     #    return True
+
+    def get_device_info(self):
+        if self._device_info is None:
+            if self._use_websocket_in_config:
+                used_protocol = "WebSocket"
+                a_name = "Tibber Pulse+Bridge [local push]"
+            else:
+                used_protocol = "HTTP REST"
+                a_name = "Tibber Pulse+Bridge [local poll]",
+
+            self._device_info_model_raw = f"Tibber Pulse+Bridge {used_protocol}"
+            self._device_info =  {
+                "identifiers": {(DOMAIN, self._host, self._config_entry.title)},
+                "name": a_name,
+                "model": self._device_info_model_raw,
+                "sw_version": self._config_entry.data.get(CONF_ID, "-unknown-"),
+                "manufacturer": MANUFACTURE,
+            }
+        return self._device_info
 
     async def start_watchdog(self, event=None):
         """Start websocket watchdog."""
@@ -202,6 +253,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
     def stop_watchdog(self):
         if hasattr(self, "_watchdog") and self._watchdog is not None:
             self._watchdog()
+            async_call_later(self.hass, 5, self.call_later_update_device_registry)
 
 
     def _check_for_ws_task_and_cancel_if_running(self):
@@ -228,10 +280,12 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                 self._a_task = self._config_entry.async_create_background_task(self.hass, self.bridge.ws_connect(), "ws_connection")
                 if self._a_task is not None:
                     _LOGGER.debug(f"Watchdog: task created {self._a_task.get_coro()}")
+                    async_call_later(self.hass, 10, self.call_later_update_device_registry)
             else:
                 _LOGGER.debug(f"Watchdog: websocket is connected")
                 if not self.bridge.ws_check_last_update():
                     self._check_for_ws_task_and_cancel_if_running()
+                    async_call_later(self.hass, 5, self.call_later_update_device_registry)
 
 
     async def init_on_load(self, use_websocket: bool = False):
@@ -312,13 +366,7 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
     @property
     def device_info(self) -> dict:
         # "hw_version": self.coordinator._config_entry.data.get(CONF_DEV_NAME, self.coordinator._config_entry.data.get(CONF_DEV_NAME)),
-        return {
-            "identifiers": {(DOMAIN, self.coordinator._host, self._stitle)},
-            "name": "Tibber Pulse Bridge local push",
-            "model": "Tibber Pulse+Bridge",
-            "sw_version": self.coordinator._config_entry.data.get(CONF_ID, "-unknown-"),
-            "manufacturer": MANUFACTURE,
-        }
+        return self.coordinator.get_device_info()
 
     @property
     def available(self):
@@ -491,6 +539,18 @@ def find_unit_int_from_string(unit_str: str):
             return aUnit[0]
     return None
 
+@staticmethod
+def clean_host(host_input):
+        # Ensure it looks like a URL so urlparse can handle it
+        if "://" not in host_input:
+            host_input = "http://" + host_input
+
+        from urllib.parse import urlparse
+        parsed = urlparse(host_input)
+        # .hostname returns just the IP/Domain (strips port and path)
+        # .netloc returns IP/Domain + port (e.g., 192.168.1.50:8080)
+        return parsed.hostname
+
 class TibberLocalBridge:
     ONLY_DIGITS: re.Pattern = re.compile("^[0-9]+$")
     PLAIN_TEXT_LINE: re.Pattern = re.compile(r'(.*?)-(.*?):(.*?)\.(.*?)\.(.*?)(?:\*(.*?)|)\((.*?)\)')
@@ -523,30 +583,28 @@ class TibberLocalBridge:
                 self.ONLY_DIGITS.match(parts[5]) is not None and
                 (parts[6] is None or self.ONLY_DIGITS.match(parts[6]) is not None))
 
-    # _communication_mode 'MODE_3_SML_1_04' is the initial implemented mode (reading binary sml data)...
-    # 'all' other modes have to be implemented... also it could be, that the bridge does
+    # _communication_mode 'MODE_3_SML_1_04' is the initially implemented mode (reading binary sml data)...
+    # 'all' other modes have to be implemented... also it could be that the bridge does
     # not return a value for param_id=27
     def __init__(self, host, pwd, websession, node_num: int = 1, com_mode: int = MODE_3_SML_1_04, options: dict = None, coordinator: DataUpdateCoordinator = None):
+
         if websession is not None:
-            _LOGGER.info(f"restarting TibberLocalBridge integration... for host: '{host}' node: '{node_num}' com_mode: '{com_mode}' with options: {options}")
-            self.websession = websession
-            self.url_data = f"http://admin:{pwd}@{host}/data.json?node_id={node_num}"
-            self.url_data_logging  = f"http://admin:<MASKED>@{host}/data.json?node_id={node_num}"
-            self.url_mode = f"http://admin:{pwd}@{host}/node_params.json?node_id={node_num}"
+            a_host = clean_host(host)
+            _LOGGER.info(f"restarting TibberLocalBridge integration... for host: '{a_host}' node: '{node_num}' com_mode: '{com_mode}' with options: {options}")
+            self.web_session = websession
+            self.basic_auth = aiohttp.BasicAuth("admin", pwd)
+            self.url_data = f"http://{a_host}/data.json?node_id={node_num}"
+            self.url_mode = f"http://{a_host}/node_params.json?node_id={node_num}"
 
             # we must fetch the bridge nodes configuration (from all nodes) and get the one,
             # that match the 'node_num' - since we need the 'eui'
-            self.url_metadata = f"http://admin:{pwd}@{host}/nodes.json"
+            self.url_metadata = f"http://{a_host}/nodes.json"
             self.node_number = node_num
 
             # websocket stuff...
-            self.url_ws = f"http://{host}/ws"
-            int_auth_info = f"admin:{pwd}"
-            self.REQ_HEADERS_WS = {
-                "Accept-Language": "en",
-                "Authorization": f"Basic {base64.b64encode(int_auth_info.encode('utf-8')).decode('utf-8')}",
-            }
-            # The 'self.ws_device_id' will be needed, if multiple pulse are connected to the
+            self.url_ws = f"ws://{a_host}/ws"
+
+            # The 'self.ws_device_id' will be needed if multiple pulses are connected to the
             # bridge - and the websocket does not include the node_id (node nummer), instead
             # there is a '<device ...' header that must be used to identify the actual node.
             # The value will be init by calling 'get_eui_for_node()'
@@ -577,7 +635,7 @@ class TibberLocalBridge:
     async def get_eui_for_node(self):
         # this must be called when we need a device_id... (when we receive data via websocket)
         try:
-            async with self.websession.get(self.url_metadata, ssl=False, timeout=10.0) as res:
+            async with self.web_session.get(self.url_metadata, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
                 try:
                     res.raise_for_status()
                     if res.status == 200:
@@ -632,7 +690,7 @@ class TibberLocalBridge:
         try:
             # {'param_id': 27, 'name': 'meter_mode', 'size': 1, 'type': 'uint8', 'help': '0:IEC 62056-21, 1:Count impressions', 'value': [3]}
             self._com_mode = MODE_UNKNOWN
-            async with self.websession.get(self.url_mode, ssl=False, timeout=10.0) as res:
+            async with self.web_session.get(self.url_mode, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
                 try:
                     res.raise_for_status()
                     if res.status == 200:
@@ -658,8 +716,8 @@ class TibberLocalBridge:
         await self.read_tibber_local(mode=self._com_mode, retry_count=0, log_payload=True)
 
     async def read_tibber_local(self, mode: int, retry_count: int, log_payload: bool = False):
-        _LOGGER.debug(f"read_tibber_local: start[{retry_count}] - mode: {mode} request: {self.url_data_logging}")
-        async with self.websession.get(self.url_data, ssl=False, timeout=10.0) as res:
+        _LOGGER.debug(f"read_tibber_local: start[{retry_count}] - mode: {mode} request: {self.url_data}")
+        async with self.web_session.get(self.url_data, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
             try:
                 res.raise_for_status()
                 if res.status == 200:
@@ -767,7 +825,7 @@ class TibberLocalBridge:
                 _LOGGER.warning(f"Exception {exc} while process data - plaintext: {plaintext}")
             if retry_count < self.MAX_READ_RETRIES:
                 retry_count = retry_count + 1
-                await asyncio.sleep(random.uniform(0.2, 1.2))
+                await asyncio.sleep(random.uniform(MIN_RETRY_DELAY, MAX_RETRY_DELAY))
                 await self.read_tibber_local(mode=MODE_99_PLAINTEXT, retry_count=retry_count)
 
     async def mode_10_read_json_impressions_ambient(self, data: dict, retry_count: int, log_payload: bool):
@@ -825,7 +883,7 @@ class TibberLocalBridge:
                     _LOGGER.info(f"Bytes missing - payload: {payload}")
                 if retry_count < self.MAX_READ_RETRIES:
                     retry_count = retry_count + 1
-                    await asyncio.sleep(random.uniform(0.2, 1.2))
+                    await asyncio.sleep(random.uniform(MIN_RETRY_DELAY, MAX_RETRY_DELAY))
                     await self.read_tibber_local(mode=MODE_3_SML_1_04, retry_count=retry_count)
             else:
                 use_fallback_impl = self._use_fallback_by_default
@@ -878,14 +936,15 @@ class TibberLocalBridge:
 
             if retry_count < self.MAX_READ_RETRIES:
                 retry_count = retry_count + 1
-                await asyncio.sleep(random.uniform(0.2, 1.2))
+                await asyncio.sleep(random.uniform(MIN_RETRY_DELAY, MAX_RETRY_DELAY))
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry_count=retry_count)
 
 
     # websocket implementation from here...
     async def ws_connect(self):
         try:
-            async with self.websession.ws_connect(self.url_ws, headers=self.REQ_HEADERS_WS) as ws:
+            #async with self.websession.ws_connect(self.url_ws, headers=self.REQ_HEADERS_WS, compress=0) as ws:
+            async with self.web_session.ws_connect(self.url_ws, auth=self.basic_auth, compress=0) as ws:
                 self.ws_connected = True
                 self.ws_obj = ws
                 _LOGGER.info(f"ws_connect(): connected to websocket: {self.url_ws} - in COM MODE: {self._com_mode}")
@@ -1035,6 +1094,10 @@ class TibberLocalBridge:
                 self.ws_obj = None
         else:
             _LOGGER.debug(f"ws_close(): No active WebSocket connection to close (ws is None)")
+
+        # we want to trigger the "ws-connection-state" update...
+        if self._coordinator is not None:
+            async_call_later(self._coordinator.hass, 5, self._coordinator.call_later_update_device_registry)
 
     async def ws_close_and_prepare_to_terminate(self):
         try:
