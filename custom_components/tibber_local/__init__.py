@@ -232,7 +232,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                 a_name = "Tibber Pulse+Bridge [local push]"
             else:
                 used_protocol = "HTTP REST"
-                a_name = "Tibber Pulse+Bridge [local poll]",
+                a_name = "Tibber Pulse+Bridge [local poll]"
 
             self._device_info_model_raw = f"Tibber Pulse+Bridge {used_protocol}"
             self._device_info =  {
