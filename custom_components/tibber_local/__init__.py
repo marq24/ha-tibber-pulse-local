@@ -549,7 +549,10 @@ def clean_host(host_input):
         parsed = urlparse(host_input)
         # .hostname returns just the IP/Domain (strips port and path)
         # .netloc returns IP/Domain + port (e.g., 192.168.1.50:8080)
-        return parsed.hostname
+        if parsed.port is not None and parsed.port != 80:
+            return f"{parsed.hostname}:{parsed.port}"
+        else:
+            return parsed.hostname
 
 class TibberLocalBridge:
     ONLY_DIGITS: re.Pattern = re.compile("^[0-9]+$")
