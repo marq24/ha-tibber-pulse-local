@@ -205,8 +205,9 @@ Add custom integration using the web interface and follow instruction on screen.
     - Provide the update interval (can be 2 Seconds)
     - Provide area where the Tibber Pule Bridge is located
 
-__IMPORTANT to know__: During the setup of this integration it will be checked, if there is at least one OBIS-Code (data field) available from the bridge. If there is no field/data available that can be read, the setup process will fail (with the message that no connection is possible).
+__IMPORTANT to know__: During the setup of this integration, it will be checked if there is at least one OBIS-Code (data field) available from the bridge. If there is no field/data available that can be read, the setup process will fail (with the message that no connection is possible).
 
+<!--
 ## Additional entities to get status information about your Tibber Pulse IR itself
 
 Beside the data that the Tibber Pulse IR is reading from your electricity meter, the device is also provide additional information about its own status. Since the assumption is that you want to read this additional status information with a much lower update-interval (less frequent) the usage of a REST-Entity template a (IMHO) simple way to archive your goal.
@@ -323,6 +324,8 @@ Here just another example with just a single value (without additional atributes
       User-Agent: REST
     unit_of_measurement: V
 ```
+-->
+
 
 [hacs]: https://github.com/hacs/integration
 [hacsbadge]: https://img.shields.io/badge/HACS-Default-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc

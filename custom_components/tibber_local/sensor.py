@@ -2,7 +2,7 @@ import logging
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import Platform, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import StateType
 from homeassistant.util import slugify
@@ -60,6 +60,12 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
                         entity = TibberLocalSensor(coordinator, description)
                         entities.append(entity)
                         break
+
+        # make sure that our metrics sensors will be added
+        elif hasattr(description, "entity_category"):
+            if description.entity_category == EntityCategory.DIAGNOSTIC:
+                entity = TibberLocalSensor(coordinator, description)
+                entities.append(entity)
 
     async_add_entities(entities)
 

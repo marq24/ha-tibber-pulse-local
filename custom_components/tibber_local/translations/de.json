@@ -159,7 +159,25 @@
       },
       "010051071aff": {
         "name": "Phasenabweichung Strom/Spannung L3"
-      }
+      },
+
+      "node_battery_voltage": {"name":  "Node Batterie Spannung"},
+      "node_temperature": {"name":  "Node Temperatur"},
+      "node_avg_rssi": {"name":  "Node Ø RSSI"},
+      "node_avg_lqi": {"name":  "Node Ø Signalqualität"},
+      "node_radio_tx_power": {"name":  "Node Sendeleistung"},
+      "node_uptime_ms": {"name":  "Node Uptime"},
+      "node_meter_msg_count_sent": {"name":  "Zähler: Node Messungen gesendet"},
+      "node_meter_pkg_count_sent": {"name":  "Zähler: Node Messpakete gesendet"},
+      "node_time_in_em0_ms": {"name":  "Node Zeit in EM0"},
+      "node_time_in_em1_ms": {"name":  "Node Zeit in EM1"},
+      "node_time_in_em2_ms": {"name":  "Node Zeit in EM2"},
+      "node_acmp_rx_autolevel_9600": {"name":  "Node ACMP Empfangspegel (9600 Baud)"},
+      "node_invalid_meter_readings_count": {"name":  "Zähler: Node ungültige Messungen"},
+      "hub_meter_pkg_count_recv": {"name":  "Zähler: Hub Messpakete empfangen"},
+      "hub_meter_reading_count_recv": {"name":  "Zähler: Hub Messungen empfangen"},
+      "hub_meter_corrupt_reading_count_recv": {"name":  "Zähler: Hub ungültige Messungen"},
+      "hub_compression_error_readings_count": {"name":  "Zähler: Hub Kompressionsfehler"}
     }
   }
 }

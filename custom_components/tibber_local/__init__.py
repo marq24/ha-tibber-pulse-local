@@ -602,6 +602,7 @@ class TibberLocalBridge:
             self.web_session = websession
             self.basic_auth = aiohttp.BasicAuth("admin", pwd)
             self.url_data = f"http://{a_host}/data.json?node_id={node_num}"
+            self.url_metrics = f"http://{a_host}/metrics.json?node_id={node_num}"
             self.url_mode = f"http://{a_host}/node_params.json?node_id={node_num}"
 
             # we must fetch the bridge nodes configuration (from all nodes) and get the one,
@@ -628,6 +629,9 @@ class TibberLocalBridge:
         self.ignore_parse_errors = False
         if options is not None and "ignore_parse_errors" in options:
             self.ignore_parse_errors = options["ignore_parse_errors"]
+        self._metrics_update_is_running = False
+        self._LAST_METRICS_UPDATE = 0
+        self._metrics_data = {}
         self._obis_values = {}
         self._obis_values_by_short = {}
 
@@ -719,12 +723,13 @@ class TibberLocalBridge:
 
     async def update(self):
         await self.read_tibber_local(mode=self._com_mode, retry_count=0)
+        await self.updated_tibber_metrics_if_needed()
 
     async def update_and_log(self):
         await self.read_tibber_local(mode=self._com_mode, retry_count=0, log_payload=True)
 
     async def read_tibber_local(self, mode: int, retry_count: int, log_payload: bool = False):
-        _LOGGER.debug(f"read_tibber_local: start[{retry_count}] - mode: {mode} request: {self.url_data}")
+        _LOGGER.debug(f"read_tibber_local(): start[{retry_count}] - mode: {mode} request: {self.url_data}")
         async with self.web_session.get(self.url_data, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
             try:
                 res.raise_for_status()
@@ -947,6 +952,42 @@ class TibberLocalBridge:
                 await asyncio.sleep(random.uniform(MIN_RETRY_DELAY, MAX_RETRY_DELAY))
                 await self.read_tibber_local(mode=MODE_3_SML_1_04, retry_count=retry_count)
 
+    async def updated_tibber_metrics_if_needed(self, log_payload: bool = False):
+        if not self._metrics_update_is_running:
+            self._metrics_update_is_running = True
+            try:
+                # only request every 30 minutes (= 30 * 60sec) for new meta_data...
+                to_wait_till = self._LAST_METRICS_UPDATE + 1800
+                if to_wait_till < time.time():
+                    _LOGGER.debug(f"updated_tibber_metrics_if_needed(): request: {self.url_metrics}")
+                    async with self.web_session.get(self.url_metrics, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
+                        try:
+                            res.raise_for_status()
+                            if res.status == 200:
+                                try:
+                                    self._metrics_data = await res.json()
+                                    if log_payload:
+                                        _LOGGER.debug(f"updated_tibber_metrics_if_needed(): metrics response: {self._metrics_data}")
+                                except Exception as exc:
+                                    _LOGGER.warning(f"updated_tibber_metrics_if_needed(): failed to parse metrics JSON: {exc}")
+                            else:
+                                if res is not None:
+                                    _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed with code {res.status} - res: {res}")
+                                else:
+                                    _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed (UNKNOWN reason - 'res' is None)")
+
+                        except BaseException as exc:
+                            _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed with exception: {type(exc)} - {exc}")
+
+                        self._LAST_METRICS_UPDATE = time.time()
+                else:
+                    pass
+                    #_LOGGER.debug(f"updated_tibber_metrics_if_needed(): no update required [wait for: {round((to_wait_till - time.time())/60, 1)} min]")
+
+            except BaseException as e:
+                _LOGGER.debug(f"updated_tibber_metrics_if_needed(): caused: {type(e).__name__} - {e}")
+
+            self._metrics_update_is_running = False
 
     # websocket implementation from here...
     async def ws_connect(self):
@@ -1047,6 +1088,7 @@ class TibberLocalBridge:
 
                     # do we need to push new data event to the coordinator?
                     if new_data_arrived:
+                        await self.updated_tibber_metrics_if_needed()
                         self._ws_notify_for_new_data()
 
         except ClientResponseError as cre:
@@ -1176,6 +1218,74 @@ class TibberLocalBridge:
             return f"{self.attr0100605a0201}"
         else:
             return "UNKNOWN_SERIAL"
+
+    @property
+    def attrnode_battery_voltage(self):
+        return self._metrics_data.get("node_status", {}).get("node_battery_voltage", None)
+
+    @property
+    def attrnode_temperature(self):
+        return self._metrics_data.get("node_status", {}).get("node_temperature", None)
+
+    @property
+    def attrnode_avg_rssi(self):
+        return self._metrics_data.get("node_status", {}).get("node_avg_rssi", None)
+
+    @property
+    def attrnode_avg_lqi(self):
+        return self._metrics_data.get("node_status", {}).get("node_avg_lqi", None)
+
+    @property
+    def attrnode_radio_tx_power(self):
+        return self._metrics_data.get("node_status", {}).get("radio_tx_power", None)
+
+    @property
+    def attrnode_uptime_ms(self):
+        return self._metrics_data.get("node_status", {}).get("node_uptime_ms", None)
+
+    @property
+    def attrnode_meter_msg_count_sent(self):
+        return self._metrics_data.get("node_status", {}).get("meter_msg_count_sent", None)
+
+    @property
+    def attrnode_meter_pkg_count_sent(self):
+        return self._metrics_data.get("node_status", {}).get("meter_pkg_count_sent", None)
+
+    @property
+    def attrnode_time_in_em0_ms(self):
+        return self._metrics_data.get("node_status", {}).get("time_in_em0_ms", None)
+
+    @property
+    def attrnode_time_in_em1_ms(self):
+        return self._metrics_data.get("node_status", {}).get("time_in_em1_ms", None)
+
+    @property
+    def attrnode_time_in_em2_ms(self):
+        return self._metrics_data.get("node_status", {}).get("time_in_em2_ms", None)
+
+    @property
+    def attrnode_acmp_rx_autolevel_9600(self):
+        return self._metrics_data.get("node_status", {}).get("acmp_rx_autolevel_9600", None)
+
+    @property
+    def attrnode_invalid_meter_readings_count(self):
+        return self._metrics_data.get("node_status", {}).get("invalid_meter_readings_count", None)
+
+    @property
+    def attrhub_meter_pkg_count_recv(self):
+        return self._metrics_data.get("hub_attachments", {}).get("meter_pkg_count_recv", None)
+
+    @property
+    def attrhub_meter_reading_count_recv(self):
+        return self._metrics_data.get("hub_attachments", {}).get("meter_reading_count_recv", None)
+
+    @property
+    def attrhub_meter_corrupt_reading_count_recv(self):
+        return self._metrics_data.get("hub_attachments", {}).get("meter_corrupt_reading_count_recv", None)
+
+    @property
+    def attrhub_compression_error_readings_count(self):
+        return self._metrics_data.get("hub_attachments", {}).get("compression_error_readings_count", None)
 
     @property
     def attr010060320101(self) -> str:  # XYZ
