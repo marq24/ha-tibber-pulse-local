@@ -41,7 +41,12 @@ Please consider [using my personal Tibber invitation link to join Tibber today](
 
 ## Want to report an issue?
 
-Please use the [GitHub Issues](https://github.com/marq24/ha-tibber-pulse-local/issues) for reporting any issues you encounter with this integration. Please be so kind before creating a new issues, check the closed ones, if your problem have been already reported (& solved). 
+Please use the [GitHub Issues](https://github.com/marq24/ha-tibber-pulse-local/issues) for reporting any issues you encounter with this integration. Please be so kind before creating a new issue, check the closed ones if your problem has been already reported (& solved). 
+
+__The Integration is now available for +2 years. And looking back, there are two simple things that solved 99.89% of all issues – it's either:__
+- _Option A_: Slightly rotate the pulse reading head anti-clockwise<br/>
+or
+- _Option B_: Replace the pulse batteries
 
 In order to speed up the support process, you might like to already prepare and provide DEBUG log output. In the case of a technical issue - like not-supported--yet-communication-mode - I would need this DEBUG log output to be able to help/fix the issue. There is a short [tutorial/guide 'How to provide DEBUG log' here](https://github.com/marq24/ha-senec-v3/blob/main/docs/HA_DEBUG.md) - please take the time to quickly go through it.
 

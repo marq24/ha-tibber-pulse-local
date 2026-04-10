@@ -5,7 +5,14 @@ body:
     id: checklist
     attributes:
       label: Checklist
-      description: Please go though this short checklist - TIA
+      description: |
+        ### The Integration is now available for +2 years. And looking back, there are two simple things that solved 99.89% of all issues – it's either:
+        
+        - _Option A_: Slightly rotate the pulse reading head anti-clockwise<br/>
+        or
+        - _Option B_: Replace the pulse batteries
+        
+        ### If this is not the solution for your problem: Please go though this short checklist - TIA
       options:
         - label: I have followed the install preparation procedure - including the verification part I, II & III.
           required: true
