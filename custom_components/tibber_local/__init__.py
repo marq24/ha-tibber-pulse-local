@@ -572,7 +572,7 @@ class TibberLocalBridge:
                     try:
                         return a_obis.value * 10 ** int(a_obis.scaler) / divisor
                     except (TypeError, ValueError):
-                        _LOGGER(f"_get_numeric_value_internal(): could not convert scaler to int for key {key} - {a_obis}")
+                        _LOGGER.info(f"_get_numeric_value_internal(): could not convert scaler to int for key {key} - {a_obis}")
                         return None
                 else:
                     return a_obis.value / divisor
