@@ -5,6 +5,7 @@ import random
 import re
 import time
 from asyncio import CancelledError
+from collections import ChainMap
 from datetime import timedelta
 from numbers import Number
 from typing import Final, Any
@@ -318,11 +319,11 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             if self.bridge.ws_connected:
                 _LOGGER.debug("_async_update_data called (but websocket is active - no data will be requested!)")
-                return self.bridge
+                return ChainMap(self.bridge._obis_values, self.bridge._metrics_data)
             else:
                 _LOGGER.debug(f"_async_update_data called")
                 await self.bridge.update()
-                return self.bridge
+                return ChainMap(self.bridge._obis_values, self.bridge._metrics_data)
 
         except UpdateFailed as exception:
             _LOGGER.warning(f"UpdateFailed: {exception}")
@@ -633,7 +634,7 @@ class TibberLocalBridge:
         self._LAST_METRICS_UPDATE = 0
         self._metrics_data = {}
         self._obis_values = {}
-        self._obis_values_by_short = {}
+        #self._obis_values_by_short = {}
 
         self._fallback_usage_counter = 0
         self._use_fallback_by_default = False
@@ -828,10 +829,10 @@ class TibberLocalBridge:
 
             if len(temp_obis_values) > 0:
                 self._obis_values = {}
-                self._obis_values_by_short = {}
+                #self._obis_values_by_short = {}
                 for entry in temp_obis_values:
                     self._obis_values[entry.obis] = entry
-                    self._obis_values_by_short[entry.obis.obis_short] = entry
+                    #self._obis_values_by_short[entry.obis.obis_short] = entry
 
         except Exception as exc:
             if not self.ignore_parse_errors:
@@ -874,10 +875,10 @@ class TibberLocalBridge:
 
         if len(temp_obis_values) > 0:
             self._obis_values = {}
-            self._obis_values_by_short = {}
+            #self._obis_values_by_short = {}
             for entry in temp_obis_values:
                 self._obis_values[entry.obis] = entry
-                self._obis_values_by_short[entry.obis.obis_short] = entry
+                #self._obis_values_by_short[entry.obis.obis_short] = entry
 
     async def mode_03_read_sml(self, payload: bytes, retry_count: int, log_payload: bool):
         # for whatever reason, the data that can be read from the TibberPulse Webserver is
@@ -904,7 +905,7 @@ class TibberLocalBridge:
                 a_source_exc = None
 
                 self._obis_values = {}
-                self._obis_values_by_short = {}
+                #self._obis_values_by_short = {}
 
                 if not use_fallback_impl:
                     try:
@@ -938,7 +939,7 @@ class TibberLocalBridge:
                 if sml_list is not None and len(sml_list) > 0:
                     for entry in sml_list:
                         self._obis_values[entry.obis] = entry
-                        self._obis_values_by_short[entry.obis.obis_short] = entry
+                        #self._obis_values_by_short[entry.obis.obis_short] = entry
 
         except (CrcError, BaseException) as exc:
             if not self.ignore_parse_errors:
