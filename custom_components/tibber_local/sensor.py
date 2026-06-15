@@ -96,7 +96,9 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
 
     @property
     def native_value(self) -> StateType:
-        return getattr(self.coordinator.bridge, 'attr' + self.entity_description.key)
+        if self.coordinator.data is not None:
+            return getattr(self.coordinator, 'attr' + self.entity_description.key)
+        return None
 
     # @property
     # def state(self):

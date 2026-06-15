@@ -4,15 +4,15 @@ from typing import Any
 
 import voluptuous as vol
 from aiohttp import ClientResponseError
-from requests.exceptions import HTTPError, Timeout
-
-from custom_components.tibber_local import TibberLocalBridge
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.config_entries import ConfigFlowResult, SOURCE_RECONFIGURE
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import slugify
+from requests.exceptions import HTTPError, Timeout
+
+from . import TibberLocalDataUpdateCoordinator
 from .const import (
     DOMAIN,
     DEFAULT_NAME,
@@ -27,8 +27,10 @@ from .const import (
     CONF_OBIS_CODES,
     DEFAULT_NODE_NUMBER,
     CONFIG_VERSION,
-    CONFIG_MINOR_VERSION
+    CONFIG_MINOR_VERSION,
+    DATA_KEY
 )
+from .tibber_client import TibberLocalBridge
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,8 +81,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._errors = {}
         self._node_device_id = None
         try:
-            bridge = TibberLocalBridge(host=host, pwd=pwd, websession=async_get_clientsession(self.hass),
-                                       node_num=node_num)
+            bridge = TibberLocalBridge(host=host, pwd=pwd, websession=async_get_clientsession(self.hass), node_num=node_num)
             try:
                 # we MUST init the device_id
                 await bridge.get_eui_for_node()
@@ -108,18 +109,24 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _test_data_available(self, bridge: TibberLocalBridge, host: str) -> bool:
         try:
             await bridge.update_and_log()
-            _data_available = len(bridge._obis_values.keys()) > 0
-            if _data_available:
-                self._serial = bridge.serial
-                _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host}")
+
+            # unfortunately, there is no other parser than the TibberLocalDataUpdateCoordinator,
+            # so we must create a dummy one here, to be able to parse the serial data/number
+            # from the found smart-meter
+            coordinator = TibberLocalDataUpdateCoordinator(self.hass, None)
+
+            if len(bridge._obis_values.keys()) > 0:
+                coordinator.data = {DATA_KEY: bridge._obis_values}
+                self._serial = coordinator.serial
+                _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
                 return True
             else:
                 await asyncio.sleep(2)
                 await bridge.update_and_log()
-                _data_available = len(bridge._obis_values.keys()) > 0
-                if _data_available:
-                    self._serial = bridge.serial
-                    _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host}")
+                if len(bridge._obis_values.keys()) > 0:
+                    coordinator.data = {DATA_KEY: bridge._obis_values}
+                    self._serial = coordinator.serial
+                    _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
                     return True
                 else:
                     _LOGGER.warning(f"_test_data_available(): No data from Tibber Pulse Bridge at {host}")
