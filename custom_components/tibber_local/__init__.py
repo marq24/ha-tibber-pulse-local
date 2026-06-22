@@ -240,8 +240,8 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             self._device_info =  {
                 "identifiers": {(DOMAIN, self._host, self._config_entry.title)},
                 "name": a_name,
-                "model": self._device_info_model_raw,
-                "sw_version": self._config_entry.data.get(CONF_ID, "-unknown-"),
+                "model": f"{self._device_info_model_raw}",
+                "sw_version": f"{self._config_entry.data.get(CONF_ID, '-unknown-')}",
                 "manufacturer": MANUFACTURE,
             }
         return self._device_info
