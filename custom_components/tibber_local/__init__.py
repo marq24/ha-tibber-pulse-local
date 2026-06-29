@@ -415,22 +415,30 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
     @property
     def attrnode_battery_voltage(self):
         if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("node_battery_voltage", None)
+            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
+            if len(obj) > 0:
+                return obj.get("battery_voltage",  obj.get("node_battery_voltage", None))
 
     @property
     def attrnode_temperature(self):
         if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("node_temperature", None)
+            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
+            if len(obj) > 0:
+                return obj.get("temperature",  obj.get("node_temperature", None))
 
     @property
     def attrnode_avg_rssi(self):
         if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("node_avg_rssi", None)
+            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
+            if len(obj) > 0:
+                return obj.get("avg_rssi",  obj.get("node_avg_rssi", None))
 
     @property
     def attrnode_avg_lqi(self):
         if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("node_avg_lqi", None)
+            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
+            if len(obj) > 0:
+                return obj.get("avg_lqi", obj.get("node_avg_lqi", None))
 
     @property
     def attrnode_radio_tx_power(self):
