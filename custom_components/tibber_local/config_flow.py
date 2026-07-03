@@ -28,7 +28,8 @@ from .const import (
     DEFAULT_NODE_NUMBER,
     CONFIG_VERSION,
     CONFIG_MINOR_VERSION,
-    DATA_KEY
+    DATA_KEY,
+    UNKNOWN_SERIAL
 )
 from .tibber_client import TibberLocalBridge
 
@@ -117,7 +118,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if len(bridge._obis_values.keys()) > 0:
                 coordinator.data = {DATA_KEY: bridge._obis_values}
-                self._serial = coordinator.serial
+                self._serial = coordinator.serial if coordinator.serial != UNKNOWN_SERIAL else self._node_device_id
                 _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
                 return True
             else:
@@ -125,7 +126,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await bridge.update_and_log()
                 if len(bridge._obis_values.keys()) > 0:
                     coordinator.data = {DATA_KEY: bridge._obis_values}
-                    self._serial = coordinator.serial
+                    self._serial = coordinator.serial if coordinator.serial != UNKNOWN_SERIAL else self._node_device_id
                     _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
                     return True
                 else:

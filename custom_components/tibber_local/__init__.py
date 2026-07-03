@@ -40,7 +40,9 @@ from .const import (
     CONFIG_MINOR_VERSION,
 
     DATA_KEY,
-    METRICS_KEY
+    METRICS_KEY,
+
+    UNKNOWN_SERIAL
 )
 from .entity import CustomFriendlyNameEntity
 from .tibber_client import TibberLocalBridge
@@ -410,7 +412,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         elif self.attr0100605a0201 is not None:
             return f"{self.attr0100605a0201}"
         else:
-            return "UNKNOWN_SERIAL"
+            return UNKNOWN_SERIAL
 
     @property
     def attrnode_battery_voltage(self):

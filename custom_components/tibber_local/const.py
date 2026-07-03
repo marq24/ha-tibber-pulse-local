@@ -58,6 +58,8 @@ ENUM_IMPLEMENTATIONS: Final = [MODE_3_SML_1_04, MODE_10_ImpressionsAmbient, MODE
 DATA_KEY: Final = "data"
 METRICS_KEY: Final = "metrics"
 
+UNKNOWN_SERIAL: Final = "UNKNOWN_SERIAL"
+
 @dataclass(frozen=True)
 class ExtSensorEntityDescription(SensorEntityDescription):
     aliases: list[str] | None = None
