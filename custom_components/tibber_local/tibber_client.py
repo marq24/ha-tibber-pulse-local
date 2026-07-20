@@ -326,7 +326,9 @@ class TibberLocalBridge:
 
     async def read_tibber_local(self, mode: int, retry_count: int, log_payload: bool = False):
         _LOGGER.debug(f"read_tibber_local(): start[{retry_count}] - mode: {mode} request: {self.url_data}")
-        async with self.web_session.get(self.url_data, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
+        # on init we wait up to 60 seconds till we get a reply from the bridge (when HA is starting pleny of request are
+        # running...
+        async with self.web_session.get(self.url_data, auth=self.basic_auth, ssl=False, timeout=60.0 if len(self._obis_values) == 0 else 10.0) as res:
             try:
                 res.raise_for_status()
                 if res.status == 200:
@@ -348,7 +350,7 @@ class TibberLocalBridge:
                         _LOGGER.warning(f"access to bridge failed (UNKNOWN reason - 'res' is None)")
 
             except BaseException as exc:
-                _LOGGER.warning(f"access to bridge failed with exception: {type(exc)} - {exc}")
+                _LOGGER.warning(f"access to bridge failed with exception: {type(exc).__name__} - {exc}")
 
     async def mode_99_read_plaintext(self, plaintext: str, retry_count: int, log_payload: bool):
         try:
@@ -541,7 +543,7 @@ class TibberLocalBridge:
                 if isinstance(exc, CrcError):
                     _LOGGER.info(f"CRC while parse data - payload: {payload}")
                 else:
-                    _LOGGER.warning(f"Exception {type(exc)} - {exc} while parse data - payload: {payload}")
+                    _LOGGER.warning(f"Exception {type(exc).__name__} - {exc} while parse data - payload: {payload}")
 
             if retry_count < self.MAX_READ_RETRIES:
                 retry_count = retry_count + 1
@@ -573,7 +575,7 @@ class TibberLocalBridge:
                                     _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed (UNKNOWN reason - 'res' is None)")
 
                         except BaseException as exc:
-                            _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed with exception: {type(exc)} - {exc}")
+                            _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed with exception: {type(exc).__name__} - {exc}")
 
                         self._LAST_METRICS_UPDATE = time.time()
                 else:

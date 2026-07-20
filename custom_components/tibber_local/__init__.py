@@ -329,13 +329,13 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             }
 
         except UpdateFailed as exception:
-            _LOGGER.warning(f"UpdateFailed: {exception}")
+            _LOGGER.warning(f"UpdateFailed: {type(exception).__name__} - {exception}")
             raise UpdateFailed() from exception
         except ClientConnectionError as exception:
-            _LOGGER.warning(f"UpdateFailed cause of ClientConnectionError: {exception}")
+            _LOGGER.warning(f"UpdateFailed cause of ClientConnectionError: {type(exception).__name__} - {exception}")
             raise UpdateFailed() from exception
         except Exception as other:
-            _LOGGER.warning(f"UpdateFailed unexpected: {type(other)} - {other}")
+            _LOGGER.warning(f"UpdateFailed unexpected: {type(other).__name__} - {other}")
             raise UpdateFailed() from other
 
     def _get_numeric_value_internal(self, key, divisor: int = 1) -> float|int:

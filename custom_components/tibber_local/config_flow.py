@@ -104,7 +104,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         except (OSError, HTTPError, Timeout, ClientResponseError) as exc:
             self._errors[CONF_HOST] = "cannot_connect"
-            _LOGGER.warning(f"_test_connection_tibber_local(): Could not connect to local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc)} -> {exc}")
+            _LOGGER.warning(f"_test_connection_tibber_local(): Could not connect to local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc).__name__} -> {exc}")
         return False
 
     async def _test_data_available(self, bridge: TibberLocalBridge, host: str) -> bool:
@@ -136,7 +136,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         except (OSError, HTTPError, Timeout, ClientResponseError) as exc:
             self._errors[CONF_HOST] = "cannot_connect"
-            _LOGGER.warning(f"_test_data_available(): Could not read data from local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc)} -> {exc}")
+            _LOGGER.warning(f"_test_data_available(): Could not read data from local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc).__name__} -> {exc}")
         return False
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
