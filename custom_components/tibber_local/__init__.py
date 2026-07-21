@@ -13,7 +13,7 @@ from homeassistant.const import (
     CONF_PASSWORD,
     CONF_MODE,
     EVENT_HOMEASSISTANT_STARTED,
-    Platform
+    Platform, EntityCategory
 )
 from homeassistant.core import HomeAssistant, CoreState
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -23,6 +23,7 @@ from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.event import async_track_time_interval, async_call_later
 from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from smllib.sml import ObisCode
 
 from .const import (
     DOMAIN,
@@ -655,6 +656,8 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
     ) -> None:
         super().__init__(coordinator, description)
         self.coordinator = coordinator
+        if description.entity_category != EntityCategory.DIAGNOSTIC:
+            self.obis = ObisCode(description.key)
         self.entity_description = description
         self._stitle = coordinator._config_entry.title
         self._state = None
@@ -701,5 +704,9 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
         if registry_entry := self.registry_entry:
             if registry_entry.has_entity_name and registry_entry.name is not None:
                 name = registry_entry.name
+
+        if hasattr(self, "obis"):
+            #name = f"{name} [{self.obis.obis_code}]"
+            name = f"{name} [{self.obis.obis_short}]"
 
         return name
