@@ -572,6 +572,38 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         return self._get_numeric_value_internal(key='0100020800ff', divisor=1000)
 
     @property
+    def attr0100020801ff(self) -> float|int:
+        return self._get_numeric_value_internal('0100020801ff')
+
+    @property
+    def attr0100020801ff_in_k(self) -> float|int:
+        return self._get_numeric_value_internal('0100020801ff', divisor=1000)
+
+    @property
+    def attr0100020802ff(self) -> float|int:
+        return self._get_numeric_value_internal('0100020802ff')
+
+    @property
+    def attr0100020802ff_in_k(self) -> float|int:
+        return self._get_numeric_value_internal('0100020802ff', divisor=1000)
+
+    @property
+    def attr0100020803ff(self) -> float|int:
+        return self._get_numeric_value_internal('0100020803ff')
+
+    @property
+    def attr0100020803ff_in_k(self) -> float|int:
+        return self._get_numeric_value_internal('0100020803ff', divisor=1000)
+
+    @property
+    def attr0100020804ff(self) -> float|int:
+        return self._get_numeric_value_internal('0100020804ff')
+
+    @property
+    def attr0100020804ff_in_k(self) -> float|int:
+        return self._get_numeric_value_internal('0100020804ff', divisor=1000)
+
+    @property
     def attr0100100700ff(self) -> float|int:
         # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
         return self._get_numeric_value_internal(['0100100700ff', '0100010700ff', '01000107ffff', '0100020700ff', '01000f0700ff'])
