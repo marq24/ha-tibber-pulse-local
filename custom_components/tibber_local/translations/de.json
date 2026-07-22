@@ -51,9 +51,23 @@
       "0100010804ff": {
         "name": "Bezug Tarif 4 (Wh)"
       },
+
       "0100020800ff": {
         "name": "Gesamteinspeisung (Wh)"
       },
+      "0100020801ff": {
+        "name": "Einspeisung Tarif 1 (Wh)"
+      },
+      "0100020802ff": {
+        "name": "Einspeisung Tarif 2 (Wh)"
+      },
+      "0100020803ff": {
+        "name": "Einspeisung Tarif 3 (Wh)"
+      },
+      "0100020804ff": {
+        "name": "Einspeisung Tarif 4 (Wh)"
+      },
+
       "0100010800ff_in_k": {
         "name": "Gesamtbezug (kWh)"
       },
@@ -69,9 +83,23 @@
       "0100010804ff_in_k": {
         "name": "Bezug Tarif 4 (kWh)"
       },
+
       "0100020800ff_in_k": {
         "name": "Gesamteinspeisung (kWh)"
       },
+      "0100020801ff_in_k": {
+        "name": "Einspeisung Tarif 1 (kWh)"
+      },
+      "0100020802ff_in_k": {
+        "name": "Einspeisung Tarif 2 (kWh)"
+      },
+      "0100020803ff_in_k": {
+        "name": "Einspeisung Tarif 3 (kWh)"
+      },
+      "0100020804ff_in_k": {
+        "name": "Einspeisung Tarif 4 (kWh)"
+      },
+
       "0100100700ff": {
         "name": "Wirkleistung aktuell"
       },

@@ -49,9 +49,23 @@
       "0100010804ff": {
         "name": "Import tariff 4"
       },
+
       "0100020800ff": {
         "name": "Export total"
       },
+      "0100020801ff": {
+        "name": "Export tariff 1"
+      },
+      "0100020802ff": {
+        "name": "Export tariff 2"
+      },
+      "0100020803ff": {
+        "name": "Export tariff 3"
+      },
+      "0100020804ff": {
+        "name": "Export tariff 4"
+      },
+
       "0100010800ff_in_k": {
         "name": "Import total (kWh)"
       },
@@ -67,9 +81,23 @@
       "0100010804ff_in_k": {
         "name": "Import tariff 4 (kWh)"
       },
+
       "0100020800ff_in_k": {
         "name": "Export total (kWh)"
       },
+      "0100020801ff_in_k": {
+        "name": "Export tariff 1 (kWh)"
+      },
+      "0100020802ff_in_k": {
+        "name": "Export tariff 2 (kWh)"
+      },
+      "0100020803ff_in_k": {
+        "name": "Export tariff 3 (kWh)"
+      },
+      "0100020804ff_in_k": {
+        "name": "Export tariff 4 (kWh)"
+      },
+
       "0100100700ff": {
         "name": "Power (actual)"
       },
