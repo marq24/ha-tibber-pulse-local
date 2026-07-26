@@ -698,7 +698,7 @@ class TibberLocalBridge:
         except ClientConnectionError as err:
             _LOGGER.error(f"ws_connect(): Could not connect to websocket: {type(err).__name__} - {err}")
         except asyncio.TimeoutError as time_exc:
-            _LOGGER.debug(f"ws_connect(): TimeoutError: No WebSocket message received within timeout period")
+            _LOGGER.debug(f"ws_connect(): TimeoutError: No WebSocket message received within timeout period: {type(time_exc).__name__} - {time_exc}")
         except CancelledError as canceled:
             _LOGGER.debug(f"ws_connect(): Terminated? - {type(canceled).__name__} - {canceled}")
         except BaseException as x:

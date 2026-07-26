@@ -18,7 +18,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, CoreState
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry, device_registry as device_reg
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.event import async_track_time_interval, async_call_later
 from homeassistant.helpers.typing import UNDEFINED
@@ -68,17 +68,16 @@ def mask_map(d):
             d[k] = v
     return d
 
-
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if config_entry.version < CONFIG_VERSION:
         if config_entry.data is not None and len(config_entry.data) > 0:
-            _LOGGER.debug(f"Migrating configuration from version {config_entry.version}.{config_entry.minor_version}")
+            _LOGGER.debug(f"async_migrate_entry(): Migrating configuration from version {config_entry.version}.{config_entry.minor_version}")
             if config_entry.options is not None and len(config_entry.options):
                 new_data = {**config_entry.data, **config_entry.options}
             else:
                 new_data = config_entry.data
             hass.config_entries.async_update_entry(config_entry, data=new_data, options={}, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
-            _LOGGER.debug(f"Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
+            _LOGGER.debug(f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
 
     if config_entry.version == 2 and config_entry.minor_version == 0:
         # update from 1.x to 1.2 [ensure that all unique_id's are lower case!]
@@ -90,10 +89,10 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         for entity in entities:
             if entity.unique_id != entity.unique_id.lower():
                 new_unique_id = entity.unique_id.lower()
-                _LOGGER.info(f"Entity ID: {entity.entity_id}, Unique ID: {entity.unique_id} updated!")
+                _LOGGER.info(f"async_migrate_entry(): Entity ID: {entity.entity_id}, Unique ID: {entity.unique_id} updated!")
                 for already_existing_entity in entities:
                     if already_existing_entity.unique_id == new_unique_id:
-                        _LOGGER.info(f"Entity ID: {entity.entity_id}, Unique ID: {new_unique_id} already exists! - Will PURGE previous {already_existing_entity.entity_id}")
+                        _LOGGER.info(f"async_migrate_entry(): Entity ID: {entity.entity_id}, Unique ID: {new_unique_id} already exists! - Will PURGE previous {already_existing_entity.entity_id}")
                         registry.async_remove(already_existing_entity.entity_id)
 
                 registry.async_update_entity(entity.entity_id, new_unique_id=new_unique_id)
@@ -104,7 +103,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         for entity in entities:
             if not entity.unique_id.startswith(prefix):
                 new_unique_id = f"{DOMAIN}.{entity.unique_id}".lower()
-                _LOGGER.debug(f"Entity ID: {entity.entity_id}, Unique ID: {entity.unique_id} will be updated!")
+                _LOGGER.debug(f"async_migrate_entry(): Entity ID: {entity.entity_id}, Unique ID: {entity.unique_id} will be updated!")
                 registry.async_update_entity(entity.entity_id, new_unique_id=new_unique_id)
 
         hass.config_entries.async_update_entry(config_entry, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
@@ -116,7 +115,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
     return True
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    _LOGGER.info(f"Starting TibberLocal - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
+    _LOGGER.info(f"async_setup_entry(): Starting TibberLocal - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
 
     if DOMAIN not in hass.data:
         value = "UNKOWN"
@@ -126,7 +125,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     use_websocket = not config_entry.data.get(CONF_USE_POLLING, DEFAULT_USE_POLLING)
     coordinator = TibberLocalDataUpdateCoordinator(hass, config_entry)
     init_succeeded = await coordinator.init_on_load(use_websocket)
-    _LOGGER.info(f"TibberLocal - init_succeeded: {init_succeeded}")
+    _LOGGER.info(f"async_setup_entry(): TibberLocal - init_succeeded: {init_succeeded}")
 
     if not init_succeeded: #or coordinator.data is None:
         raise ConfigEntryNotReady
@@ -145,7 +144,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         return True
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    _LOGGER.debug(f"async_unload_entry() called for entry: {config_entry.entry_id}")
+    _LOGGER.debug(f"async_unload_entry(): called for entry: {config_entry.entry_id}")
     unload_ok = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
     if unload_ok:
         if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
@@ -156,7 +155,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     return unload_ok
 
 async def entry_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
-    _LOGGER.debug(f"entry_update_listener() called for entry: {config_entry.entry_id}")
+    _LOGGER.debug(f"entry_update_listener(): called for entry: {config_entry.entry_id}")
     await hass.config_entries.async_reload(config_entry.entry_id)
 
 
@@ -164,7 +163,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
 
     def __init__(self, hass: HomeAssistant, config_entry):
         if config_entry is None:
-            _LOGGER.info(f"TibberLocalDataUpdateCoordinator() created - just to parse the serial number...")
+            _LOGGER.info(f"TibberLocalDataUpdateCoordinator(): created - just to parse the serial number...")
             super().__init__(hass, _LOGGER, name=DOMAIN)
         else:
             self._host = config_entry.data[CONF_HOST]
@@ -180,7 +179,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             # initial configuration phase - so we read it from the config_entry.data ONLY!
             com_mode = int(config_entry.data.get(CONF_MODE, MODE_3_SML_1_04))
 
-            self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=async_create_clientsession(hass),
+            self.bridge = TibberLocalBridge(host=self._host, pwd=the_pwd, websession=async_get_clientsession(hass),
                                             node_num=self.node_num, com_mode=com_mode,
                                             options={"ignore_parse_errors": ignore_parse_errors},
                                             coordinator=self)
@@ -261,30 +260,30 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
 
     def _check_for_ws_task_and_cancel_if_running(self):
         if self._a_task is not None and not self._a_task.done():
-            _LOGGER.debug(f"Watchdog: websocket connect task is still running - canceling it...")
+            _LOGGER.debug(f"_check_for_ws_task_and_cancel_if_running(): Watchdog: websocket connect task is still running - canceling it...")
             try:
                 canceled = self._a_task.cancel()
-                _LOGGER.debug(f"Watchdog: websocket connect task was CANCELED? {canceled}")
+                _LOGGER.debug(f"_check_for_ws_task_and_cancel_if_running(): Watchdog: websocket connect task was CANCELED? {canceled}")
             except BaseException as ex:
-                _LOGGER.info(f"Watchdog: websocket connect task cancel failed: {type(ex).__name__} - {ex}")
+                _LOGGER.info(f"_check_for_ws_task_and_cancel_if_running(): Watchdog: websocket connect task cancel failed: {type(ex).__name__} - {ex}")
 
             self._a_task = None
 
     async def _async_watchdog_check(self, *_):
         """Reconnect the websocket if it fails."""
         if not self.bridge.ws_supported:
-            _LOGGER.info(f"Watchdog: terminated, cause bridge reported 'ws_supported' = false")
+            _LOGGER.info(f"_async_watchdog_check(): Watchdog: terminated, cause bridge reported 'ws_supported' = false")
             self._watchdog()
         else:
             if not self.bridge.ws_connected:
                 self._check_for_ws_task_and_cancel_if_running()
-                _LOGGER.info(f"Watchdog: websocket connect required")
+                _LOGGER.info(f"_async_watchdog_check(): Watchdog: websocket connect required")
                 self._a_task = self._config_entry.async_create_background_task(self.hass, self.bridge.ws_connect(), "ws_connection")
                 if self._a_task is not None:
-                    _LOGGER.debug(f"Watchdog: task created {self._a_task.get_coro()}")
+                    _LOGGER.debug(f"_async_watchdog_check(): Watchdog: task created {self._a_task.get_coro()}")
                     async_call_later(self.hass, 10, self.call_later_update_device_registry)
             else:
-                _LOGGER.debug(f"Watchdog: websocket is connected")
+                _LOGGER.debug(f"_async_watchdog_check(): Watchdog: websocket is connected")
                 if not self.bridge.ws_check_last_update():
                     self._check_for_ws_task_and_cancel_if_running()
                     async_call_later(self.hass, 5, self.call_later_update_device_registry)
@@ -303,8 +302,8 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             try:
                 await self.bridge.update()
                 bridge_data = self.bridge._obis_values
-            except Exception as exception:
-                _LOGGER.warning(f"init_on_load(): caused {exception}")
+            except BaseException as exception:
+                _LOGGER.warning(f"init_on_load(): caused {type(exception).__name__} - {exception}")
 
         if _LOGGER.isEnabledFor(logging.INFO):
             _LOGGER.info(f"init_on_load(): after init - found OBIS entries: '{tibber_client.gen_log_list(bridge_data)}'")
@@ -318,10 +317,22 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         try:
             if self.bridge.ws_connected:
-                _LOGGER.debug("_async_update_data called (but websocket is active - no data will be requested!)")
+                _LOGGER.debug("_async_update_data(): called (but websocket is active - no data will be requested!)")
             else:
-                _LOGGER.debug(f"_async_update_data called")
-                await self.bridge.update()
+                should_call_update = True
+                # we do not have an active websocket connection... but if the use of websocket is configured...
+                if self._use_websocket_in_config:
+                    # then check, if there has been at least ONE opdate of the websocket...
+                    if self.bridge._ws_LAST_UPDATE == 0:
+                        if self.bridge.ws_supported:
+                            # and if we have somehow already some data...
+                            if len(self.bridge._obis_values) > 0:
+                                should_call_update = False
+                                _LOGGER.info(f"_async_update_data(): skipping cause the use of websocket is configured, but we have not read yet a message from the socket yet (we are probably still in init)")
+
+                if should_call_update:
+                    _LOGGER.debug(f"_async_update_data(): called")
+                    await self.bridge.update()
 
             # we always return a DICT of the current data in the bridge objects...
             return {
@@ -330,13 +341,13 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             }
 
         except UpdateFailed as exception:
-            _LOGGER.warning(f"UpdateFailed: {type(exception).__name__} - {exception}")
+            _LOGGER.warning(f"_async_update_data(): UpdateFailed: {type(exception).__name__} - {exception}")
             raise UpdateFailed() from exception
         except ClientConnectionError as exception:
-            _LOGGER.warning(f"UpdateFailed cause of ClientConnectionError: {type(exception).__name__} - {exception}")
+            _LOGGER.warning(f"_async_update_data(): UpdateFailed cause of ClientConnectionError: {type(exception).__name__} - {exception}")
             raise UpdateFailed() from exception
         except Exception as other:
-            _LOGGER.warning(f"UpdateFailed unexpected: {type(other).__name__} - {other}")
+            _LOGGER.warning(f"_async_update_data(): UpdateFailed unexpected: {type(other).__name__} - {other}")
             raise UpdateFailed() from other
 
     def _get_numeric_value_internal(self, key, divisor: int = 1) -> float|int:
