@@ -220,6 +220,7 @@ class TibberLocalBridge:
         self.ws_obj = None
         self._ws_LAST_UPDATE = 0
         self._ws_debounced_update_task: asyncio.Task | None = None
+        self._ws_LAST_UPDATE_NOTIFY = 0
 
         self._com_mode = com_mode
         self.ignore_parse_errors = False
@@ -723,12 +724,19 @@ class TibberLocalBridge:
 
     async def _ws_debounce_coordinator_update(self):
         if self._coordinator is not None:
+            elapsed = time.time() - self._ws_LAST_NEW_DATA_NOTIFY
+            if elapsed < 1:
+                sec_to_sleep = 1 - elapsed
+                #_LOGGER.debug(f"_ws_debounce_coordinator_update(): sleeping for {sec_to_sleep} seconds before notifying for updated data")
+                await asyncio.sleep(sec_to_sleep)
+
             if _LOGGER.isEnabledFor(logging.DEBUG):
                 _LOGGER.debug(f"{self.url_ws} received: {gen_log_list(self._obis_values)}")
             self._coordinator.async_set_updated_data({
                 DATA_KEY: self._obis_values,
                 METRICS_KEY: self._metrics_data
             })
+            self._ws_LAST_UPDATE_NOTIFY = time.time()
 
     async def ws_close(self, ws):
         """Close the WebSocket connection cleanly."""
