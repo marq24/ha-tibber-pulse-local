@@ -12,8 +12,14 @@ body:
         or
         - _Option B_: Replace the pulse batteries
         
-        ### If this is not the solution for your problem: Please go though this short checklist - TIA
+        ### Please go though this short checklist - read each point carefully - TIA
       options:
+        - label: This issue will be created by a human being **without any support** of AI tools like claude or chatgpt. I understand that issues created by AI tools will be instantly closed without any further support.
+          required: true
+        - label: I am aware, that marq24 is a grumpy old guy, so __it can happen__ that my issue will be closed instantly when essential information is missing (e.g. no debug logs provided, no issue description, no steps to reproduce the issue, etc...).
+          required: true
+        - label: I know, that any attachment send via eMail reply to a github issue notifications will be __ignored and deleted__ by github automatically. With other words __this will not work__!
+          required: true
         - label: I have followed the install preparation procedure - including the verification part I, II & III.
           required: true
         - label: I have installed the **latest** release (or BETA) version of the integration and home assistant.
@@ -26,6 +32,8 @@ body:
           required: true
         - label: I confirm it's really an issue |
             In the case that you want to understand the functionality of a certain feature/sensor Please be so kind and make use if the discussion feature of this repo (and do not create an issue) - TIA
+        - label: |
+            I confirm, that I did not read any of the previous bulletin-points and just checked them all. | I don't wanted to waste my time with details, I don't read or follow any existing instructions. | Instead, I want that the maintainer of this repo will spend time explaining the world to me — that's marq24's job!. | I live by the motto: Better to ask twice, than to think about it once. | It's marq24's own fault that he provides open-source software and is willing to offer free support.
   - type: textarea
     id: content
     attributes:
@@ -35,5 +43,5 @@ body:
     id: logs
     attributes:
       label: Add your DEBUG log output
-      placeholder: "Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks."
+      placeholder: "Please copy and paste any relevant **DEBUG LOG** output. This will be automatically formatted into code, so no need for backticks."
       render: shell
