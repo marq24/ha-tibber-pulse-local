@@ -254,9 +254,9 @@ class TibberLocalBridge:
                                 self.node_device_id = a_node_obj.get("eui").lower()
                                 break
                 except Exception as exec:
-                    _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {exec}")
+                    _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {type({exec}).__name__} - {exec}", stack_info=True)
         except Exception as exec:
-            _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with OUTER exception: {exec}")
+            _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with OUTER exception: {type({exec}).__name__} - {exec}", stack_info=True)
 
     async def detect_com_mode(self):
         await self.detect_com_mode_from_node_param27()
@@ -314,9 +314,9 @@ class TibberLocalBridge:
                                         self._com_mode = MODE_UNKNOWN
                                     break
                 except Exception as exec:
-                    _LOGGER.warning(f"access to bridge failed with INNER exception: {exec}")
+                    _LOGGER.warning(f"access to bridge failed with INNER exception: {type({exec}).__name__} - {exec}", stack_info=True)
         except Exception as exec:
-            _LOGGER.warning(f"access to bridge failed with OUTER exception: {exec}")
+            _LOGGER.warning(f"access to bridge failed with OUTER exception: {type({exec}).__name__} - {exec}", stack_info=True)
 
     async def update(self):
         await self.read_tibber_local(mode=self._com_mode, retry_count=0)
@@ -327,8 +327,8 @@ class TibberLocalBridge:
 
     async def read_tibber_local(self, mode: int, retry_count: int, log_payload: bool = False):
         _LOGGER.debug(f"read_tibber_local(): start[{retry_count}] - mode: {mode} request: {self.url_data}")
-        # on init we wait up to 60 seconds till we get a reply from the bridge (when HA is starting pleny of request are
-        # running...
+        # on init we wait up to 60 seconds till we get a reply from the bridge (when HA is starting, plenty of
+        # requests are running...
         async with self.web_session.get(self.url_data, auth=self.basic_auth, ssl=False, timeout=60.0 if len(self._obis_values) == 0 else 10.0) as res:
             try:
                 res.raise_for_status()
