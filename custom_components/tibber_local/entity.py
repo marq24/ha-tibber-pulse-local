@@ -12,10 +12,6 @@ _LOGGER = logging.getLogger(__name__)
 
 class CustomFriendlyNameEntity(CoordinatorEntity):
 
-    def __init__(self, *args, **kwargs):
-        """Initialize and check if method exists."""
-        super().__init__(*args, **kwargs)
-
     # This is a SYNCHRONOUS method that returns a tuple, not async!
     def _Entity__async_calculate_state(self):
         """Calculate state and override ATTR_FRIENDLY_NAME."""
@@ -23,11 +19,11 @@ class CustomFriendlyNameEntity(CoordinatorEntity):
         # First let the base implementation calculate state (returns a tuple)
         result = super()._Entity__async_calculate_state()
 
-        if not USE_NEW_FRIENDLY_NAME or self._attr_has_entity_name == False:
+        if not USE_NEW_FRIENDLY_NAME or not self._attr_has_entity_name:
             return result
 
         # Check if child class implements _friendly_name_internal
-        if not hasattr(self, '_friendly_name_internal') or not callable(getattr(self, '_friendly_name_internal', None)):
+        if not callable(getattr(self, '_friendly_name_internal', None)):
             return result
 
         # Check if we have a cached friendly name that matches what we would generate

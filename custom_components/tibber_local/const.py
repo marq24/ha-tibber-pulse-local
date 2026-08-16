@@ -246,7 +246,7 @@ SENSOR_TYPES = [
         entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        icon="mdi:home-import-outline",
+        icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),

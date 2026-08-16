@@ -46,27 +46,19 @@ from .const import (
     UNKNOWN_SERIAL
 )
 from .entity import CustomFriendlyNameEntity
-from .tibber_client import TibberLocalBridge
+from .tibber_client import TibberLocalBridge, gen_log_list
 
 _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS: Final = [Platform.SENSOR]
 WEBSOCKET_WATCHDOG_INTERVAL: Final = timedelta(seconds=64)
+MASKED_KEYS: Final = ("host", "password")
 
-def mask_map(d):
-    for k, v in d.copy().items():
-        if isinstance(v, dict):
-            d.pop(k)
-            d[k] = v
-            mask_map(v)
-        else:
-            lk = k.lower()
-            if lk == "host" or lk == "password":
-                v = "<MASKED>"
-            d.pop(k)
-            d[k] = v
-    return d
+def mask_map(d: dict) -> dict:
+    # returns a copy - so we will never modify the data of the config_entry itself
+    return {k: mask_map(v) if isinstance(v, dict) else ("<MASKED>" if k.lower() in MASKED_KEYS else v)
+            for k, v in d.items()}
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if config_entry.version < CONFIG_VERSION:
@@ -76,7 +68,8 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
                 new_data = {**config_entry.data, **config_entry.options}
             else:
                 new_data = config_entry.data
-            hass.config_entries.async_update_entry(config_entry, data=new_data, options={}, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
+            # we migrate to 'CONFIG_VERSION.0' here - so the 'x.0 -> x.1' migration below will be executed as well
+            hass.config_entries.async_update_entry(config_entry, data=new_data, options={}, version=CONFIG_VERSION, minor_version=0)
             _LOGGER.debug(f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
 
     if config_entry.version == 2 and config_entry.minor_version == 0:
@@ -117,9 +110,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     _LOGGER.info(f"async_setup_entry(): Starting TibberLocal - ConfigEntry: {mask_map(dict(config_entry.as_dict()))}")
 
-    if DOMAIN not in hass.data:
-        value = "UNKOWN"
-        hass.data.setdefault(DOMAIN, {"manifest_version": value})
+    hass.data.setdefault(DOMAIN, {})
 
     # if polling is NOT enabled - we will use of the websocket implementation...
     use_websocket = not config_entry.data.get(CONF_USE_POLLING, DEFAULT_USE_POLLING)
@@ -206,7 +197,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                     if self.hass is not None:
                         a_device_reg = device_reg.async_get(self.hass)
                         if a_device_reg is not None:
-                            device = a_device_reg.async_get_device(identifiers=self._device_info["identifiers"])
+                            device = a_device_reg.async_get_device(identifiers=self.get_device_info()["identifiers"])
                             if device:
                                 _LOGGER.info(f"call_later_update_device_registry(): device registry update triggered for device {device.name}")
                                 if self.bridge.ws_connected and self.bridge.ws_check_last_update():
@@ -250,12 +241,13 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def start_watchdog(self, event=None):
         """Start websocket watchdog."""
-        await self._async_watchdog_check()
         self._watchdog = async_track_time_interval(self.hass, self._async_watchdog_check, WEBSOCKET_WATCHDOG_INTERVAL)
+        await self._async_watchdog_check()
 
     def stop_watchdog(self):
-        if hasattr(self, "_watchdog") and self._watchdog is not None:
+        if getattr(self, "_watchdog", None) is not None:
             self._watchdog()
+            self._watchdog = None
             async_call_later(self.hass, 5, self.call_later_update_device_registry)
 
     def _check_for_ws_task_and_cancel_if_running(self):
@@ -273,7 +265,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         """Reconnect the websocket if it fails."""
         if not self.bridge.ws_supported:
             _LOGGER.info(f"_async_watchdog_check(): Watchdog: terminated, cause bridge reported 'ws_supported' = false")
-            self._watchdog()
+            self.stop_watchdog()
         else:
             if not self.bridge.ws_connected:
                 self._check_for_ws_task_and_cancel_if_running()
@@ -306,13 +298,13 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.warning(f"init_on_load(): caused {type(exception).__name__} - {exception}")
 
         if _LOGGER.isEnabledFor(logging.INFO):
-            _LOGGER.info(f"init_on_load(): after init - found OBIS entries: '{tibber_client.gen_log_list(bridge_data)}'")
+            _LOGGER.info(f"init_on_load(): after init - found OBIS entries: '{gen_log_list(bridge_data)}'")
 
         # was the init successful ?!
         if use_websocket:
             return self.bridge.node_device_id is not None
         else:
-            return len(bridge_data.keys()) > 0
+            return len(bridge_data) > 0
 
     async def _async_update_data(self):
         try:
@@ -352,33 +344,31 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
 
     def _get_numeric_value_internal(self, key, divisor: int = 1) -> float|int:
         if isinstance(key, list):
-            val = None
             for a_key in key:
-                if val is None:
-                    val = self._get_numeric_value_internal(a_key, divisor)
-            return val
+                val = self._get_numeric_value_internal(a_key, divisor)
+                if val is not None:
+                    return val
+            return None
 
         if self.data is not None:
-            obis_values = self.data.get(DATA_KEY, {})
-            if key in obis_values:
-                a_obis_obj = obis_values.get(key)
-                if isinstance(a_obis_obj.value, Number):
-                    if hasattr(a_obis_obj, 'scaler'):
-                        try:
-                            return a_obis_obj.value * 10 ** int(a_obis_obj.scaler) / divisor
-                        except (TypeError, ValueError):
-                            _LOGGER.info(f"_get_numeric_value_internal(): could not convert scaler to int for key {key} - {a_obis_obj}")
-                            return None
-                    else:
-                        return a_obis_obj.value / divisor
+            a_obis_obj = self.data.get(DATA_KEY, {}).get(key)
+            if a_obis_obj is not None and isinstance(a_obis_obj.value, Number):
+                # a missing (or 'None') scaler means, that the value is not scaled at all
+                scaler = getattr(a_obis_obj, 'scaler', None)
+                if scaler is None:
+                    return a_obis_obj.value / divisor
+                try:
+                    return a_obis_obj.value * 10 ** int(scaler) / divisor
+                except (TypeError, ValueError):
+                    _LOGGER.info(f"_get_numeric_value_internal(): could not convert scaler to int for key {key} - {a_obis_obj}")
 
         return None
 
     def _get_string_internal(self, key) -> str:
         if self.data is not None:
-            obis_values = self.data.get(DATA_KEY, {})
-            if key in obis_values:
-                return obis_values.get(key).value
+            a_obis_obj = self.data.get(DATA_KEY, {}).get(key)
+            if a_obis_obj is not None:
+                return a_obis_obj.value
 
         return None
 
@@ -426,98 +416,84 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             return UNKNOWN_SERIAL
 
+    def _get_metrics_value_internal(self, section: str, key: str, alt_key: str = None):
+        if self.data is not None:
+            obj = self.data.get(METRICS_KEY, {}).get(section, {})
+            if key in obj:
+                return obj.get(key)
+            if alt_key is not None:
+                return obj.get(alt_key)
+
+        return None
+
+    # depending on the bridge firmware, some 'node_status' attributes are prefixed with 'node_' - or not
     @property
     def attrnode_battery_voltage(self):
-        if self.data is not None:
-            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
-            if len(obj) > 0:
-                return obj.get("battery_voltage",  obj.get("node_battery_voltage", None))
+        return self._get_metrics_value_internal("node_status", "battery_voltage", "node_battery_voltage")
 
     @property
     def attrnode_temperature(self):
-        if self.data is not None:
-            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
-            if len(obj) > 0:
-                return obj.get("temperature",  obj.get("node_temperature", None))
+        return self._get_metrics_value_internal("node_status", "temperature", "node_temperature")
 
     @property
     def attrnode_avg_rssi(self):
-        if self.data is not None:
-            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
-            if len(obj) > 0:
-                return obj.get("avg_rssi",  obj.get("node_avg_rssi", None))
+        return self._get_metrics_value_internal("node_status", "avg_rssi", "node_avg_rssi")
 
     @property
     def attrnode_avg_lqi(self):
-        if self.data is not None:
-            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
-            if len(obj) > 0:
-                return obj.get("avg_lqi", obj.get("node_avg_lqi", None))
+        return self._get_metrics_value_internal("node_status", "avg_lqi", "node_avg_lqi")
 
     @property
     def attrnode_radio_tx_power(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("radio_tx_power", None)
+        return self._get_metrics_value_internal("node_status", "radio_tx_power")
 
     @property
     def attrnode_uptime_ms(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("node_uptime_ms", None)
+        return self._get_metrics_value_internal("node_status", "node_uptime_ms")
 
     @property
     def attrnode_meter_msg_count_sent(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("meter_msg_count_sent", None)
+        return self._get_metrics_value_internal("node_status", "meter_msg_count_sent")
 
     @property
     def attrnode_meter_pkg_count_sent(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("meter_pkg_count_sent", None)
+        return self._get_metrics_value_internal("node_status", "meter_pkg_count_sent")
 
     @property
     def attrnode_time_in_em0_ms(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("time_in_em0_ms", None)
+        return self._get_metrics_value_internal("node_status", "time_in_em0_ms")
 
     @property
     def attrnode_time_in_em1_ms(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("time_in_em1_ms", None)
+        return self._get_metrics_value_internal("node_status", "time_in_em1_ms")
 
     @property
     def attrnode_time_in_em2_ms(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("time_in_em2_ms", None)
+        return self._get_metrics_value_internal("node_status", "time_in_em2_ms")
 
     @property
     def attrnode_acmp_rx_autolevel_9600(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("acmp_rx_autolevel_9600", None)
+        return self._get_metrics_value_internal("node_status", "acmp_rx_autolevel_9600")
 
     @property
     def attrnode_invalid_meter_readings_count(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("invalid_meter_readings_count", None)
+        return self._get_metrics_value_internal("node_status", "invalid_meter_readings_count")
 
     @property
     def attrhub_meter_pkg_count_recv(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("hub_attachments", {}).get("meter_pkg_count_recv", None)
+        return self._get_metrics_value_internal("hub_attachments", "meter_pkg_count_recv")
 
     @property
     def attrhub_meter_reading_count_recv(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("hub_attachments", {}).get("meter_reading_count_recv", None)
+        return self._get_metrics_value_internal("hub_attachments", "meter_reading_count_recv")
 
     @property
     def attrhub_meter_corrupt_reading_count_recv(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("hub_attachments", {}).get("meter_corrupt_reading_count_recv", None)
+        return self._get_metrics_value_internal("hub_attachments", "meter_corrupt_reading_count_recv")
 
     @property
     def attrhub_compression_error_readings_count(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("hub_attachments", {}).get("compression_error_readings_count", None)
+        return self._get_metrics_value_internal("hub_attachments", "compression_error_readings_count")
 
     @property
     def attr010060320101(self) -> str:  # XYZ
@@ -538,9 +514,11 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
     @property
     def attr0100010800ff_status(self):
         if self.data is not None:
-            obis_values = self.data.get(DATA_KEY, {})
-            if '0100010800ff' in obis_values and hasattr(obis_values.get('0100010800ff'), 'status'):
-                return obis_values.get('0100010800ff').status
+            a_obis_obj = self.data.get(DATA_KEY, {}).get('0100010800ff')
+            if a_obis_obj is not None:
+                return getattr(a_obis_obj, 'status', None)
+
+        return None
 
     @property
     def attr0100010801ff(self) -> float|int:
@@ -697,8 +675,7 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
     def __init__(
             self, coordinator: TibberLocalDataUpdateCoordinator, description: EntityDescription
     ) -> None:
-        super().__init__(coordinator, description)
-        self.coordinator = coordinator
+        super().__init__(coordinator)
         if description.entity_category != EntityCategory.DIAGNOSTIC:
             self.obis = ObisCode(description.key)
         self.entity_description = description
@@ -720,11 +697,6 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
         """Return a unique ID to use for this entity."""
         sensor = self.entity_description.key
         return f"{DOMAIN}.{self._stitle}_{sensor}".lower()
-
-    async def async_added_to_hass(self):
-        """Connect to dispatcher listening for entity data notifications."""
-        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
-        await super().async_added_to_hass()
 
     def _friendly_name_internal(self) -> str | None:
         """Return the friendly name.

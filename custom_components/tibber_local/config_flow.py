@@ -3,14 +3,13 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from aiohttp import ClientResponseError
+from aiohttp import ClientError
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.config_entries import ConfigFlowResult, SOURCE_RECONFIGURE
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import slugify
-from requests.exceptions import HTTPError, Timeout
 
 from . import TibberLocalDataUpdateCoordinator
 from .const import (
@@ -36,28 +35,17 @@ from .tibber_client import TibberLocalBridge
 _LOGGER = logging.getLogger(__name__)
 
 
-@staticmethod
 def tibber_local_entries(hass: HomeAssistant):
     conf_hosts = []
     for entry in hass.config_entries.async_entries(DOMAIN):
-        a_host = entry.data[CONF_HOST]
-        a_node = entry.data[CONF_NODE_NUMBER]
-
-        if hasattr(entry, 'options'):
-            if CONF_HOST in entry.options:
-                a_host = entry.options[CONF_HOST]
-            if CONF_NODE_NUMBER in entry.options:
-                a_node = entry.options[CONF_NODE_NUMBER]
-
+        a_host = entry.options.get(CONF_HOST, entry.data.get(CONF_HOST))
+        a_node = entry.options.get(CONF_NODE_NUMBER, entry.data.get(CONF_NODE_NUMBER, DEFAULT_NODE_NUMBER))
         conf_hosts.append(f"{a_node}@@{a_host}")
     return conf_hosts
 
 
-@staticmethod
 def _host_in_configuration_exists(a_host: str, a_node, hass: HomeAssistant) -> bool:
-    if f"{a_node}@@{a_host}" in tibber_local_entries(hass):
-        return True
-    return False
+    return f"{a_node}@@{a_host}" in tibber_local_entries(hass)
 
 def _config_title_exists(a_title: str, hass: HomeAssistant) -> bool:
     return slugify(a_title) in [slugify(a_entry.title) for a_entry in hass.config_entries.async_entries(DOMAIN)]
@@ -102,7 +90,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._errors[CONF_HOST] = "unknown_mode"
                 _LOGGER.warning(f"_test_connection_tibber_local(): ValueError: {val_err}")
 
-        except (OSError, HTTPError, Timeout, ClientResponseError) as exc:
+        except (OSError, ClientError, asyncio.TimeoutError) as exc:
             self._errors[CONF_HOST] = "cannot_connect"
             _LOGGER.warning(f"_test_connection_tibber_local(): Could not connect to local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc).__name__} -> {exc}")
         return False
@@ -110,31 +98,26 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _test_data_available(self, bridge: TibberLocalBridge, host: str) -> bool:
         try:
             await bridge.update_and_log()
+            if len(bridge._obis_values) == 0:
+                # a single try might be not enough - so we give the bridge a second chance
+                await asyncio.sleep(2)
+                await bridge.update_and_log()
+
+            if len(bridge._obis_values) == 0:
+                _LOGGER.warning(f"_test_data_available(): No data from Tibber Pulse Bridge at {host}")
+                self._errors[CONF_HOST] = "no_data"
+                return False
 
             # unfortunately, there is no other parser than the TibberLocalDataUpdateCoordinator,
             # so we must create a dummy one here, to be able to parse the serial data/number
             # from the found smart-meter
             coordinator = TibberLocalDataUpdateCoordinator(self.hass, None)
+            coordinator.data = {DATA_KEY: bridge._obis_values}
+            self._serial = coordinator.serial if coordinator.serial != UNKNOWN_SERIAL else self._node_device_id
+            _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
+            return True
 
-            if len(bridge._obis_values.keys()) > 0:
-                coordinator.data = {DATA_KEY: bridge._obis_values}
-                self._serial = coordinator.serial if coordinator.serial != UNKNOWN_SERIAL else self._node_device_id
-                _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
-                return True
-            else:
-                await asyncio.sleep(2)
-                await bridge.update_and_log()
-                if len(bridge._obis_values.keys()) > 0:
-                    coordinator.data = {DATA_KEY: bridge._obis_values}
-                    self._serial = coordinator.serial if coordinator.serial != UNKNOWN_SERIAL else self._node_device_id
-                    _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
-                    return True
-                else:
-                    _LOGGER.warning(f"_test_data_available(): No data from Tibber Pulse Bridge at {host}")
-                    self._errors[CONF_HOST] = "no_data"
-                    return False
-
-        except (OSError, HTTPError, Timeout, ClientResponseError) as exc:
+        except (OSError, ClientError, asyncio.TimeoutError) as exc:
             self._errors[CONF_HOST] = "cannot_connect"
             _LOGGER.warning(f"_test_data_available(): Could not read data from local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc).__name__} -> {exc}")
         return False
@@ -154,18 +137,15 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         self._errors = {}
         if user_input is not None:
-            host = user_input[CONF_HOST].lower()
             # make sure we just handle host/ip's - removing http/https
-            if host.startswith("http://"):
-                host = host.replace("http://", "")
-            if host.startswith('https://'):
-                host = host.replace("https://", "")
+            host = user_input[CONF_HOST].lower().removeprefix("http://").removeprefix("https://")
 
             name = user_input[CONF_NAME]
             pwd = user_input[CONF_PASSWORD]
             use_polling = user_input[CONF_USE_POLLING]
             scan = user_input[CONF_SCAN_INTERVAL]
             node_num = user_input[CONF_NODE_NUMBER]
+            ignore_errors = user_input[CONF_IGNORE_READING_ERRORS]
 
             if self.source != SOURCE_RECONFIGURE:
                 if _config_title_exists(name, self.hass):
@@ -183,6 +163,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                           CONF_USE_POLLING: use_polling,
                           CONF_SCAN_INTERVAL: scan,
                           CONF_NODE_NUMBER: node_num,
+                          CONF_IGNORE_READING_ERRORS: ignore_errors,
                           CONF_ID: self._serial,
                           CONF_MODE: self._con_mode}
 
