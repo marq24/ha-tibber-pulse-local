@@ -304,7 +304,7 @@ class TibberLocalBridge:
         try:
             temp_obis_values = []
             if log_payload:
-                _LOGGER.debug(f"plaintext payload: {plaintext}")
+                _LOGGER.debug(f"mode_99_read_plaintext(): plaintext payload: {plaintext}")
 
             if '\r' not in plaintext:
                 plaintext = plaintext.replace(' ', '\r')
@@ -331,7 +331,12 @@ class TibberLocalBridge:
                     parts = re.split(self.PLAIN_TEXT_LINE, a_line)
                     if len(parts) == 9:
                         if self.check_first_six_parts_for_digits_or_last_is_none(parts):
-                            int_obc = self.obis_hex_from_parts(parts, not self.ignore_parse_errors)
+                            obis_hex = self.obis_hex_from_parts(parts, not self.ignore_parse_errors)
+                            if obis_hex is None:
+                                if not self.ignore_parse_errors:
+                                    _LOGGER.debug(f"mode_99_read_plaintext(): ignore invalid code: {a_line}")
+                                continue
+
                             value = parts[7]
                             unit = None
                             if '*' in value:
@@ -350,12 +355,13 @@ class TibberLocalBridge:
                                 unit = find_unit_int_from_string(val_with_unit[1])
 
                             # creating finally the "right" object from the parsed information
-                            if hasattr(int_obc, "obis_hex"):
-                                entry = SmlListEntry()
-                                entry.obis = ObisCode(int_obc.obis_hex)
-                                entry.value = value
-                                entry.unit = unit
-                                temp_obis_values.append(entry)
+                            entry = SmlListEntry()
+                            entry.obis = ObisCode(obis_hex)
+                            entry.value = value
+                            entry.unit = unit
+                            # our plaintext values are not scaled - but 'SmlListEntry.get_value()' requires the attribute
+                            entry.scaler = 0
+                            temp_obis_values.append(entry)
                         else:
                             if not self.ignore_parse_errors:
                                 _LOGGER.debug(f"ignore none digits-only code: {a_line}")
@@ -364,13 +370,13 @@ class TibberLocalBridge:
                             break
                         elif len(parts[0]) > 0 and parts[0][0] != '/':
                             if not self.ignore_parse_errors:
-                                _LOGGER.debug(f"unknown entry: {parts[0]} (line: '{a_line}')")
+                                _LOGGER.debug(f"mode_99_read_plaintext(): unknown entry: {parts[0]} (line: '{a_line}')")
                         # else:
                         #    print('ignore '+ parts[0])
 
                 except Exception as e:
                     if not self.ignore_parse_errors:
-                        _LOGGER.info(f"{e}")
+                        _LOGGER.info(f"mode_99_read_plaintext(): {type(e).__name__} - {e}")
 
             if len(temp_obis_values) > 0:
                 self._obis_values = {}
@@ -447,9 +453,6 @@ class TibberLocalBridge:
                 sml_list = None
                 a_source_exc = None
 
-                self._obis_values = {}
-                #self._obis_values_by_short = {}
-
                 if not use_fallback_impl:
                     try:
                         # Shortcut to extract all values without parsing the whole frame
@@ -480,6 +483,7 @@ class TibberLocalBridge:
 
                 # if we have a list of SML entries, we can process them
                 if sml_list is not None and len(sml_list) > 0:
+                    self._obis_values = {}
                     for entry in sml_list:
                         self._obis_values[entry.obis] = entry
                         #self._obis_values_by_short[entry.obis.obis_short] = entry
@@ -599,7 +603,16 @@ class TibberLocalBridge:
 
                     elif msg.type == aiohttp.WSMsgType.TEXT:
                         try:
-                            text_data = msg.data.decode('ascii', errors='ignore')
+                            # make sure we have a string text here - but to be honest, so far none there has been
+                            # no evidence that a TibberPuldeBridge would send `WSMsgType.TEXT` - so all this here
+                            # is really just a fallback...
+                            if hasattr(msg.data, "decode"):
+                                text_data = msg.data.decode('ascii', errors='ignore')
+                            elif isinstance(msg.data, str):
+                                text_data = msg.data
+                            else:
+                                text_data = str(msg.data)
+
                             separator_pos = text_data.index('>')
                             if separator_pos > 0:
                                 text_head = text_data[:separator_pos + 1]
