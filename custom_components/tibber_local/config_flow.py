@@ -3,14 +3,13 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from aiohttp import ClientResponseError
+from aiohttp import ClientError
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.config_entries import ConfigFlowResult, SOURCE_RECONFIGURE
 from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import slugify
-from requests.exceptions import HTTPError, Timeout
 
 from . import TibberLocalDataUpdateCoordinator
 from .const import (
@@ -102,7 +101,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._errors[CONF_HOST] = "unknown_mode"
                 _LOGGER.warning(f"_test_connection_tibber_local(): ValueError: {val_err}")
 
-        except (OSError, HTTPError, Timeout, ClientResponseError) as exc:
+        except (OSError, ClientError, asyncio.TimeoutError) as exc:
             self._errors[CONF_HOST] = "cannot_connect"
             _LOGGER.warning(f"_test_connection_tibber_local(): Could not connect to local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc).__name__} -> {exc}")
         return False
@@ -134,7 +133,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._errors[CONF_HOST] = "no_data"
                     return False
 
-        except (OSError, HTTPError, Timeout, ClientResponseError) as exc:
+        except (OSError, ClientError, asyncio.TimeoutError) as exc:
             self._errors[CONF_HOST] = "cannot_connect"
             _LOGGER.warning(f"_test_data_available(): Could not read data from local Tibber Pulse Bridge at {host}, check host/ip address\n{type(exc).__name__} -> {exc}")
         return False
@@ -166,6 +165,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             use_polling = user_input[CONF_USE_POLLING]
             scan = user_input[CONF_SCAN_INTERVAL]
             node_num = user_input[CONF_NODE_NUMBER]
+            ignore_errors = user_input[CONF_IGNORE_READING_ERRORS]
 
             if self.source != SOURCE_RECONFIGURE:
                 if _config_title_exists(name, self.hass):
@@ -183,6 +183,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                           CONF_USE_POLLING: use_polling,
                           CONF_SCAN_INTERVAL: scan,
                           CONF_NODE_NUMBER: node_num,
+                          CONF_IGNORE_READING_ERRORS: ignore_errors,
                           CONF_ID: self._serial,
                           CONF_MODE: self._con_mode}
 

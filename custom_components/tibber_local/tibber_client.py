@@ -12,7 +12,7 @@ from aiohttp import ClientConnectionError, ClientResponseError
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from smllib import SmlStreamReader
-from smllib.const import UNITS, OBIS_NAMES
+from smllib.const import UNITS
 from smllib.errors import CrcError, SmlLibException
 from smllib.sml import SmlListEntry, ObisCode
 
@@ -34,39 +34,6 @@ _LOGGER = logging.getLogger(__name__)
 MIN_RETRY_DELAY: Final = 2.5#0.2
 MAX_RETRY_DELAY: Final = 10 #1.2
 
-class IntBasedObisCode:
-    # This is for sure a VERY STUPID Python class - but I am a NOOB - would be cool, if someone could teach me
-    # how I could fast convert my number array to the required format...
-    def __init__(self, obis_src: list, do_log_output: bool):
-        try:
-            _a = int(obis_src[1])
-            _b = int(obis_src[2])
-            _c = int(obis_src[3])
-            _d = int(obis_src[4])
-            _e = int(obis_src[5])
-            if obis_src[6] is not None and len(obis_src[6]) > 0:
-                _f = int(obis_src[6])
-            else:
-                _f = 255
-
-            # self.obis_code = f'{_a}-{_b}:{_c}.{_d}.{_e}*{_f}'
-            # self.obis_short = f'{_c}.{_d}.{_e}'
-            self.obis_hex = f'{self.get_as_two_digit_hex(_a)}{self.get_as_two_digit_hex(_b)}{self.get_as_two_digit_hex(_c)}{self.get_as_two_digit_hex(_d)}{self.get_as_two_digit_hex(_e)}{self.get_as_two_digit_hex(_f)}'
-        except Exception as e:
-            if do_log_output:
-                _LOGGER.warning(
-                    f"could not parse a value as int from list {obis_src} - Please check the position of your Tibber Pulse reading head (you might need to rotate it few degrees anti clock wise) - Exception: {e}")
-
-    @staticmethod
-    def get_as_two_digit_hex(input: int) -> str:
-        out = f'{input:x}'
-        if len(out) == 1:
-            return '0' + out
-        else:
-            return out
-
-
-@staticmethod
 def gen_log_list(obis_values:dict)-> list:
     a_list = []
     try:
@@ -76,50 +43,16 @@ def gen_log_list(obis_values:dict)-> list:
         pass
     return a_list
 
-@staticmethod
-def format_entry(entry: SmlListEntry):
+def format_entry_short(entry: SmlListEntry) -> str:
     try:
-        r = f'{entry.obis.obis_code} ({entry.obis})'
-        summary = ''
+        value = entry.get_value()
         if entry.unit:
-            val = entry.get_value()
-            u = UNITS.get(entry.unit)
-            if u is None:
-                u = f' ?:{entry.unit}'
-            summary += f'{val}{u}'
-
-        desc = OBIS_NAMES.get(entry.obis)
-        if desc is not None:
-            summary += f'{" " if summary else ""}({desc})'
-        if summary:
-            r += f': {summary:s}'
-        else:
-            r += f': {entry.get_value():s}'
-        return r
-    except BaseException:
-        return 'A_ERROR_OBIS_LONG'
-
-@staticmethod
-def format_entry_short(entry: SmlListEntry):
-    try:
-        r = f'{entry.obis.obis_short} ({entry.obis})'
-        summary = ''
-        if entry.unit:
-            val = entry.get_value()
-            u = UNITS.get(entry.unit)
-            if u is None:
-                u = f' ?:{entry.unit}'
-            summary += f'{val}{u}'
-
-        if summary:
-            r += f': {summary:s}'
-        else:
-            r += f': {entry.get_value():s}'
-        return r
-    except BaseException:
+            unit = UNITS.get(entry.unit, f' ?:{entry.unit}')
+            return f'{entry.obis.obis_short} ({entry.obis}): {value}{unit}'
+        return f'{entry.obis.obis_short} ({entry.obis}): {value}'
+    except Exception:
         return 'A_ERROR_OBIS_SHORT'
 
-@staticmethod
 def ws_parse_header_string(payload_head):
     # Parse device and topic
     device = None
@@ -143,7 +76,6 @@ def ws_parse_header_string(payload_head):
 
     return (topic, device)
 
-@staticmethod
 def ws_parse_header_bytes(sml_head: bytes):
     try:
         return ws_parse_header_string(sml_head.decode('ascii', errors='ignore'))
@@ -151,14 +83,12 @@ def ws_parse_header_bytes(sml_head: bytes):
         _LOGGER.info(f"ws_parse_header_bytes(): Failed to parse bytes header: {e}")
     return None
 
-@staticmethod
 def find_unit_int_from_string(unit_str: str):
     for aUnit in UNITS.items():
         if aUnit[1] == unit_str:
             return aUnit[0]
     return None
 
-@staticmethod
 def clean_host(host_input):
         # Ensure it looks like a URL so urlparse can handle it
         if "://" not in host_input:
@@ -177,7 +107,20 @@ def clean_host(host_input):
 class TibberLocalBridge:
     ONLY_DIGITS: re.Pattern = re.compile("^[0-9]+$")
     PLAIN_TEXT_LINE: re.Pattern = re.compile(r'(.*?)-(.*?):(.*?)\.(.*?)\.(.*?)(?:\*(.*?)|)\((.*?)\)')
-    TWO_DIGIT_CODE_PATTERN = re.compile(r'^([^.]*\.[^.]*)(\(.*$)')
+    # matches OBIS codes with only one dot ('1-0:1.8(...)' or '1-0:1.8*255(...)') - the optional
+    # '*f' part is kept in its own group, so the missing '.e' is inserted at the right position
+    TWO_DIGIT_CODE_PATTERN: re.Pattern = re.compile(r'^([^.]*\.[^.]*?)(\*[^.(]*)?(\(.*$)')
+
+    def obis_hex_from_parts(self, obis_src: list, do_log_output: bool) -> str | None:
+        """Convert the regex parts 'a-b:c.d.e*f' into the 12 char hex OBIS code smllib expects."""
+        try:
+            values = [int(part) for part in obis_src[1:6]]
+            values.append(int(obis_src[6]) if obis_src[6] else 255)
+            return bytes(values).hex()
+        except (ValueError, TypeError) as e:
+            if do_log_output:
+                _LOGGER.warning(f"could not parse a value as int from list {obis_src} - ... - Exception: {e}")
+            return None
 
     def check_first_six_parts_for_digits_or_last_is_none(self, parts: list[str]) -> bool:
         return (self.ONLY_DIGITS.match(parts[1]) is not None and
@@ -209,18 +152,18 @@ class TibberLocalBridge:
             # websocket stuff...
             self.url_ws = f"ws://{a_host}/ws"
 
-            # The 'self.ws_device_id' will be needed if multiple pulses are connected to the
-            # bridge - and the websocket does not include the node_id (node nummer), instead
-            # there is a '<device ...' header that must be used to identify the actual node.
-            # The value will be init by calling 'get_eui_for_node()'
-            self.node_device_id = None
+        # The 'self.node_device_id' will be needed if multiple pulses are connected to the
+        # bridge - and the websocket does not include the node_id (node nummer), instead
+        # there is a '<device ...' header that must be used to identify the actual node.
+        # The value will be init by calling 'get_eui_for_node()'
+        self.node_device_id = None
 
         self.ws_connected = False
         self.ws_supported = True
         self.ws_obj = None
         self._ws_LAST_UPDATE = 0
         self._ws_debounced_update_task: asyncio.Task | None = None
-        self._ws_LAST_UPDATE_NOTIFY = 0
+        self._ws_LAST_NEW_DATA_NOTIFY = 0
 
         self._com_mode = com_mode
         self.ignore_parse_errors = False
@@ -251,16 +194,20 @@ class TibberLocalBridge:
                         json_resp = await res.json()
                         for a_node_obj in json_resp:
                             if int(a_node_obj.get("node_id", -1)) == self.node_number:
-                                self.node_device_id = a_node_obj.get("eui").lower()
+                                a_eui = a_node_obj.get("eui")
+                                if a_eui is not None:
+                                    self.node_device_id = a_eui.lower()
+                                else:
+                                    _LOGGER.warning(f"get_eui_for_node(): bridge does not provide a 'eui' for node {self.node_number}: {a_node_obj}")
                                 break
-                except Exception as exec:
-                    _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {type({exec}).__name__} - {exec}", stack_info=True)
-        except Exception as exec:
-            _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with OUTER exception: {type({exec}).__name__} - {exec}", stack_info=True)
+                except Exception as exc:
+                    _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {type({exc}).__name__} - {exc}", stack_info=True)
+        except Exception as exc:
+            _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with OUTER exception: {type({exc}).__name__} - {exc}", stack_info=True)
 
     async def detect_com_mode(self):
         await self.detect_com_mode_from_node_param27()
-        _LOGGER.debug(f"detect_com_mode: after detect_com_mode_from_node_param27 mode is: {self._com_mode}")
+        _LOGGER.debug(f"detect_com_mode(): after detect_com_mode_from_node_param27 mode is: {self._com_mode}")
         # if we can't read the mode from the properties (or the mode is not in the ENUM_MODES)
         # we want to check, if we can read plaintext?!
         if self._com_mode == MODE_UNKNOWN:
@@ -281,42 +228,42 @@ class TibberLocalBridge:
         await self.read_tibber_local(mode_1, retry_count=0, log_payload=True)
         if len(self._obis_values) > 0:
             self._com_mode = mode_1
-            _LOGGER.debug(f"detect_com_mode 1 SUCCESS -> _com_mode: {self._com_mode}")
+            _LOGGER.debug(f"detect_com_mode(): 1 SUCCESS -> _com_mode: {self._com_mode}")
         else:
             if (mode_2 != -1):
-                _LOGGER.debug(f"detect_com_mode 1 is {self._com_mode}: {mode_1} failed - will try to read {mode_2}")
+                _LOGGER.debug(f"detect_com_mode(): 1 is {self._com_mode}: {mode_1} failed - will try to read {mode_2}")
                 await self.read_tibber_local(mode_2, retry_count=0, log_payload=True)
                 if len(self._obis_values) > 0:
                     self._com_mode = mode_2
-                    _LOGGER.debug(f"detect_com_mode 2 SUCCESS -> _com_mode: {self._com_mode}")
+                    _LOGGER.debug(f"detect_com_mode(): 2 SUCCESS -> _com_mode: {self._com_mode}")
                 else:
-                    _LOGGER.debug(f"detect_com_mode 2 is {self._com_mode}: {mode_1} failed and {mode_2} failed")
+                    _LOGGER.debug(f"detect_com_mode(): 2 is {self._com_mode}: {mode_1} failed and {mode_2} failed")
                     pass
             else:
-                _LOGGER.debug(f"detect_com_mode 1 is {self._com_mode}: {mode_1} failed")
+                _LOGGER.debug(f"detect_com_mode(): 1 is {self._com_mode}: {mode_1} failed")
 
     async def detect_com_mode_from_node_param27(self):
+        # {'param_id': 27, 'name': 'meter_mode', 'size': 1, 'type': 'uint8', 'help': '0:IEC 62056-21, 1:Count impressions', 'value': [3]}
+        self._com_mode = MODE_UNKNOWN
         try:
-            # {'param_id': 27, 'name': 'meter_mode', 'size': 1, 'type': 'uint8', 'help': '0:IEC 62056-21, 1:Count impressions', 'value': [3]}
-            self._com_mode = MODE_UNKNOWN
-            async with self.web_session.get(self.url_mode, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
+            async with (self.web_session.get(self.url_mode, auth=self.basic_auth, ssl=False, timeout=10.0) as res):
                 try:
                     res.raise_for_status()
                     if res.status == 200:
                         json_resp = await res.json()
                         for a_parm_obj in json_resp:
-                            if 'param_id' in a_parm_obj and a_parm_obj['param_id'] == 27 or \
-                                    'name' in a_parm_obj and a_parm_obj['name'] == 'meter_mode':
-                                if 'value' in a_parm_obj:
-                                    self._com_mode = a_parm_obj['value'][0]
-                                    # check for known modes in the UI (http://YOUR-IP-HERE/nodes/1/config)
-                                    if self._com_mode not in ENUM_MODES:
-                                        self._com_mode = MODE_UNKNOWN
-                                    break
-                except Exception as exec:
-                    _LOGGER.warning(f"access to bridge failed with INNER exception: {type({exec}).__name__} - {exec}", stack_info=True)
-        except Exception as exec:
-            _LOGGER.warning(f"access to bridge failed with OUTER exception: {type({exec}).__name__} - {exec}", stack_info=True)
+                            if a_parm_obj is not None:
+                                if a_parm_obj.a_parm_obj("param_id", -1) == 27 or a_parm_obj.get("name", "") == "meter_mode":
+                                    if 'value' in a_parm_obj:
+                                        self._com_mode = a_parm_obj['value'][0]
+                                        # check for known modes in the UI (http://YOUR-IP-HERE/nodes/1/config)
+                                        if self._com_mode not in ENUM_MODES:
+                                            self._com_mode = MODE_UNKNOWN
+                                        break
+                except Exception as exc:
+                    _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with INNER exception: {type({exc}).__name__} - {exc}", stack_info=True)
+        except Exception as exc:
+            _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with OUTER exception: {type({exc}).__name__} - {exc}", stack_info=True)
 
     async def update(self):
         await self.read_tibber_local(mode=self._com_mode, retry_count=0)
@@ -370,7 +317,7 @@ class TibberLocalBridge:
                     # if there are not at least 2 dot's before the opening '(', we must insert a '.0' before
                     # the opening '(' [see issue #73]
                     if self.TWO_DIGIT_CODE_PATTERN.match(a_line):
-                        a_line = re.sub(self.TWO_DIGIT_CODE_PATTERN, r'\1.0\2', a_line)
+                        a_line = re.sub(self.TWO_DIGIT_CODE_PATTERN, r'\1.0\2\3', a_line, count=1)
 
                     # it looks like that in the format 'IEC-62056-21' there are the '1-0:' is missing ?! [this is really
                     # a very DUMP implementation] - but we check, if the line has at least
@@ -384,7 +331,7 @@ class TibberLocalBridge:
                     parts = re.split(self.PLAIN_TEXT_LINE, a_line)
                     if len(parts) == 9:
                         if self.check_first_six_parts_for_digits_or_last_is_none(parts):
-                            int_obc = IntBasedObisCode(parts, not self.ignore_parse_errors)
+                            int_obc = self.obis_hex_from_parts(parts, not self.ignore_parse_errors)
                             value = parts[7]
                             unit = None
                             if '*' in value:
@@ -442,7 +389,7 @@ class TibberLocalBridge:
 
     async def mode_10_read_json_impressions_ambient(self, data: dict, retry_count: int, log_payload: bool):
         # {"$type": "imp_data", "timestamp_ms": 2122625,"delta_ms": 9879,"kw":0.364409, "kwh": 0.0040}
-        temp_obis_values = []
+        temp_obis_values = {}
 
         if log_payload:
             _LOGGER.debug(f"mode 10 payload: {data}")
@@ -458,7 +405,7 @@ class TibberLocalBridge:
                     entry.unit = 27 # 27 is the unit: Watt
                     entry.scaler = 0
                     entry.value = kw * 1000
-                    temp_obis_values.append(entry)
+                    temp_obis_values[entry.obis] = entry
 
             if "kwh" in data:
                 # to do/implement...
@@ -469,14 +416,12 @@ class TibberLocalBridge:
                     entry.unit = 30 # 30 is the unit: Wh
                     entry.scaler = 0
                     entry.value = kwh * 1000
-                    temp_obis_values.append(entry)
+                    temp_obis_values[entry.obis] = entry
+        else:
+            _LOGGER.debug(f"mode_10_read_json_impressions_ambient(): unexpected payload: {data}")
 
         if len(temp_obis_values) > 0:
-            self._obis_values = {}
-            #self._obis_values_by_short = {}
-            for entry in temp_obis_values:
-                self._obis_values[entry.obis] = entry
-                #self._obis_values_by_short[entry.obis.obis_short] = entry
+            self._obis_values = temp_obis_values
 
     async def mode_03_read_sml(self, payload: bytes, retry_count: int, log_payload: bool):
         # for whatever reason, the data that can be read from the TibberPulse Webserver is
@@ -736,7 +681,7 @@ class TibberLocalBridge:
                 DATA_KEY: self._obis_values,
                 METRICS_KEY: self._metrics_data
             })
-            self._ws_LAST_UPDATE_NOTIFY = time.time()
+            self._ws_LAST_NEW_DATA_NOTIFY = time.time()
 
     async def ws_close(self, ws):
         """Close the WebSocket connection cleanly."""
@@ -760,6 +705,11 @@ class TibberLocalBridge:
 
     async def ws_close_and_prepare_to_terminate(self):
         try:
+            # a possibly scheduled coordinator update is not required any longer
+            if self._ws_debounced_update_task is not None and not self._ws_debounced_update_task.done():
+                self._ws_debounced_update_task.cancel()
+            self._ws_debounced_update_task = None
+
             if self.ws_obj is not None:
                 await self.ws_close(self.ws_obj)
                 await asyncio.sleep(4)

@@ -29,7 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
                 # we store the available OBIS codes (so that we are able to use
                 # them later - when startup fails for some reason)
                 if len(config_entry.data.get(CONF_OBIS_CODES, [])) < len(available_sensors):
-                    new_data = config_entry.data.copy()
+                    new_data = dict(config_entry.data)
                     new_data[CONF_OBIS_CODES] = available_sensors
                     hass.config_entries.async_update_entry(config_entry, data=new_data)
                     _LOGGER.info(f"Updated obis codes stored in config_entry: {new_data[CONF_OBIS_CODES]}")
@@ -46,26 +46,23 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
         available_sensors = ["0100010800ff", "0100100700ff"]
 
     for description in SENSOR_TYPES:
+        # our metrics sensors are not OBIS based - so they will be added always
+        if hasattr(description, "entity_category") and description.entity_category == EntityCategory.DIAGNOSTIC:
+            entities.append(TibberLocalSensor(coordinator, description))
+            continue
+
         key = description.key
         if key.endswith("_in_k"):
-           key = key[:-5]
+           key = key[:-5] # 5 = len("_in_k")
 
         if key in available_sensors:
-            entity = TibberLocalSensor(coordinator, description)
-            entities.append(entity)
+            entities.append(TibberLocalSensor(coordinator, description))
         elif hasattr(description, "aliases"):
             if description.aliases is not None and len(description.aliases) > 0:
                 for alias in description.aliases:
                     if alias in available_sensors:
-                        entity = TibberLocalSensor(coordinator, description)
-                        entities.append(entity)
+                        entities.append(TibberLocalSensor(coordinator, description))
                         break
-
-        # make sure that our metrics sensors will be added
-        elif hasattr(description, "entity_category"):
-            if description.entity_category == EntityCategory.DIAGNOSTIC:
-                entity = TibberLocalSensor(coordinator, description)
-                entities.append(entity)
 
     async_add_entities(entities)
 
@@ -97,7 +94,7 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
     @property
     def native_value(self) -> StateType:
         if self.coordinator.data is not None:
-            return getattr(self.coordinator, 'attr' + self.entity_description.key)
+            return getattr(self.coordinator, 'attr' + self.entity_description.key, None)
         return None
 
     # @property

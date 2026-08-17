@@ -53,20 +53,12 @@ CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS: Final = [Platform.SENSOR]
 WEBSOCKET_WATCHDOG_INTERVAL: Final = timedelta(seconds=64)
+MASKED_KEYS: Final = ("host", "password")
 
-def mask_map(d):
-    for k, v in d.copy().items():
-        if isinstance(v, dict):
-            d.pop(k)
-            d[k] = v
-            mask_map(v)
-        else:
-            lk = k.lower()
-            if lk == "host" or lk == "password":
-                v = "<MASKED>"
-            d.pop(k)
-            d[k] = v
-    return d
+def mask_map(d: dict) -> dict:
+    # returns a copy - so we will never modify the data of the config_entry itself
+    return {k: mask_map(v) if isinstance(v, dict) else ("<MASKED>" if k.lower() in MASKED_KEYS else v)
+            for k, v in d.items()}
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if config_entry.version < CONFIG_VERSION:
@@ -76,11 +68,11 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
                 new_data = {**config_entry.data, **config_entry.options}
             else:
                 new_data = config_entry.data
-            hass.config_entries.async_update_entry(config_entry, data=new_data, options={}, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
+            hass.config_entries.async_update_entry(config_entry, data=new_data, options={}, version=2, minor_version=0)
             _LOGGER.debug(f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
 
     if config_entry.version == 2 and config_entry.minor_version == 0:
-        # update from 1.x to 1.2 [ensure that all unique_id's are lower case!]
+        # update from 2.0 to 2.1 [ensure that all unique_id's are lower case!]
         _LOGGER.info(f"async_migrate_entry(): Migration: from v{config_entry.version}.{config_entry.minor_version} to v{CONFIG_VERSION}.{CONFIG_MINOR_VERSION}")
         registry = entity_registry.async_get(hass)
 
@@ -256,6 +248,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
     def stop_watchdog(self):
         if hasattr(self, "_watchdog") and self._watchdog is not None:
             self._watchdog()
+            self._watchdog = None
             async_call_later(self.hass, 5, self.call_later_update_device_registry)
 
     def _check_for_ws_task_and_cancel_if_running(self):
@@ -273,7 +266,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         """Reconnect the websocket if it fails."""
         if not self.bridge.ws_supported:
             _LOGGER.info(f"_async_watchdog_check(): Watchdog: terminated, cause bridge reported 'ws_supported' = false")
-            self._watchdog()
+            self.stop_watchdog()
         else:
             if not self.bridge.ws_connected:
                 self._check_for_ws_task_and_cancel_if_running()
@@ -697,8 +690,7 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
     def __init__(
             self, coordinator: TibberLocalDataUpdateCoordinator, description: EntityDescription
     ) -> None:
-        super().__init__(coordinator, description)
-        self.coordinator = coordinator
+        super().__init__(coordinator)
         if description.entity_category != EntityCategory.DIAGNOSTIC:
             self.obis = ObisCode(description.key)
         self.entity_description = description
@@ -720,11 +712,6 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
         """Return a unique ID to use for this entity."""
         sensor = self.entity_description.key
         return f"{DOMAIN}.{self._stitle}_{sensor}".lower()
-
-    async def async_added_to_hass(self):
-        """Connect to dispatcher listening for entity data notifications."""
-        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
-        await super().async_added_to_hass()
 
     def _friendly_name_internal(self) -> str | None:
         """Return the friendly name.
