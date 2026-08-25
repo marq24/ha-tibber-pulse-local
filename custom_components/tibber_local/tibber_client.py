@@ -287,7 +287,8 @@ class TibberLocalBridge:
                         await self.mode_10_read_json_impressions_ambient(await res.json(), retry_count, log_payload)
 
                     elif mode == MODE_99_PLAINTEXT:
-                        await self.mode_99_read_plaintext(await res.text(), retry_count, log_payload)
+                        plaintext_payload = await res.text(errors="ignore")
+                        await self.mode_99_read_plaintext(plaintext_payload, retry_count, log_payload)
 
                     if _LOGGER.isEnabledFor(logging.DEBUG):
                         _LOGGER.debug(f"read_tibber_local: after[{retry_count}] read - found OBIS entries: '{gen_log_list(self._obis_values)}'")
