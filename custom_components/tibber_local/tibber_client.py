@@ -317,8 +317,7 @@ class TibberLocalBridge:
 
                     # if there are not at least 2 dot's before the opening '(', we must insert a '.0' before
                     # the opening '(' [see issue #73]
-                    if self.TWO_DIGIT_CODE_PATTERN.match(a_line):
-                        a_line = re.sub(self.TWO_DIGIT_CODE_PATTERN, r'\1.0\2\3', a_line, count=1)
+                    a_line = self.TWO_DIGIT_CODE_PATTERN.sub(r'\1.0\2\3', a_line, count=1)
 
                     # it looks like that in the format 'IEC-62056-21' there are the '1-0:' is missing ?! [this is really
                     # a very DUMP implementation] - but we check, if the line has at least
@@ -328,8 +327,9 @@ class TibberLocalBridge:
                     if len(a_line) >= 4 and a_line[1] != '-' and a_line[3] != ':' and '*' in a_line and '(' in a_line and ')' in a_line:
                         a_line = '1-0:' + a_line
 
-                    # obis pattern is 'a-b:c.d.e*f'
-                    parts = re.split(self.PLAIN_TEXT_LINE, a_line)
+                    # obis pattern is 'a-b:c.d.e*f' - 'parts[0]' is the text before the match, 'parts[1:7]' are
+                    # the six obis values and 'parts[7]' is the value (including its optional unit)
+                    parts = self.PLAIN_TEXT_LINE.split(a_line)
                     if len(parts) == 9:
                         if self.check_first_six_parts_for_digits_or_last_is_none(parts):
                             obis_hex = self.obis_hex_from_parts(parts, not self.ignore_parse_errors)
