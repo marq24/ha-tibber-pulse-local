@@ -253,7 +253,7 @@ class TibberLocalBridge:
                         json_resp = await res.json()
                         for a_parm_obj in json_resp:
                             if a_parm_obj is not None:
-                                if a_parm_obj.a_parm_obj("param_id", -1) == 27 or a_parm_obj.get("name", "") == "meter_mode":
+                                if a_parm_obj("param_id", -1) == 27 or a_parm_obj.get("name", "") == "meter_mode":
                                     if 'value' in a_parm_obj:
                                         self._com_mode = a_parm_obj['value'][0]
                                         # check for known modes in the UI (http://YOUR-IP-HERE/nodes/1/config)
