@@ -34,6 +34,10 @@ _LOGGER = logging.getLogger(__name__)
 MIN_RETRY_DELAY: Final = 2.5#0.2
 MAX_RETRY_DELAY: Final = 10 #1.2
 
+# 'UNITS' maps the sml unit-code to its name - here we need the opposite direction [some names are used by
+# multiple codes - like 'm³' - so we build it reversed: the first (lowest) code wins, as it did before]
+UNIT_CODE_BY_NAME: Final = {a_name: a_code for a_code, a_name in reversed(UNITS.items())}
+
 def gen_log_list(obis_values:dict)-> list:
     a_list = []
     try:
@@ -60,12 +64,11 @@ def ws_parse_header_string(payload_head):
     try:
         header_str = payload_head.strip('<>')
         parts = header_str.split()
-
-        for part in parts:
-            if part.startswith('device:'):
-                device = part.split(':', 1)[1]
-            elif part.startswith('topic:'):
-                topic = part.split(':', 1)[1]
+        for a_part in parts:
+            if a_part.startswith('device:'):
+                device = a_part.split(':', 1)[1]
+            elif a_part.startswith('topic:'):
+                topic = a_part.split(':', 1)[1]
 
         topic = topic.strip('"')
         device = device.lower()
@@ -83,11 +86,8 @@ def ws_parse_header_bytes(sml_head: bytes):
         _LOGGER.info(f"ws_parse_header_bytes(): Failed to parse bytes header: {e}")
     return None
 
-def find_unit_int_from_string(unit_str: str):
-    for aUnit in UNITS.items():
-        if aUnit[1] == unit_str:
-            return aUnit[0]
-    return None
+def find_unit_int_from_string(unit_str: str) -> int | None:
+    return UNIT_CODE_BY_NAME.get(unit_str)
 
 def clean_host(host_input):
         # Ensure it looks like a URL so urlparse can handle it
@@ -246,7 +246,7 @@ class TibberLocalBridge:
         # {'param_id': 27, 'name': 'meter_mode', 'size': 1, 'type': 'uint8', 'help': '0:IEC 62056-21, 1:Count impressions', 'value': [3]}
         self._com_mode = MODE_UNKNOWN
         try:
-            async with (self.web_session.get(self.url_mode, auth=self.basic_auth, ssl=False, timeout=10.0) as res):
+            async with self.web_session.get(self.url_mode, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
                 try:
                     res.raise_for_status()
                     if res.status == 200:
@@ -389,10 +389,8 @@ class TibberLocalBridge:
         except Exception as exc:
             if not self.ignore_parse_errors:
                 _LOGGER.warning(f"Exception {exc} while process data - plaintext: {plaintext}")
-            if retry_count < self.MAX_READ_RETRIES:
-                retry_count = retry_count + 1
-                await asyncio.sleep(random.uniform(MIN_RETRY_DELAY, MAX_RETRY_DELAY))
-                await self.read_tibber_local(mode=MODE_99_PLAINTEXT, retry_count=retry_count)
+            # check if we should retry...
+            await self._check_for_retry_read(mode=MODE_99_PLAINTEXT, retry_count=retry_count)
 
     async def mode_10_read_json_impressions_ambient(self, data: dict, retry_count: int, log_payload: bool):
         # {"$type": "imp_data", "timestamp_ms": 2122625,"delta_ms": 9879,"kw":0.364409, "kwh": 0.0040}
@@ -401,29 +399,26 @@ class TibberLocalBridge:
         if log_payload:
             _LOGGER.debug(f"mode 10 payload: {data}")
 
-        if "$type" in data and data["$type"] == "imp_data":
-            if "kw" in data:
-                kw = data.get("kw")
-                if kw is not None:
-                    # this is hardcoded '0100100700ff' (Wirkleistung) - but the value in kW... and the sensor
-                    # is in W - so we have to multiply it with 1000
-                    entry = SmlListEntry()
-                    entry.obis = ObisCode('0100100700ff')
-                    entry.unit = 27 # 27 is the unit: Watt
-                    entry.scaler = 0
-                    entry.value = kw * 1000
-                    temp_obis_values[entry.obis] = entry
+        if isinstance(data, dict) and data.get("$type") == "imp_data":
+            kw = data.get("kw")
+            if kw is not None:
+                # this is hardcoded '0100100700ff' (Wirkleistung) - but the value in kW... and the sensor
+                # is in W - so we have to multiply it with 1000
+                entry = SmlListEntry()
+                entry.obis = ObisCode('0100100700ff')
+                entry.unit = 27 # 27 is the unit: Watt
+                entry.scaler = 0
+                entry.value = kw * 1000
+                temp_obis_values[entry.obis] = entry
 
-            if "kwh" in data:
-                # to do/implement...
-                kwh = data.get("kwh")
-                if kwh is not None:
-                    entry = SmlListEntry()
-                    entry.obis = ObisCode('0100010800ff')
-                    entry.unit = 30 # 30 is the unit: Wh
-                    entry.scaler = 0
-                    entry.value = kwh * 1000
-                    temp_obis_values[entry.obis] = entry
+            kwh = data.get("kwh")
+            if kwh is not None:
+                entry = SmlListEntry()
+                entry.obis = ObisCode('0100010800ff')
+                entry.unit = 30 # 30 is the unit: Wh
+                entry.scaler = 0
+                entry.value = kwh * 1000
+                temp_obis_values[entry.obis] = entry
         else:
             _LOGGER.debug(f"mode_10_read_json_impressions_ambient(): unexpected payload: {data}")
 
@@ -445,10 +440,8 @@ class TibberLocalBridge:
             if sml_frame is None:
                 if not self.ignore_parse_errors:
                     _LOGGER.info(f"Bytes missing - payload: {payload}")
-                if retry_count < self.MAX_READ_RETRIES:
-                    retry_count = retry_count + 1
-                    await asyncio.sleep(random.uniform(MIN_RETRY_DELAY, MAX_RETRY_DELAY))
-                    await self.read_tibber_local(mode=MODE_3_SML_1_04, retry_count=retry_count)
+                # check if we should retry...
+                await self._check_for_retry_read(mode=MODE_3_SML_1_04, retry_count=retry_count)
             else:
                 use_fallback_impl = self._use_fallback_by_default
                 sml_list = None
@@ -496,46 +489,43 @@ class TibberLocalBridge:
                 else:
                     _LOGGER.warning(f"Exception {type(exc).__name__} - {exc} while parse data - payload: {payload}")
 
-            if retry_count < self.MAX_READ_RETRIES:
-                retry_count = retry_count + 1
-                await asyncio.sleep(random.uniform(MIN_RETRY_DELAY, MAX_RETRY_DELAY))
-                await self.read_tibber_local(mode=MODE_3_SML_1_04, retry_count=retry_count)
+            # check, if we should retry...
+            await self._check_for_retry_read(mode=MODE_3_SML_1_04, retry_count=retry_count)
+
+    async def _check_for_retry_read(self, mode: int, retry_count: int):
+        if retry_count < self.MAX_READ_RETRIES:
+            new_retry_count = retry_count + 1
+            await asyncio.sleep(random.uniform(MIN_RETRY_DELAY, MAX_RETRY_DELAY))
+            await self.read_tibber_local(mode=mode, retry_count=new_retry_count)
 
     async def updated_tibber_metrics_if_needed(self, log_payload: bool = False):
-        if not self._metrics_update_is_running:
-            self._metrics_update_is_running = True
-            try:
-                # only request every 30 minutes (= 30 * 60sec) for new meta_data...
-                to_wait_till = self._LAST_METRICS_UPDATE + 1800
-                if to_wait_till < time.time():
-                    _LOGGER.debug(f"updated_tibber_metrics_if_needed(): request: {self.url_metrics}")
-                    async with self.web_session.get(self.url_metrics, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
-                        try:
-                            res.raise_for_status()
-                            if res.status == 200:
-                                try:
-                                    self._metrics_data = await res.json()
-                                    if log_payload:
-                                        _LOGGER.debug(f"updated_tibber_metrics_if_needed(): metrics response: {self._metrics_data}")
-                                except Exception as exc:
-                                    _LOGGER.warning(f"updated_tibber_metrics_if_needed(): failed to parse metrics JSON: {exc}")
-                            else:
-                                if res is not None:
-                                    _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed with code {res.status} - res: {res}")
-                                else:
-                                    _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed (UNKNOWN reason - 'res' is None)")
+        if self._metrics_update_is_running:
+            return
 
-                        except BaseException as exc:
-                            _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed with exception: {type(exc).__name__} - {exc}")
+        # only request every 30 minutes (= 30 * 60sec) for new meta_data...
+        to_wait_till = self._LAST_METRICS_UPDATE + 1800
+        if to_wait_till > time.time():
+            #_LOGGER.debug(f"updated_tibber_metrics_if_needed(): no update required [wait for: {round((to_wait_till - time.time())/60, 1)} min]")
+            return
 
-                        self._LAST_METRICS_UPDATE = time.time()
-                else:
-                    pass
-                    #_LOGGER.debug(f"updated_tibber_metrics_if_needed(): no update required [wait for: {round((to_wait_till - time.time())/60, 1)} min]")
+        self._metrics_update_is_running = True
+        try:
+            _LOGGER.debug(f"updated_tibber_metrics_if_needed(): request: {self.url_metrics}")
+            async with self.web_session.get(self.url_metrics, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
+                res.raise_for_status()
+                try:
+                    self._metrics_data = await res.json()
+                    if log_payload:
+                        _LOGGER.debug(f"updated_tibber_metrics_if_needed(): metrics response: {self._metrics_data}")
+                except BaseException as exc:
+                    _LOGGER.warning(f"updated_tibber_metrics_if_needed(): failed to parse metrics JSON: {type(exc).__name__} - {exc}")
+        except BaseException as exc:
+            _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed with exception: {type(exc).__name__} - {exc}")
 
-            except BaseException as e:
-                _LOGGER.debug(f"updated_tibber_metrics_if_needed(): caused: {type(e).__name__} - {e}")
-
+        finally:
+            # we also mark failed attempts - so a bridge that does not provide any metrics will not be
+            # requested with every update cycle
+            self._LAST_METRICS_UPDATE = time.time()
             self._metrics_update_is_running = False
 
     # websocket implementation from here...
@@ -678,8 +668,14 @@ class TibberLocalBridge:
 
     def _ws_notify_for_new_data(self):
         if self._ws_debounced_update_task is not None and not self._ws_debounced_update_task.done():
-            self._ws_debounced_update_task.cancel()
-        self._ws_debounced_update_task = asyncio.create_task(self._ws_debounce_coordinator_update())
+            # an already scheduled task will pick up the latest data by itself...
+            # so there is no need to cancel it
+            #self._ws_debounced_update_task.cancel()
+            # there is already a data debouncer running, so we simply wait, till that
+            # one is doing the job...
+            return
+        else:
+            self._ws_debounced_update_task = asyncio.create_task(self._ws_debounce_coordinator_update())
 
     async def _ws_debounce_coordinator_update(self):
         if self._coordinator is not None:
