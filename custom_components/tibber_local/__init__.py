@@ -198,7 +198,10 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                     if self.hass is not None:
                         a_device_reg = device_reg.async_get(self.hass)
                         if a_device_reg is not None:
-                            device = a_device_reg.async_get_device(identifiers=self._device_info["identifiers"])
+                            if hasattr(a_device_reg, "async_get_device_by_identifier"):
+                                device = a_device_reg.async_get_device_by_identifier(identifier=next(iter(self._device_info_dict["identifiers"])), config_entry_id=self.config_entry.entry_id)
+                            else:
+                                device = a_device_reg.async_get_device(identifiers=self._device_info_dict["identifiers"])
                             if device:
                                 _LOGGER.info(f"call_later_update_device_registry(): device registry update triggered for device {device.name}")
                                 if self.bridge.ws_connected and self.bridge.ws_check_last_update():
