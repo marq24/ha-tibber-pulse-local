@@ -44,21 +44,16 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
             _LOGGER.warning(f"no tag found for sensor description key: {description.key} - please create a issue on github!")
             continue
 
-        # only add metrics sensors, when we have data...
+        should_add = False
         if tag.data_type == METRICS_KEY:
-            if not metrics_values:
-                continue
-            entities.append(TibberLocalSensor(coordinator, description))
-            continue
-
-        if tag.data_type == DATA_KEY:
+            should_add = bool(metrics_values)
+        elif tag.data_type == DATA_KEY:
             keys_to_check = [tag.key]
             if tag.aliases:
                 keys_to_check.extend(tag.aliases)
-        else:
-            continue
+            should_add = any(sensor_key in available_sensors for sensor_key in keys_to_check)
 
-        if any(sensor_key in available_sensors for sensor_key in keys_to_check):
+        if should_add:
             entities.append(TibberLocalSensor(coordinator, description))
 
     async_add_entities(entities)
