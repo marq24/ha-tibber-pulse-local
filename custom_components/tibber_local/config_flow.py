@@ -119,6 +119,8 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 coordinator.data = {DATA_KEY: bridge._obis_values}
                 self._serial = coordinator.serial if coordinator.serial != UNKNOWN_SERIAL else self._node_device_id
                 _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
+                if self._default_obis_codes is None:
+                    self._default_obis_codes = list(bridge._obis_codes.keys())
                 return True
             else:
                 await asyncio.sleep(2)
@@ -127,6 +129,8 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     coordinator.data = {DATA_KEY: bridge._obis_values}
                     self._serial = coordinator.serial if coordinator.serial != UNKNOWN_SERIAL else self._node_device_id
                     _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
+                    if self._default_obis_codes is None:
+                        self._default_obis_codes = list(bridge._obis_codes.keys())
                     return True
                 else:
                     _LOGGER.warning(f"_test_data_available(): No data from Tibber Pulse Bridge at {host}")

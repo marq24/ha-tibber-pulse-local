@@ -42,8 +42,13 @@ from .const import (
 
     DATA_KEY,
     METRICS_KEY,
-
-    UNKNOWN_SERIAL
+    NODE_METRICS,
+    NODE_METRIC_PREFIX,
+    NODE_METRIC_MAP,
+    HUB_METRICS,
+    HUB_METRIC_PREFIX,
+    SensorTag,
+    UNKNOWN_SERIAL,
 )
 from .entity import CustomFriendlyNameEntity
 from .tibber_client import TibberLocalBridge
@@ -346,38 +351,6 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.warning(f"_async_update_data(): UpdateFailed unexpected: {type(other).__name__} - {other}")
             raise UpdateFailed() from other
 
-    def _get_numeric_value_internal(self, key, divisor: int = 1) -> float|int:
-        if isinstance(key, list):
-            val = None
-            for a_key in key:
-                if val is None:
-                    val = self._get_numeric_value_internal(a_key, divisor)
-            return val
-
-        if self.data is not None:
-            obis_values = self.data.get(DATA_KEY, {})
-            if key in obis_values:
-                a_obis_obj = obis_values.get(key)
-                if isinstance(a_obis_obj.value, Number):
-                    if hasattr(a_obis_obj, 'scaler'):
-                        try:
-                            return a_obis_obj.value * 10 ** int(a_obis_obj.scaler) / divisor
-                        except (TypeError, ValueError):
-                            _LOGGER.info(f"_get_numeric_value_internal(): could not convert scaler to int for key {key} - {a_obis_obj}")
-                            return None
-                    else:
-                        return a_obis_obj.value / divisor
-
-        return None
-
-    def _get_string_internal(self, key) -> str:
-        if self.data is not None:
-            obis_values = self.data.get(DATA_KEY, {})
-            if key in obis_values:
-                return obis_values.get(key).value
-
-        return None
-
     # obis: https://www.promotic.eu/en/pmdoc/Subsystems/Comm/PmDrivers/PmIEC62056/IEC62056_OBIS.htm
     # units: https://github.com/spacemanspiff2007/SmlLib/blob/master/src/smllib/const.py
     # https://onemeter.com/docs/device/obis/
@@ -407,284 +380,94 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
 
     @property
     def serial(self) -> str:  # XYZ-123a4567
-        if self.attr010060320101 is not None:
-            if self.attr0100605a0201 is not None:
-                return f"{self.attr010060320101}-{self.attr0100605a0201}"
-            elif self.attr0100600100ff is not None:
-                return f"{self.attr010060320101}-{self.attr0100600100ff}"
-            else:
-                return f"{self.attr010060320101}"
+        meter_name = self._get_string_internal("010060320101")
+        meter_id_new = self._get_string_internal("0100605a0201")
+        meter_id_old = self._get_string_internal("0100600100ff")
 
-        elif self.attr0100600100ff is not None:
-            return f"{self.attr0100600100ff}"
-        elif self.attr0100605a0201 is not None:
-            return f"{self.attr0100605a0201}"
+        if meter_name is not None:
+            if meter_id_new is not None:
+                return f"{meter_name}-{meter_id_new}"
+            elif meter_id_old is not None:
+                return f"{meter_name}-{meter_id_old}"
+            else:
+                return f"{meter_name}"
+
+        elif meter_id_old is not None:
+            return f"{meter_id_old}"
+        elif meter_id_new is not None:
+            return f"{meter_id_new}"
         else:
             return UNKNOWN_SERIAL
 
-    @property
-    def attrnode_battery_voltage(self):
-        if self.data is not None:
-            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
-            if len(obj) > 0:
-                return obj.get("battery_voltage",  obj.get("node_battery_voltage", None))
+    def _get_metric_value_internal(self, sensor_key):
+        if self.data is None:
+            return None
 
-    @property
-    def attrnode_temperature(self):
-        if self.data is not None:
-            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
-            if len(obj) > 0:
-                return obj.get("temperature",  obj.get("node_temperature", None))
+        node_status = self.data.get(METRICS_KEY, {}).get(NODE_METRICS, {})
+        hub_attachments = self.data.get(METRICS_KEY, {}).get(HUB_METRICS, {})
 
-    @property
-    def attrnode_avg_rssi(self):
-        if self.data is not None:
-            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
-            if len(obj) > 0:
-                return obj.get("avg_rssi",  obj.get("node_avg_rssi", None))
+        if sensor_key in NODE_METRIC_MAP:
+            for mapped_metric_key in NODE_METRIC_MAP.get(sensor_key, []):
+                if mapped_metric_key in node_status:
+                    return node_status.get(mapped_metric_key)
 
-    @property
-    def attrnode_avg_lqi(self):
-        if self.data is not None:
-            obj = self.data.get(METRICS_KEY, {}).get("node_status", {})
-            if len(obj) > 0:
-                return obj.get("avg_lqi", obj.get("node_avg_lqi", None))
+        if sensor_key in hub_attachments:
+            return hub_attachments.get(sensor_key)
 
-    @property
-    def attrnode_radio_tx_power(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("radio_tx_power", None)
+        return None
 
-    @property
-    def attrnode_uptime_ms(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("node_uptime_ms", None)
+    def _get_numeric_value_internal(self, key, divisor: int = 1) -> float | int | None:
+        if isinstance(key, list):
+            val = None
+            for a_key in key:
+                if val is None:
+                    val = self._get_numeric_value_internal(a_key, divisor)
+            return val
 
-    @property
-    def attrnode_meter_msg_count_sent(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("meter_msg_count_sent", None)
-
-    @property
-    def attrnode_meter_pkg_count_sent(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("meter_pkg_count_sent", None)
-
-    @property
-    def attrnode_time_in_em0_ms(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("time_in_em0_ms", None)
-
-    @property
-    def attrnode_time_in_em1_ms(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("time_in_em1_ms", None)
-
-    @property
-    def attrnode_time_in_em2_ms(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("time_in_em2_ms", None)
-
-    @property
-    def attrnode_acmp_rx_autolevel_9600(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("acmp_rx_autolevel_9600", None)
-
-    @property
-    def attrnode_invalid_meter_readings_count(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("node_status", {}).get("invalid_meter_readings_count", None)
-
-    @property
-    def attrhub_meter_pkg_count_recv(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("hub_attachments", {}).get("meter_pkg_count_recv", None)
-
-    @property
-    def attrhub_meter_reading_count_recv(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("hub_attachments", {}).get("meter_reading_count_recv", None)
-
-    @property
-    def attrhub_meter_corrupt_reading_count_recv(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("hub_attachments", {}).get("meter_corrupt_reading_count_recv", None)
-
-    @property
-    def attrhub_compression_error_readings_count(self):
-        if self.data is not None:
-            return self.data.get(METRICS_KEY, {}).get("hub_attachments", {}).get("compression_error_readings_count", None)
-
-    @property
-    def attr010060320101(self) -> str:  # XYZ
-        return self._get_string_internal('010060320101')
-
-    @property
-    def attr0100600100ff(self) -> str:  # 0a123b4c567890d12e34
-        return self._get_string_internal('0100600100ff')
-
-    @property
-    def attr0100010800ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100010800ff')
-
-    @property
-    def attr0100010800ff_in_k(self) -> float|int:
-        return self._get_numeric_value_internal('0100010800ff', divisor=1000)
-
-    @property
-    def attr0100010800ff_status(self):
         if self.data is not None:
             obis_values = self.data.get(DATA_KEY, {})
-            if '0100010800ff' in obis_values and hasattr(obis_values.get('0100010800ff'), 'status'):
-                return obis_values.get('0100010800ff').status
+            if key in obis_values:
+                a_obis_obj = obis_values.get(key)
+                if isinstance(a_obis_obj.value, Number):
+                    if hasattr(a_obis_obj, 'scaler'):
+                        try:
+                            return a_obis_obj.value * 10 ** int(a_obis_obj.scaler) / divisor
+                        except (TypeError, ValueError):
+                            _LOGGER.info(f"_get_numeric_value_internal(): could not convert scaler to int for key {key} - {a_obis_obj}")
+                            return None
+                    else:
+                        return a_obis_obj.value / divisor
 
-    @property
-    def attr0100010801ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100010801ff')
+        return None
 
-    @property
-    def attr0100010801ff_in_k(self) -> float|int:
-        return self._get_numeric_value_internal('0100010801ff', divisor=1000)
+    def _get_string_internal(self, sensor_key) -> str | None:
+        if self.data is not None:
+            obis_values = self.data.get(DATA_KEY, {})
+            if sensor_key in obis_values:
+                return obis_values.get(sensor_key).value
 
-    @property
-    def attr0100010802ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100010802ff')
+        return None
 
-    @property
-    def attr0100010802ff_in_k(self) -> float|int:
-        return self._get_numeric_value_internal('0100010802ff', divisor=1000)
+    def get_sensor_value(self, tag:SensorTag):
+        if tag is None:
+            return None
 
-    @property
-    def attr0100010803ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100010803ff')
+        if tag.data_type == METRICS_KEY:
+            return self._get_metric_value_internal(tag.key)
 
-    @property
-    def attr0100010803ff_in_k(self) -> float|int:
-        return self._get_numeric_value_internal('0100010803ff', divisor=1000)
+        if tag.data_type == DATA_KEY:
+            obis_candidates = [tag.key]
+            if tag.aliases is not None and len(tag.aliases) > 0:
+                obis_candidates.extend(tag.aliases)
 
-    @property
-    def attr0100010804ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100010804ff')
+            divisor = 1000 if tag.divide_by_1000 else 1
+            numeric_value = self._get_numeric_value_internal(obis_candidates, divisor=divisor)
+            if numeric_value is not None:
+                return numeric_value
 
-    @property
-    def attr0100010804ff_in_k(self) -> float|int:
-        return self._get_numeric_value_internal('0100010804ff', divisor=1000)
+            return self._get_string_internal(obis_candidates)
 
-    @property
-    def attr0100020800ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100020800ff')
-
-    @property
-    def attr0100020800ff_in_k(self) -> float|int:
-        return self._get_numeric_value_internal(key='0100020800ff', divisor=1000)
-
-    @property
-    def attr0100020801ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100020801ff')
-
-    @property
-    def attr0100020801ff_in_k(self) -> float|int:
-        return self._get_numeric_value_internal('0100020801ff', divisor=1000)
-
-    @property
-    def attr0100020802ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100020802ff')
-
-    @property
-    def attr0100020802ff_in_k(self) -> float|int:
-        return self._get_numeric_value_internal('0100020802ff', divisor=1000)
-
-    @property
-    def attr0100020803ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100020803ff')
-
-    @property
-    def attr0100020803ff_in_k(self) -> float|int:
-        return self._get_numeric_value_internal('0100020803ff', divisor=1000)
-
-    @property
-    def attr0100020804ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100020804ff')
-
-    @property
-    def attr0100020804ff_in_k(self) -> float|int:
-        return self._get_numeric_value_internal('0100020804ff', divisor=1000)
-
-    @property
-    def attr0100100700ff(self) -> float|int:
-        # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
-        return self._get_numeric_value_internal(['0100100700ff', '0100010700ff', '01000107ffff', '0100020700ff', '01000f0700ff'])
-
-    @property
-    def attr0100240700ff(self) -> float|int:
-        # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
-        return self._get_numeric_value_internal(['0100240700ff', '0100150700ff', '01001507ffff', '0100160700ff', '0100230700ff'])
-
-    @property
-    def attr0100380700ff(self) -> float|int:
-        # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
-        return self._get_numeric_value_internal(['0100380700ff', '0100290700ff', '01002907ffff', '01002a0700ff', '0100370700ff'])
-
-    @property
-    def attr01004c0700ff(self) -> float|int:
-        # search for SUM (0), POS (0), POS (255), NEG (0), ABS (0)
-        return self._get_numeric_value_internal(['01004c0700ff', '01003d0700ff', '01003d07ffff', '01003e0700ff', '01004b0700ff'])
-
-    @property
-    def attr0100200700ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100200700ff')
-
-    @property
-    def attr0100340700ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100340700ff')
-
-    @property
-    def attr0100480700ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100480700ff')
-
-    @property
-    def attr01001f0700ff(self) -> float|int:
-        return self._get_numeric_value_internal('01001f0700ff')
-
-    @property
-    def attr0100330700ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100330700ff')
-
-    @property
-    def attr0100470700ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100470700ff')
-
-    @property
-    def attr0100510701ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100510701ff')
-
-    @property
-    def attr0100510702ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100510702ff')
-
-    @property
-    def attr0100510704ff(self) -> float|int:
-        return self._get_numeric_value_internal('0100510704ff')
-
-    @property
-    def attr010051070fff(self) -> float|int:
-        return self._get_numeric_value_internal('010051070fff')
-
-    @property
-    def attr010051071aff(self) -> float|int:
-        return self._get_numeric_value_internal('010051071aff')
-
-    @property
-    def attr01000e0700ff(self) -> float|int:
-        return self._get_numeric_value_internal('01000e0700ff')
-
-    @property
-    def attr010000020000(self) -> str:  # 01
-        return self._get_string_internal('010000020000')
-
-    @property
-    def attr0100605a0201(self) -> str:  # 123a4567
-        return self._get_string_internal('0100605a0201')
+        return None
 
 
 class TibberLocalEntity(CustomFriendlyNameEntity):
@@ -708,7 +491,7 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
     @property
     def available(self):
         """Return True if entity is available."""
-        return self.coordinator.last_update_success
+        return self.coordinator.last_update_success and len(self.coordinator.data) > 0
 
     @property
     def unique_id(self):
