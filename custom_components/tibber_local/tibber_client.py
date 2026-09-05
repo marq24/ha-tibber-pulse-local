@@ -25,7 +25,7 @@ from .const import (
     MODE_99_PLAINTEXT,
     MODE_1_IEC_62056_21,
     ENUM_IMPLEMENTATIONS,
-    DATA_KEY,
+    OBIS_DATA_KEY,
     METRICS_KEY,
 )
 
@@ -57,35 +57,6 @@ def format_entry_short(entry: SmlListEntry) -> str:
     except Exception:
         return 'A_ERROR_OBIS_SHORT'
 
-def ws_parse_header_string(payload_head):
-    # Parse device and topic
-    device = None
-    topic = None
-    try:
-        header_str = payload_head.strip('<>')
-        parts = header_str.split()
-        for a_part in parts:
-            if a_part.startswith('device:'):
-                device = a_part.split(':', 1)[1]
-            elif a_part.startswith('topic:'):
-                topic = a_part.split(':', 1)[1]
-
-        topic = topic.strip('"')
-        device = device.lower()
-        #_LOGGER.debug(f"ws_parse_header(): device: {device}, topic: {topic}")
-
-    except (UnicodeDecodeError, ValueError) as e:
-        _LOGGER.info(f"ws_parse_header_string(): Failed to parse string header: {e}")
-
-    return (topic, device)
-
-def ws_parse_header_bytes(sml_head: bytes):
-    try:
-        return ws_parse_header_string(sml_head.decode('ascii', errors='ignore'))
-    except (UnicodeDecodeError, ValueError) as e:
-        _LOGGER.info(f"ws_parse_header_bytes(): Failed to parse bytes header: {e}")
-    return None
-
 def find_unit_int_from_string(unit_str: str) -> int | None:
     return UNIT_CODE_BY_NAME.get(unit_str)
 
@@ -111,7 +82,7 @@ class TibberLocalBridge:
     # '*f' part is kept in its own group, so the missing '.e' is inserted at the right position
     TWO_DIGIT_CODE_PATTERN: re.Pattern = re.compile(r'^([^.]*\.[^.]*?)(\*[^.(]*)?(\(.*$)')
 
-    def obis_hex_from_parts(self, obis_src: list, do_log_output: bool) -> str | None:
+    def obis_hex_from_parts(obis_src: list, do_log_output: bool) -> str | None:
         """Convert the regex parts 'a-b:c.d.e*f' into the 12 char hex OBIS code smllib expects."""
         try:
             values = [int(part) for part in obis_src[1:6]]
@@ -122,13 +93,42 @@ class TibberLocalBridge:
                 _LOGGER.warning(f"could not parse a value as int from list {obis_src} - ... - Exception: {e}")
             return None
 
-    def check_first_six_parts_for_digits_or_last_is_none(self, parts: list[str]) -> bool:
-        return (self.ONLY_DIGITS.match(parts[1]) is not None and
-                self.ONLY_DIGITS.match(parts[2]) is not None and
-                self.ONLY_DIGITS.match(parts[3]) is not None and
-                self.ONLY_DIGITS.match(parts[4]) is not None and
-                self.ONLY_DIGITS.match(parts[5]) is not None and
-                (parts[6] is None or self.ONLY_DIGITS.match(parts[6]) is not None))
+    def check_first_six_parts_for_digits_or_last_is_none(parts: list[str]) -> bool:
+        return (TibberLocalBridge.ONLY_DIGITS.match(parts[1]) is not None and
+                TibberLocalBridge.ONLY_DIGITS.match(parts[2]) is not None and
+                TibberLocalBridge.ONLY_DIGITS.match(parts[3]) is not None and
+                TibberLocalBridge.ONLY_DIGITS.match(parts[4]) is not None and
+                TibberLocalBridge.ONLY_DIGITS.match(parts[5]) is not None and
+                (parts[6] is None or TibberLocalBridge.ONLY_DIGITS.match(parts[6]) is not None))
+
+    def _ws_parse_header_string(payload_head):
+        # Parse device and topic
+        device = None
+        topic = None
+        try:
+            header_str = payload_head.strip('<>')
+            parts = header_str.split()
+            for a_part in parts:
+                if a_part.startswith('device:'):
+                    device = a_part.split(':', 1)[1]
+                elif a_part.startswith('topic:'):
+                    topic = a_part.split(':', 1)[1]
+
+            topic = topic.strip('"')
+            device = device.lower()
+            #_LOGGER.debug(f"ws_parse_header(): device: {device}, topic: {topic}")
+
+        except (UnicodeDecodeError, ValueError) as e:
+            _LOGGER.info(f"ws_parse_header_string(): Failed to parse string header: {e}")
+
+        return (topic, device)
+
+    def _ws_parse_header_bytes(sml_head: bytes):
+        try:
+            return TibberLocalBridge._ws_parse_header_string(sml_head.decode('ascii', errors='ignore'))
+        except (UnicodeDecodeError, ValueError) as e:
+            _LOGGER.info(f"_ws_parse_header_bytes(): Failed to parse bytes header: {e}")
+        return (None, None)
 
     # _communication_mode 'MODE_3_SML_1_04' is the initially implemented mode (reading binary sml data)...
     # 'all' other modes have to be implemented... also it could be that the bridge does
@@ -317,7 +317,7 @@ class TibberLocalBridge:
 
                     # if there are not at least 2 dot's before the opening '(', we must insert a '.0' before
                     # the opening '(' [see issue #73]
-                    a_line = self.TWO_DIGIT_CODE_PATTERN.sub(r'\1.0\2\3', a_line, count=1)
+                    a_line = TibberLocalBridge.TWO_DIGIT_CODE_PATTERN.sub(r'\1.0\2\3', a_line, count=1)
 
                     # it looks like that in the format 'IEC-62056-21' there are the '1-0:' is missing ?! [this is really
                     # a very DUMP implementation] - but we check, if the line has at least
@@ -329,10 +329,10 @@ class TibberLocalBridge:
 
                     # obis pattern is 'a-b:c.d.e*f' - 'parts[0]' is the text before the match, 'parts[1:7]' are
                     # the six obis values and 'parts[7]' is the value (including its optional unit)
-                    parts = self.PLAIN_TEXT_LINE.split(a_line)
+                    parts = TibberLocalBridge.PLAIN_TEXT_LINE.split(a_line)
                     if len(parts) == 9:
-                        if self.check_first_six_parts_for_digits_or_last_is_none(parts):
-                            obis_hex = self.obis_hex_from_parts(parts, not self.ignore_parse_errors)
+                        if TibberLocalBridge.check_first_six_parts_for_digits_or_last_is_none(parts):
+                            obis_hex = TibberLocalBridge.obis_hex_from_parts(parts, not self.ignore_parse_errors)
                             if obis_hex is None:
                                 if not self.ignore_parse_errors:
                                     _LOGGER.debug(f"mode_99_read_plaintext(): ignore invalid code: {a_line}")
@@ -528,6 +528,115 @@ class TibberLocalBridge:
             self._LAST_METRICS_UPDATE = time.time()
             self._metrics_update_is_running = False
 
+    async def _ws_handle_binary_message(self, msg) -> bool:
+        binary_data = msg.data
+        if not isinstance(binary_data, (bytes, bytearray)) or len(binary_data) == 0:
+            _LOGGER.debug(f"_ws_handle_binary_message(): WSMsgType.BINARY invalid payload type/len [type:{type(binary_data).__name__} len:{len(binary_data) if hasattr(binary_data, '__len__') else -1}]")
+            return False
+
+        separator_pos = binary_data.find(b'>')
+        if separator_pos <= 0:
+            _LOGGER.debug(f"_ws_handle_binary_message(): WSMsgType.BINARY invalid data (NO '>' FOUND) [len:{len(binary_data)}]")
+            return False
+
+        binary_head = binary_data[:separator_pos + 1]
+        _LOGGER.debug(f"_ws_handle_binary_message(): WSMsgType.BINARY head: {binary_head}")
+        topic, device_id = TibberLocalBridge._ws_parse_header_bytes(binary_head)
+
+        if self.node_device_id is not None and self.node_device_id != device_id:
+            _LOGGER.debug(f"_ws_handle_binary_message(): WSMsgType.BINARY device of node_num '{self.node_device_id}' not matching the device in the message {device_id}")
+            return False
+
+        return await self._ws_dispatch_payload(
+            source_type=msg.type,
+            topic=topic,
+            body=binary_data[separator_pos + 1:],
+            raw_payload=binary_data,
+        )
+
+    async def _ws_handle_text_message(self, msg) -> bool:
+        # make sure we have a string text here - but to be honest, so far there has been no evidence
+        # so far, that a TibberPuldeBridge would send `WSMsgType.TEXT` - so all this here is really
+        # just a fallback...
+        if hasattr(msg.data, "decode"):
+            text_data = msg.data.decode('ascii', errors='ignore')
+        elif isinstance(msg.data, str):
+            text_data = msg.data
+        else:
+            text_data = str(msg.data)
+
+        if not isinstance(text_data, str) or len(text_data) == 0:
+            _LOGGER.debug(f"_ws_handle_text_message(): WSMsgType.TEXT invalid payload type/len [type:{type(text_data).__name__} len:{len(text_data) if hasattr(text_data, '__len__') else -1}]")
+            return False
+
+        separator_pos = text_data.find('>')
+        if separator_pos <= 0:
+            _LOGGER.debug(f"_ws_handle_text_message(): WSMsgType.TEXT invalid data (NO '>' FOUND) [len:{len(text_data)}]")
+            return False
+
+        text_head = text_data[:separator_pos + 1]
+        _LOGGER.debug(f"_ws_handle_text_message(): WSMsgType.TEXT head: {text_head}")
+        topic, device_id = TibberLocalBridge._ws_parse_header_string(text_head)
+
+        if self.node_device_id is not None and self.node_device_id != device_id:
+            _LOGGER.debug(f"_ws_handle_text_message(): WSMsgType.TEXT device of node_num '{self.node_device_id}' not matching the device in the message {device_id}")
+            return False
+
+        return await self._ws_dispatch_payload(
+            source_type=msg.type,
+            topic=topic,
+            body=text_data[separator_pos + 1:],
+            raw_payload=text_data,
+        )
+
+    async def _ws_dispatch_payload(self, source_type: aiohttp.WSMsgType, topic: str | None, body: bytes | str, raw_payload: bytes | str) -> bool:
+        if topic is None:
+            _LOGGER.warning(f"_ws_dispatch_payload(): {source_type.name} topic '{topic}'/mode_'{self._com_mode}' in: {raw_payload}")
+            return False
+
+        if self._com_mode == MODE_3_SML_1_04 and source_type == aiohttp.WSMsgType.BINARY and "sml" in topic.lower():
+            if not isinstance(body, bytes):
+                _LOGGER.warning(f"_ws_dispatch_payload(): {source_type.name} expected bytes payload for MODE_3_SML_1_04 but got {type(body).__name__}")
+                return False
+
+            # no need to do anything with the body - to make the code more readable, we add the prefix 'binary_' to the variable name
+            binary_body = body
+            _LOGGER.debug(f"_ws_dispatch_payload(): {source_type.name} body '{topic}' [len:{len(binary_body)}]: {binary_body if len(binary_body) <= 15 else binary_body[:15]}...")
+            try:
+                await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                return True
+            except Exception as e:
+                _LOGGER.warning(f"_ws_dispatch_payload(): {source_type.name} 'mode_03_read_sml' caused {type(e).__name__} [{binary_body}] {e}")
+                return False
+
+        if self._com_mode == MODE_99_PLAINTEXT:
+            # make sure that the text_body is really a string...
+            text_body = body.decode('ascii', errors='ignore') if isinstance(body, bytes) else body
+            _LOGGER.debug(f"_ws_dispatch_payload(): {source_type.name} body (as TEXT) '{topic}' [len:{len(text_body)}]: {text_body if len(text_body) <= 15 else text_body[:15]}...")
+
+            try:
+                await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                return True
+            except Exception as e:
+                _LOGGER.warning(f"_ws_dispatch_payload(): {source_type.name} 'mode_99_read_plaintext' caused {type(e).__name__} [{text_body}] {e}")
+                return False
+
+        if self._com_mode == MODE_10_ImpressionsAmbient and source_type == aiohttp.WSMsgType.BINARY:
+            json_body = body.decode('ascii', errors='ignore') if isinstance(body, bytes) else body
+            _LOGGER.debug(f"_ws_dispatch_payload(): {source_type.name} body (as JSON) '{topic}' [len:{len(json_body)}]: {json_body if len(json_body) <= 15 else json_body[:15]}...")
+            try:
+                await self.mode_10_read_json_impressions_ambient(json.loads(json_body), retry_count=self.MAX_READ_RETRIES, log_payload=False)
+                return True
+            except Exception as e:
+                _LOGGER.warning(f"_ws_dispatch_payload(): {source_type.name} 'mode_10_read_json_impressions_ambient' caused {type(e).__name__} [{json_body}] {e}")
+                return False
+
+        if source_type == aiohttp.WSMsgType.TEXT:
+            _LOGGER.warning(f"_ws_dispatch_payload(): WSMsgType.TEXT 'UNHANDLED' topic '{topic}'/mode_'{self._com_mode}' in: {raw_payload}")
+        else:
+            _LOGGER.warning(f"_ws_dispatch_payload(): {source_type.name} topic '{topic}'/mode_'{self._com_mode}' in: {raw_payload}")
+        return False
+
     # websocket implementation from here...
     async def ws_connect(self):
         try:
@@ -546,87 +655,13 @@ class TibberLocalBridge:
 
                     if msg.type == aiohttp.WSMsgType.BINARY:
                         try:
-                            binary_data = msg.data
-                            # Find the position of '>' and extract everything after it
-                            separator_pos = binary_data.index(b'>')
-                            if separator_pos > 0:
-                                binary_head = binary_data[:separator_pos + 1]
-                                _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY head: {binary_head}")
-                                topic, device_id = ws_parse_header_bytes(binary_head)
-
-                                if self.node_device_id is None or self.node_device_id == device_id:
-                                    if topic is not None and "sml" in topic.lower() and self._com_mode == MODE_3_SML_1_04:
-                                        binary_body = binary_data[separator_pos + 1:]
-                                        _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body '{topic}' [len:{len(binary_body)}]: {binary_body if len(binary_body) <= 15 else binary_body[:15]}...")
-                                        try:
-                                            await self.mode_03_read_sml(binary_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                            new_data_arrived = True
-                                        except Exception as e:
-                                            _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_03_read_sml' caused {type(e).__name__} [{binary_body}] {e}")
-
-                                    elif topic is not None and self._com_mode == MODE_99_PLAINTEXT:
-                                        text_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
-                                        _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as TEXT) '{topic}' [len:{len(text_body)}]: {text_body if len(text_body) <= 15 else text_body[:15]}...")
-                                        try:
-                                            await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                            new_data_arrived = True
-                                        except Exception as e:
-                                            _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_99_read_plaintext' caused {type(e).__name__} [{text_body}] {e}")
-
-                                    elif topic is not None and self._com_mode == MODE_10_ImpressionsAmbient:
-                                        json_body = binary_data[separator_pos + 1:].decode('ascii', errors='ignore')
-                                        _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY body (as JSON) '{topic}' [len:{len(json_body)}]: {json_body if len(json_body) <= 15 else json_body[:15]}...")
-                                        try:
-                                            await self.mode_10_read_json_impressions_ambient(json.loads(json_body), retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                            new_data_arrived = True
-                                        except Exception as e:
-                                            _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY 'mode_10_read_json_impressions_ambient' caused {type(e).__name__} [{json_body}] {e}")
-
-                                    else:
-                                        _LOGGER.warning(f"ws_connect(): WSMsgType.BINARY topic '{topic}'/mode_'{self._com_mode}' in: {binary_data}")
-                                else:
-                                    _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY device of node_num '{self.node_device_id}' not matching the device in the message {device_id}")
-                            else:
-                                _LOGGER.debug(f"ws_connect(): WSMsgType.BINARY invalid data (NO '>' FOUND) in: {binary_data}")
-
+                            new_data_arrived = await self._ws_handle_binary_message(msg)
                         except Exception as e:
                             _LOGGER.debug(f"ws_connect(): Could not read WSMsgType.BINARY from: {msg} - caused {type(e).__name__} {e}")
 
                     elif msg.type == aiohttp.WSMsgType.TEXT:
                         try:
-                            # make sure we have a string text here - but to be honest, so far none there has been
-                            # no evidence that a TibberPuldeBridge would send `WSMsgType.TEXT` - so all this here
-                            # is really just a fallback...
-                            if hasattr(msg.data, "decode"):
-                                text_data = msg.data.decode('ascii', errors='ignore')
-                            elif isinstance(msg.data, str):
-                                text_data = msg.data
-                            else:
-                                text_data = str(msg.data)
-
-                            separator_pos = text_data.index('>')
-                            if separator_pos > 0:
-                                text_head = text_data[:separator_pos + 1]
-
-                                _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT head: {text_head}")
-                                topic, device_id = ws_parse_header_string(text_head)
-
-                                if self.node_device_id is None or self.node_device_id == device_id:
-                                    if topic is not None and self._com_mode == MODE_99_PLAINTEXT:
-                                        text_body = text_data[separator_pos + 1:]
-                                        _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT body '{topic}' [len:{len(text_body)}]: {text_body}")
-                                        try:
-                                            await self.mode_99_read_plaintext(text_body, retry_count=self.MAX_READ_RETRIES, log_payload=False)
-                                            new_data_arrived = True
-                                        except Exception as e:
-                                            _LOGGER.warning(f"ws_connect(): WSMsgType.TEXT 'mode_99_read_plaintext' caused {type(e).__name__} [{text_data}] {e}")
-                                    else:
-                                        _LOGGER.warning(f"ws_connect(): WSMsgType.TEXT 'UNHANDLED' topic '{topic}'/mode_'{self._com_mode}' in: {text_data}")
-                                else:
-                                    _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT device of node_num '{self.node_device_id}' not matching the device in the message {device_id}")
-                            else:
-                                _LOGGER.debug(f"ws_connect(): WSMsgType.TEXT invalid data (NO '>' FOUND) in: {text_data}")
-
+                            new_data_arrived = await self._ws_handle_text_message(msg)
                         except Exception as e:
                             _LOGGER.debug(f"ws_connect(): Could not read WSMsgType.TEXT from: {msg} - caused {type(e).__name__} {e}")
 
@@ -688,7 +723,7 @@ class TibberLocalBridge:
             if _LOGGER.isEnabledFor(logging.DEBUG):
                 _LOGGER.debug(f"{self.url_ws} received: {gen_log_list(self._obis_values)}")
             self._coordinator.async_set_updated_data({
-                DATA_KEY: self._obis_values,
+                OBIS_DATA_KEY: self._obis_values,
                 METRICS_KEY: self._metrics_data
             })
             self._ws_LAST_NEW_DATA_NOTIFY = time.time()

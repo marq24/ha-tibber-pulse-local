@@ -2,7 +2,7 @@
 
 If you like to access the data of your Tibber Pulse IR directly (instead of the detour through the cloud), then there is a simple approach to read the data directly from the Tibber Pulse Bridge. There are alternative solutions via an additional MQTT - but why should the data go through such a proxy if it can be read directly.
 
-This integration will work __only__ with the __IR__ Version of the Tibber Pulse. There are other versions: P1, HAN or KM (sold in countries like Sweden, Norway or the Netherlands) that __are not compatible__ with this integration. If you are not sure, what Tibber Pulse version you have just check, if you have an additional 'Bridge' device - which is basically an additional thing, that you have to plug into a power outlet (see the picture below). 
+This integration will work __only__ with the __IR__ Version of the Tibber Pulse. There are other versions: P1, HAN or KM (sold in countries like Sweden, Norway or the Netherlands) that __are not compatible__ with this integration. If you are not sure what Tibber Pulse version you have, just check if you have an additional 'Bridge' device – which is basically an additional thing that you have to plug into a power outlet (see the picture below).
 
 __Please note__, _that this integration is not official and not supported by the tibber development team. I am not affiliated with tibber in any way._
 
@@ -14,7 +14,7 @@ __Please note__, _that this integration is not official and not supported by the
 
 ###### Advertisement / Werbung
 
-If you want to join Tibber (become a customer), you might want to use my personal invitation link. When you use this link, Tibber will grant you and me a bonus of 50,-€ for each of us. This bonus then can be used in the Tibber store (not for your power bill) - e.g. to buy a Tibber Bridge. I am fully aware, that when you are here in this repository the chances are very high, that you are already a Tibber customer and have already a Tibber Pulse. If you are already a Tibber customer and have not used an invitation link yet, you can also enter one afterward in the Tibber App (up to 14 days). [[see official Tibber support article](https://support.tibber.com/en/articles/4601431-tibber-referral-bonus#h_ae8df266c0)]
+If you want to join Tibber (become a customer), you might want to use my personal invitation link. When you use this link, Tibber will grant you and me a bonus of 50,-€ for each of us. This bonus then can be used in the Tibber store (not for your power bill) - e.g. to buy a Tibber Bridge. I am fully aware that when you are here in this repository, the chances are very high that you are already a Tibber customer and already have a Tibber Pulse. If you are already a Tibber customer and have not used an invitation link yet, you can also enter one afterward in the Tibber App (up to 14 days). [[see official Tibber support article](https://support.tibber.com/en/articles/4601431-tibber-referral-bonus#h_ae8df266c0)]
 
 Please consider [using my personal Tibber invitation link to join Tibber today](https://invite.tibber.com/6o0kqvzf) or Enter the following code: 6o0kqvzf (six, oscar, zero, kilo, quebec, victor, zulu, foxtrot) afterward in the Tibber App - TIA!
 
@@ -24,12 +24,12 @@ Please consider [using my personal Tibber invitation link to join Tibber today](
 
 - The Tibber Pulse IR Bridge supports different communication modes (when fetching data from electricity meter). Here I need your help! Obviously, I have only one electricity meter here at home. This meter is communicating via a protocol called SML 1.04.
 
-    Over the time with the help of the community, the following modes are currently supported:
+  Over the time with the help of the community, the following modes are currently supported:
 
-  - SML 1.04
-  - Plaintext
-  - IEC-62056.21
-  - Impressions (Blinks / kwh) using ambient
+   - SML 1.04
+   - Plaintext
+   - IEC-62056.21
+   - Impressions (Blinks / kwh) using ambient
 
   The Tibber Bridge additionally offers the modes: _AutoScanMode, IEC-62056.21, Logarex and Impressions (Blinks / kwh) using IR sensors_. To support these other modes, I would need sample data from you. If your Tibber Pulse IR using one of these communications protocols, please be so kind and create here an issue in github - TIA!
 
@@ -39,150 +39,26 @@ Please consider [using my personal Tibber invitation link to join Tibber today](
 
 - During the setup the integration check/verify that there is at least one data field available that can be read. If the bridge does not provide any data (OBIS codes) then the setup will fail (with the message, that the connection could not be established). You might like to check if `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/data.json?node_id=1` will provide a data feed.
 
-## Want to report an issue?
+## Preparation: The web frontend of the Tibber Pulse Bridge must be enabled permanently
 
-Please use the [GitHub Issues](https://github.com/marq24/ha-tibber-pulse-local/issues) for reporting any issues you encounter with this integration. Please be so kind before creating a new issue, check the closed ones if your problem has been already reported (& solved). 
+To be able to use this integration, you **must enable the web frontend of your Tibber Pulse Bridge _permanently_**.
 
-__The Integration is now available for +2 years. And looking back, there are three simple things that solved 99.89% of all issues – it's either:__
-- _Option A_: Slightly rotate the pulse reading head anti-clockwise<br/>
-or
-- _Option B_: Replace the pulse batteries
-or
-- _Option C_: Make sure that you have configured the correct `Node Number (expert setting)` in the integration.
+To do so, you need to set one variable in the web frontend. But to get into the web frontend for the first time, you need to start the Tibber Pulse Bridge in AccessPoint mode.
 
+[The complete procedure (including additional things you might like to verify) is documented in the preparation guide.](./preparation.md) Please read and follow the instructions carefully.
 
-In order to speed up the support process, you might like to already prepare and provide DEBUG log output. In the case of a technical issue - like not-supported--yet-communication-mode - I would need this DEBUG log output to be able to help/fix the issue. There is a short [tutorial/guide 'How to provide DEBUG log' here](https://github.com/marq24/ha-senec-v3/blob/main/docs/HA_DEBUG.md) - please take the time to quickly go through it.
-
-## Kudos
-
-- [@spacemanspiff2007](https://github.com/spacemanspiff2007) for providing a Python SML lib that makes reading the data from the Pulse IR almost effortless for a python noob like me
-- [@ProfDrYoMan](https://github.com/ProfDrYoMan) for providing the initial idea. I failed to setup the ESP32 stuff, so I took the approach writing this custom integration
-
-## Preparation: Enabling the web frontend of the Tibber Pulse Bridge [*Required*]
-
-To enable the web frontend permanently, one local variable needs to be set in the web frontend. But to get into the web frontend for the first time, you need to start the Tibber Pulse Bridge in AccessPoint mode. This can be done by the following steps:
-
-### 1. Start AP-Mode
-
-> [!TIP]
-> While you have unplugged the bridge you might like to use the opportunity to get the password from the bottom of the plug - e.g. by taking a photo (see also step 2: 'Connect to the Pulse Bridge WiFi AccessPoint').   
-
-* Unplug the Tibber bridge.
-* After three seconds, plug the Tibber bridge.
-* After three seconds, unplug the Tibber bridge.
-* After three seconds, plug the Tibber bridge.
-
-The LED on the Tibber bridge should now light up green and not light blue anymore.
-
-If this is not the case, then try this alternative:
-
-* Unplug the Tibber bridge.
-* Plug the Tibber bridge
-* When the bridge light in __yellow__ then unplug the bridge again
-* Wait for a short while and plug in the bridge again after few seconds
-
-NOW the LED on the Tibber bridge should now light up green and not light blue anymore.
-
-### 2. Connect to the Pulse Bridge WiFi AccessPoint
-
-Now use any device (laptop, tablet, phone) to connect to the `Tibber Bridge` WiFi network. The password for the WiFi is the nine characters printed on the Tibber bridge - it's important to include the dash. The password should have the pattern like this example one: `AD56-54BA`.
-
-![img|160x90](https://github.com/marq24/ha-tibber-pulse-local/raw/main/images/bridge-pwd-location.png)
-
-### 3. Set `webserver_force_enable` to `true` in the web frontend
-
-After you are connected to the WiFi that have been created by the Pulse Bridge with your laptop/phone, use a web browser on that device to connect to <http://10.133.70.1/>. You will be prompted for a user and a password (BasicAuth).
-
-The username is `admin` and the password is again the nine characters printed on the Tibber bridge.
-
-Depending on the hardware revision and firmware, there are two alternatives to archive this goal. Please select the procedure that fits your situation.
-
-#### Via CONSOLE-Tab
-
-With a recent firmware release the `webserver_force_enable` flag (39) does __not appear__ any longer in the param list. So the console tab is the way to go!
-
-1. Go to <http://10.133.70.1/console/>
-2. type `param_get 39` (just to ensure, that the system still know the `webserver_force_enable` parameter) - you can also try to type `param_get webserver_force_enable` [and press the `send` button afterwards] - this should give you some output like this:
-   ```
-   tibber-bridge> param_get 39
-   esp32> param_get 39
-   webserver_force_enable (39):
-   false
-   Command 'param_get 39' executed successfully
-   ```
-3. So if `39` (= `webserver_force_enable`) is still present, then and __only then__ you can continue!
-
-4. type `param_set 39 TRUE` (the upper case of TRUE is important here) [and press the `send` button afterward]
-5. type `param_store` [and press the `send` button afterward]
-6. for confirmation, you can type again `param_get 39` [and press the `send` button afterward]
-
-#### Via PARAMS-Tab [previously the default procedure]
-
-1. Go to <http://10.133.70.1/params/>
-2. Find the variable `webserver_force_enable` in the list
-3. Set the value to `true` (lower case)
-4. Press *"Store params to flash"* on the bottom of the page.
-
-__Please do not modify any other values in the params list!__
-
-### 4. Bring your Pulse & Bridge back to normal operation
-
-Unplug the Tibber bridge, wait __ten seconds__ and plug it back again. Now it should connect back to your previously configured WiFi and should work as before (submit the data to Tibber) - the LED should light up light blue again.
-
-### 5. Final testing [do not continue if you did not complete this final step]
-
-#### Part I: Access the web frontent
-
-After you have successfully reset the Tibber bridge (AP mode is OFF and you are back in normal operation mode). Since you have set the `webserver_force_enable` to `true` the web frontend should now be still accessible via the following URL:
-<http://tibber-host/> or <http://tibber-bridge/>.
-
-If the hostname 'tibber-host' (or 'tibber-bridge') is not going to work for you in your LAN, you might like to check the IP-Address of your Tibber Pulse Bridge in your Router. __The IP *is not* the `10.133.70.1` any longer!__
-
-Personally, I have configured my router in a way, that the Pulse Bridge gets always the same IP assigned. I just can recommend doing the same. Since accessing the device via IP (instead of the host name) will save you DNS-Lookups.
-
-When you open the web frontend of the bridge, you always have to provide the user `admin` and the password.
-
-![img|160x90](https://github.com/marq24/ha-tibber-pulse-local/raw/main/images/web-frontend.png)
-
-Now (when the frontend works for you) almost everything is prepared... Just one more thing to check:
-
-#### Part II: Ensure that there is at least one node paired with the bridge
-
-For whatever reasons, there are experts out there, trying to use this integration _without having paired_ the Tibber Pulse reading head (the part is mounted at your power meter) with the Tibber Pulse Bridge. For sure, this is not going to work! The pairing procedure is part of the regular Tibber Pulse setup process with your Tibber app - so probably you have done this already - but just in case:
-
-Please double-check by opening the `http://[YOUR_IP]/nodes/` section (you can select from the menu the 'NODES' entry) and ensure, that there is at least one node listed - which means that the bridge is connected with the reading-head-unit.
-
-Here you can also check, if the node is listed with the (expected) default NodeId value `1`. If you have a different NodeId, then you need to adjust the expert setting `Node Number (expert setting)` when configure this integration.
-
-#### Part III: Check 'Last seen' & 'Last data' [update frequency]
-
-1. Go to `http://[YOUR-IP]/nodes/` (just like in part II)
-2. Take a look at the value `Last data`
-   
-   This last data value is the last time (in seconds) the bridge has received a data update from the reading head. This value should not be higher than 2.5-5 seconds.
-  
-   If your `Last data` is frequently recently greater than this, then this integration can't work in a reliable way.
-   
-   __Rotate the reading head few degrees anti-clock wise in order to check, if the update frequency will be better (smaller).__ 
-   
-   ![img|20x20](https://github.com/marq24/ha-tibber-pulse-local/raw/main/images/rotate_head.png)
-   
-   Please also have a [look at the post from @ckarrie](https://github.com/marq24/ha-tibber-pulse-local/issues/6#issuecomment-1791117188) in order to learn a difference even a few degrees can make!
-
-
-#### Finally, you are done!
-
-When part I, II & III are completed/confirmed, __then__ you can install and use this `Tibber Local Polling` integration.
+**After you have enabled the web frontend _permanently_** of your Tibber Pulse Bridge, you can continue with the setup.
 
 ## Setup / Installation
 
 ### Step I: Install the integration
 
 #### Option 1: via HACS
- 
+[![Open your Home Assistant instance and adding repository to HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=marq24&repository=ha-tibber-pulse-local&category=integration)
+
 - Install [Home Assistant Community Store (HACS)](https://hacs.xyz/)
 - Add integration repository (search for "Tibber Pulse Local" in "Explore & Download Repositories")
-- Use the 3-dots at the right of the list entry (not at the top bar!) to download/install the custom integration - the latest release version is automatically selected. Only select a different version if you have specific reasons.
+- Use the 3-dots at the right of the list entry (not at the top bar!) to download/install the custom integration – the latest release version is automatically selected. Only select a different version if you have specific reasons.
 - After you have pressed download and the process has completed, you must __Restart Home Assistant__ to install all dependencies
 - Setup the custom integration as described below (see _Step II: Adding or enabling the integration_)
 
@@ -197,9 +73,9 @@ __You must have installed the integration (manually or via HACS before)!__
 
 #### Option 1: My Home Assistant (2021.3+)
 
-Just click the following Button to start the configuration automatically (for the rest see _Option 2: Manually steps by step_):
-
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=tibber_local)
+
+Just click the following Button to start the configuration automatically (for the rest see _Option 2: Manually steps by step_):
 
 #### Option 2: Manually steps by step
 
@@ -207,13 +83,42 @@ Add custom integration using the web interface and follow instruction on screen.
 
 - Go to `Configuration -> Integrations` and add "Tibber Pulse Local" integration
 - Specify:
-    - Provide display name for the device
-    - Provide the address (hostname or IP) of the Pulse Bridge
-    - Provide the password of the Pulse Bridge
-    - Provide the update interval (can be 2 Seconds)
-    - Provide area where the Tibber Pule Bridge is located
+   - Provide a display name for the device
+   - Provide the address (hostname or IP) of the Pulse Bridge
+   - Provide the password of the Pulse Bridge
+   - Provide the update interval (can be 2 Seconds)
+   - Provide area where the Tibber Pule Bridge is located
 
 __IMPORTANT to know__: During the setup of this integration, it will be checked if there is at least one OBIS-Code (data field) available from the bridge. If there is no field/data available that can be read, the setup process will fail (with the message that no connection is possible).
+
+## Using multiple Pulse with a single Bridge
+In general, it is possible to use this integration with multiple Pulse devices connected to a single Bridge.
+
+If you have multiple Pulse devices connected to the same bridge, you will need to set up separate instances of the integration for each of your Pulse devices. This can be done via the expert Option 'Node' number. Since multiple Pulse devices can share the same bridge IP address, but then each of the Pulse devices has a **separate node number** (id).
+
+However, **please note that the integration currently supports only one WebSocket connection for a Pulse device per bridge**. So when you configure multiple Pulse nodes (all running on the same bridge), you can have only for one Node the WebSocket connection enabled. All others must run in http-pull mode.
+
+More about [multiple Pulse devices can be found in the Issue #120](https://github.com/marq24/ha-tibber-pulse-local/issues/120).
+
+## Want to report an issue?
+
+Please use the [GitHub Issues](https://github.com/marq24/ha-tibber-pulse-local/issues) for reporting any issues you encounter with this integration. Please be so kind before creating a new issue, check the closed ones if your problem has been already reported (& solved).
+
+__The Integration is now available for +2 years. And looking back, there are three simple things that solved 99.89% of all issues – it's either:__
+- _Option A_: Slightly rotate the pulse reading head anti-clockwise<br/>
+  or
+- _Option B_: Replace the pulse batteries
+  or
+- _Option C_: Make sure that you have configured the correct `Node Number (expert setting)` in the integration.
+
+
+In order to speed up the support process, you might like to already prepare and provide DEBUG log output. In the case of a technical issue - like not-supported--yet-communication-mode - I would need this DEBUG log output to be able to help/fix the issue. There is a short [tutorial/guide 'How to provide DEBUG log' here](https://github.com/marq24/ha-senec-v3/blob/main/docs/HA_DEBUG.md) - please take the time to quickly go through it.
+
+## Kudos
+
+- [@spacemanspiff2007](https://github.com/spacemanspiff2007) for providing a Python SML lib that makes reading the data from the Pulse IR almost effortless for a python noob like me
+- [@ProfDrYoMan](https://github.com/ProfDrYoMan) for providing the initial idea. I failed to setup the ESP32 stuff, so I took the approach writing this custom integration
+
 
 <!--
 ## Additional entities to get status information about your Tibber Pulse IR itself

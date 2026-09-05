@@ -6,7 +6,15 @@ import voluptuous as vol
 from aiohttp import ClientError
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.config_entries import ConfigFlowResult, SOURCE_RECONFIGURE
-from homeassistant.const import CONF_ID, CONF_HOST, CONF_NAME, CONF_SCAN_INTERVAL, CONF_PASSWORD, CONF_MODE
+from homeassistant.const import (
+    CONF_ID,
+    CONF_HOST,
+    CONF_NAME,
+    CONF_SCAN_INTERVAL,
+    CONF_PASSWORD,
+    CONF_MODE,
+    CONF_DEVICE_ID
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import slugify
@@ -27,7 +35,7 @@ from .const import (
     DEFAULT_NODE_NUMBER,
     CONFIG_VERSION,
     CONFIG_MINOR_VERSION,
-    DATA_KEY,
+    OBIS_DATA_KEY,
     UNKNOWN_SERIAL
 )
 from .tibber_client import TibberLocalBridge
@@ -116,17 +124,21 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             coordinator = TibberLocalDataUpdateCoordinator(self.hass, None)
 
             if len(bridge._obis_values.keys()) > 0:
-                coordinator.data = {DATA_KEY: bridge._obis_values}
+                coordinator.data = {OBIS_DATA_KEY: bridge._obis_values}
                 self._serial = coordinator.serial if coordinator.serial != UNKNOWN_SERIAL else self._node_device_id
                 _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
+                if self._default_obis_codes is None:
+                    self._default_obis_codes = list(bridge._obis_values.keys())
                 return True
             else:
                 await asyncio.sleep(2)
                 await bridge.update_and_log()
                 if len(bridge._obis_values.keys()) > 0:
-                    coordinator.data = {DATA_KEY: bridge._obis_values}
+                    coordinator.data = {OBIS_DATA_KEY: bridge._obis_values}
                     self._serial = coordinator.serial if coordinator.serial != UNKNOWN_SERIAL else self._node_device_id
                     _LOGGER.info(f"_test_data_available(): Successfully connect to local Tibber Pulse Bridge at {host} - found serial: {self._serial}")
+                    if self._default_obis_codes is None:
+                        self._default_obis_codes = list(bridge._obis_values.keys())
                     return True
                 else:
                     _LOGGER.warning(f"_test_data_available(): No data from Tibber Pulse Bridge at {host}")
@@ -185,6 +197,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                           CONF_NODE_NUMBER: node_num,
                           CONF_IGNORE_READING_ERRORS: ignore_errors,
                           CONF_ID: self._serial,
+                          CONF_DEVICE_ID: self._node_device_id,
                           CONF_MODE: self._con_mode}
 
                 # just store again the obis codes (that have been previously available in the config_entry)
