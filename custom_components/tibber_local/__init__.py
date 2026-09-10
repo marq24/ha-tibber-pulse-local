@@ -110,35 +110,39 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         hass.config_entries.async_update_entry(config_entry, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
         _LOGGER.info(f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
 
-    # preparing unique_id migration...
-    # if config_entry.version == 2 and config_entry.minor_version == 1:
-    #     # ensure that all our 'unique_id's are lower-case and slugified!
-    #     _LOGGER.info(f"async_migrate_entry(): Migrating configuration from version {config_entry.version}.{config_entry.minor_version}")
-    #
-    #     registry = entity_registry.async_get(hass)
-    #     entities = entity_registry.async_entries_for_config_entry(registry, config_entry.entry_id)
-    #
-    #     for a_entity in entities:
-    #         # 'entity' is an instance of RegistryEntry
-    #         new_unique_id = slugify(a_entity.unique_id.lower())
-    #         if a_entity.unique_id != new_unique_id:
-    #             _LOGGER.info(f"Entity ID: {a_entity.entity_id}, Unique ID: {a_entity.unique_id} updated!")
-    #             for already_existing_entity in entities:
-    #                 if already_existing_entity.unique_id == new_unique_id:
-    #                     _LOGGER.info(f"Entity ID: {a_entity.entity_id}, Unique ID: {new_unique_id} already exists! - Will PURGE previous {already_existing_entity.entity_id}")
-    #                     registry.async_remove(already_existing_entity.entity_id)
-    #
-    #             registry.async_update_entity(a_entity.entity_id, new_unique_id=new_unique_id)
-    #
-    #     hass.config_entries.async_update_entry(config_entry, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
-    #     _LOGGER.info(f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
-    #
     # # preparing unique_id migration...
-    # if config_entry.version == 2 and config_entry.minor_version == 2:
+    # if config_entry.version == 2 and config_entry.minor_version == 1:
     #     # first thing we must to is we must check if there is a device_id available.
-    #     if CONF_DEVICE_ID in config_entry.data:
-    #         a_device_id = config_entry.data[CONF_DEVICE_ID]
-    #         #_LOGGER.error(f"async_migrate_entry(): found device_id: {a_device_id} in config_entry, so we can proceed with migration")
+    #     if CONF_DEVICE_ID in config_entry.data and config_entry.get(CONF_DEVICE_ID, None) is not None:
+    #         device_id = config_entry.get(CONF_DEVICE_ID, None)
+    #
+    #         # ensure that all our 'unique_id's are lower-case and slugified!
+    #         _LOGGER.info(f"async_migrate_entry(): Migrating configuration from version {config_entry.version}.{config_entry.minor_version}")
+    #
+    #         registry = entity_registry.async_get(hass)
+    #         entities = entity_registry.async_entries_for_config_entry(registry, config_entry.entry_id)
+    #
+    #         # the current (aka OLD) unique_id impl:
+    #         # return f"{DOMAIN}.{self._title}_{self.entity_description.key}".lower()
+    #         old_uuid_prefix = f"{DOMAIN}.{config_entry.title}_".lower()
+    #         for a_entity in entities:
+    #             if a_entity.unique_id.startswith(old_uuid_prefix):
+    #                 # 1. we have to get the raw entity key
+    #                 tag_key = a_entity.unique_id.removeprefix(old_uuid_prefix)
+    #                 # generate the new uid
+    #                 new_unique_id = f"{DOMAIN}_uid_{device_id}_{tag_key}".lower()
+    #                 if a_entity.unique_id != new_unique_id:
+    #                     _LOGGER.info(f"Entity ID: {a_entity.entity_id}, Unique ID: {a_entity.unique_id} updated!")
+    #
+    #                     for already_existing_entity in entities:
+    #                         if already_existing_entity.unique_id == new_unique_id:
+    #                             _LOGGER.info(f"Entity ID: {a_entity.entity_id}, Unique ID: {new_unique_id} already exists! - Will PURGE previous {already_existing_entity.entity_id}")
+    #                             registry.async_remove(already_existing_entity.entity_id)
+    #
+    #                     registry.async_update_entity(a_entity.entity_id, new_unique_id=new_unique_id)
+    #
+    #         hass.config_entries.async_update_entry(config_entry, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
+    #         _LOGGER.info(f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
 
     return True
 
