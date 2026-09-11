@@ -110,13 +110,16 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         hass.config_entries.async_update_entry(config_entry, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
         _LOGGER.info(f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
 
-    # # preparing unique_id migration...
+    # unique_id migration...
     # if config_entry.version == 2 and config_entry.minor_version == 1:
     #     # first thing we must to is we must check if there is a device_id available.
-    #     if CONF_DEVICE_ID in config_entry.data and config_entry.get(CONF_DEVICE_ID, None) is not None:
-    #         device_id = config_entry.get(CONF_DEVICE_ID, None)
+    #     if CONF_DEVICE_ID in config_entry.data and config_entry.data.get(CONF_DEVICE_ID, None) is not None:
+    #         device_id = config_entry.data.get(CONF_DEVICE_ID, None)
+    #         if device_id is None:
+    #             # skipping the migration... (hopefully we will be called again???)
+    #             _LOGGER.info(f"async_migrate_entry(): device_id is None for config entry {config_entry.entry_id} - can not migrate entry yet!")
+    #             return True
     #
-    #         # ensure that all our 'unique_id's are lower-case and slugified!
     #         _LOGGER.info(f"async_migrate_entry(): Migrating configuration from version {config_entry.version}.{config_entry.minor_version}")
     #
     #         registry = entity_registry.async_get(hass)
@@ -127,20 +130,24 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     #         old_uuid_prefix = f"{DOMAIN}.{config_entry.title}_".lower()
     #         for a_entity in entities:
     #             if a_entity.unique_id.startswith(old_uuid_prefix):
+    #
     #                 # 1. we have to get the raw entity key
     #                 tag_key = a_entity.unique_id.removeprefix(old_uuid_prefix)
     #                 # generate the new uid
-    #                 new_unique_id = f"{DOMAIN}_uid_{device_id}_{tag_key}".lower()
+    #                 new_unique_id = f"tibber_local_uid_{device_id}_{tag_key}".lower()
     #                 if a_entity.unique_id != new_unique_id:
-    #                     _LOGGER.info(f"Entity ID: {a_entity.entity_id}, Unique ID: {a_entity.unique_id} updated!")
+    #                     _LOGGER.info(f"Will update Entity ID: {a_entity.entity_id}, Unique ID: {a_entity.unique_id} to {new_unique_id}")
     #
+    #                     # this is here just as fallback (should not happen at all)...
     #                     for already_existing_entity in entities:
     #                         if already_existing_entity.unique_id == new_unique_id:
     #                             _LOGGER.info(f"Entity ID: {a_entity.entity_id}, Unique ID: {new_unique_id} already exists! - Will PURGE previous {already_existing_entity.entity_id}")
     #                             registry.async_remove(already_existing_entity.entity_id)
     #
+    #                     # finally saving the new unique_id to the entity registry...
     #                     registry.async_update_entity(a_entity.entity_id, new_unique_id=new_unique_id)
     #
+    #         # AND ONLY if the config entry has a device_id we will migrate the entry to 2.2
     #         hass.config_entries.async_update_entry(config_entry, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
     #         _LOGGER.info(f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
 
@@ -207,9 +214,15 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             # support for systems where node != 1
             self.node_num = int(config_entry.data.get(CONF_NODE_NUMBER, 1))
 
+            # that's our old entity unique_id prefix
+            self.uuid_prefix = f"{DOMAIN}.{config_entry.title}_".lower()
             # we need the device_id to use if for the websocket... (and our new UUIDs are
             # device_id dependant)
             self.device_id = config_entry.data.get(CONF_DEVICE_ID, None)
+            if self.device_id:
+                _LOGGER.debug(f"init(): - we have a device ID!!! {self.device_id}")
+                if config_entry.version >= 2 and config_entry.minor_version >= 2:
+                    self.uuid_prefix = f"tibber_local_uid_{self.device_id}_".lower()
 
             # ignore parse errors is only in the OPTIONS (not part of the initial setup)
             ignore_parse_errors = bool(config_entry.data.get(CONF_IGNORE_READING_ERRORS, False))
@@ -542,7 +555,6 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
         if description.entity_category != EntityCategory.DIAGNOSTIC:
             self.obis = ObisCode(description.key)
         self.entity_description = description
-        self._title = coordinator._config_entry.title
         self._state = None
 
     @property
@@ -558,9 +570,9 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
     @property
     def unique_id(self):
         """Return a unique ID to use for this entity."""
-        return f"{DOMAIN}.{self._title}_{self.entity_description.key}".lower()
-        # WE MUST USE (later) our device_id
-        # return f"tibber_local_uid_{self.coordinator.device_id}_{slugify(self.entity_description.key)}".lower()
+        #uuid = f"{self.coordinator.uuid_prefix}{self.entity_description.key}".lower()
+        #_LOGGER.info(f"------> Coordinator unique_id() - uuid: {uuid}")
+        return f"{self.coordinator.uuid_prefix}{self.entity_description.key}".lower()
 
     def _friendly_name_internal(self) -> str | None:
         """Return the friendly name.
