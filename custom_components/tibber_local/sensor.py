@@ -23,9 +23,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
     entities = []
     obis_values = coordinator.data.get(OBIS_DATA_KEY, {}) if coordinator.data else {}
-    metrics_values = coordinator.data.get(METRICS_KEY, {}) if coordinator.data else {}
 
     available_sensors = list(obis_values.keys()) if obis_values else None
+
     if available_sensors:
         _LOGGER.info(f"available obis codes found: {available_sensors}")
     else:
@@ -38,22 +38,32 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
         # obis codes 'import total' and 'power current'
         available_sensors = DEFAULT_OBIS_CODES
 
-    for description in SENSOR_TYPES:
-        if description.tag is None:
-            _LOGGER.warning(f"no tag found for sensor description key: {description.key} - please create a issue on github!")
-            continue
 
-        should_add = False
-        if description.tag.section == METRICS_KEY:
-            should_add = bool(metrics_values)
-        elif description.tag.section == OBIS_DATA_KEY:
-            keys_to_check = [description.tag.key]
-            if description.tag.aliases:
-                keys_to_check.extend(description.tag.aliases)
-            should_add = any(sensor_key in available_sensors for sensor_key in keys_to_check)
+    if coordinator.device_id is None:
+        _LOGGER.warning(f"no device id found in coordinator - please create a issue on github!")
+        return
 
-        if should_add:
-            entities.append(TibberLocalSensor(coordinator, description))
+    if coordinator.eui_list is None:
+        _LOGGER.warning(f"no eui id found in coordinator - please create a issue on github!")
+        return
+
+    for a_eui in coordinator.eui_list:
+        for description in SENSOR_TYPES:
+            if description.tag is None:
+                _LOGGER.warning(f"no tag found for sensor description key: {description.key} - please create a issue on github!")
+                continue
+
+            should_add = False
+            if description.tag.section == METRICS_KEY:
+                should_add = bool(metrics_values)
+            elif description.tag.section == OBIS_DATA_KEY:
+                keys_to_check = [description.tag.key]
+                if description.tag.aliases:
+                    keys_to_check.extend(description.tag.aliases)
+                should_add = any(sensor_key in available_sensors[a_eui] for sensor_key in keys_to_check)
+
+            if should_add:
+                entities.append(TibberLocalSensor(a_eui, coordinator, description))
 
     async_add_entities(entities)
 
@@ -61,14 +71,21 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 class TibberLocalSensor(TibberLocalEntity, SensorEntity):
     def __init__(
             self,
+            eui_id: str,
             coordinator: TibberLocalDataUpdateCoordinator,
             description: SensorEntityDescription
     ):
         """Initialize a singular value sensor."""
-        super().__init__(coordinator=coordinator, description=description)
+        super().__init__(eui_id=eui_id, coordinator=coordinator, description=description)
 
         key = self.entity_description.key.lower()
-        self.entity_id = f"{Platform.SENSOR}.{slugify(self.coordinator._config_entry.title)}_{key}".lower()
+        if self.coordinator.use_classic_ids or (self.coordinator.device_id == self.eui_id):
+            self.entity_id = f"{Platform.SENSOR}.{slugify(self.coordinator._config_entry.title)}_{key}".lower()
+        else:
+            # for compatibility reasons, we keep the old format for the eui_id, that match
+            # the coordinator device_id (sinc that was the node, that was used to initialize
+            # the integration)...
+            self.entity_id = f"{Platform.SENSOR}.{self.eui_id}_{key}".lower()
 
         # we use the "key" also as our internal translation-key - and EXTREMELY important we have
         self._attr_translation_key = key
@@ -81,17 +98,17 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
     @property
     def native_value(self) -> StateType:
         if self.coordinator.data is not None:
-            return self.coordinator.get_sensor_value(self.entity_description.tag)
+            return self.coordinator.get_sensor_value(self.eui_id, self.entity_description.tag)
         return None
 
     @property
     def available(self):
         super_val = super().available
         if super_val:
-            if self.entity_description.tag == OBIS_DATA_KEY and len(self.coordinator.data.get(OBIS_DATA_KEY), {}) == 0:
+            if self.entity_description.tag.section == OBIS_DATA_KEY and len(self.coordinator.data.get(OBIS_DATA_KEY), {}) == 0:
                 return False
 
-            if self.entity_description.tag == METRICS_KEY and len(self.coordinator.data.get(METRICS_KEY), {}) == 0:
+            if self.entity_description.tag.section == METRICS_KEY and len(self.coordinator.data.get(METRICS_KEY), {}) == 0:
                 return False
 
         return super_val

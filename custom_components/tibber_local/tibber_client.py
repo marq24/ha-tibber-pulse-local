@@ -158,6 +158,10 @@ class TibberLocalBridge:
         # The value will be init by calling 'get_eui_for_node()'
         self.node_device_id = None
 
+        # When we support multiple pulse via one brigde, we need to handle multiple device
+        # ids (that we collect) in the eui_list...
+        self.node_eui_list = None
+
         self.ws_connected = False
         self.ws_supported = True
         self.ws_obj = None
@@ -186,6 +190,7 @@ class TibberLocalBridge:
 
     async def get_eui_for_node(self):
         # this must be called when we need a device_id... (when we receive data via websocket)
+        self.node_eui_list = []
         try:
             async with self.web_session.get(self.url_metadata, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
                 try:
@@ -193,13 +198,21 @@ class TibberLocalBridge:
                     if res.status == 200:
                         json_resp = await res.json()
                         for a_node_obj in json_resp:
+                            a_eui = a_node_obj.get("eui", None)
+                            if not a_eui:
+                                _LOGGER.warning(f"get_eui_for_node(): bridge does not provide a 'eui' from: {a_node_obj}")
+                                continue
+
+                            a_eui = a_eui.lower()
+                            self.node_eui_list.append(a_eui)
+
+                            # have we already set our internal device id?
+                            if self.node_device_id is not None:
+                                continue
+
                             if int(a_node_obj.get("node_id", -1)) == self.node_number:
-                                a_eui = a_node_obj.get("eui")
-                                if a_eui is not None:
-                                    self.node_device_id = a_eui.lower()
-                                else:
-                                    _LOGGER.warning(f"get_eui_for_node(): bridge does not provide a 'eui' for node {self.node_number}: {a_node_obj}")
-                                break
+                                self.node_device_id = a_eui
+
                 except Exception as exc:
                     _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {type({exc}).__name__} - {exc}", stack_info=True)
         except Exception as exc:
@@ -541,10 +554,10 @@ class TibberLocalBridge:
 
         binary_head = binary_data[:separator_pos + 1]
         _LOGGER.debug(f"_ws_handle_binary_message(): WSMsgType.BINARY head: {binary_head}")
-        topic, device_id = TibberLocalBridge._ws_parse_header_bytes(binary_head)
+        topic, msg_for_device_id = TibberLocalBridge._ws_parse_header_bytes(binary_head)
 
-        if self.node_device_id is not None and self.node_device_id != device_id:
-            _LOGGER.debug(f"_ws_handle_binary_message(): WSMsgType.BINARY device of node_num '{self.node_device_id}' not matching the device in the message {device_id}")
+        if self.node_device_id is not None and self.node_device_id != msg_for_device_id:
+            _LOGGER.debug(f"_ws_handle_binary_message(): WSMsgType.BINARY device of node_num '{self.node_device_id}' not matching the device in the message {msg_for_device_id}")
             return False
 
         return await self._ws_dispatch_payload(
@@ -576,10 +589,10 @@ class TibberLocalBridge:
 
         text_head = text_data[:separator_pos + 1]
         _LOGGER.debug(f"_ws_handle_text_message(): WSMsgType.TEXT head: {text_head}")
-        topic, device_id = TibberLocalBridge._ws_parse_header_string(text_head)
+        topic, msg_for_device_id = TibberLocalBridge._ws_parse_header_string(text_head)
 
-        if self.node_device_id is not None and self.node_device_id != device_id:
-            _LOGGER.debug(f"_ws_handle_text_message(): WSMsgType.TEXT device of node_num '{self.node_device_id}' not matching the device in the message {device_id}")
+        if self.node_device_id is not None and self.node_device_id != msg_for_device_id:
+            _LOGGER.debug(f"_ws_handle_text_message(): WSMsgType.TEXT device of node_num '{self.node_device_id}' not matching the device in the message {msg_for_device_id}")
             return False
 
         return await self._ws_dispatch_payload(

@@ -29,6 +29,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     ENUM_IMPLEMENTATIONS,
     CONF_NODE_NUMBER,
+    CONF_EUI_LIST,
     CONF_IGNORE_READING_ERRORS,
     CONF_USE_POLLING,
     CONF_OBIS_CODES,
@@ -84,10 +85,13 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._default_node_number = DEFAULT_NODE_NUMBER
         self._default_ignore_errors = False
         self._default_obis_codes = None
+        self._node_eui_list = None
+        self._node_device_id = None
 
     async def _test_connection_tibber_local(self, host, pwd, node_num):
         self._errors = {}
         self._node_device_id = None
+        self._node_eui_list = None
         try:
             bridge = TibberLocalBridge(host=host, pwd=pwd, websession=async_get_clientsession(self.hass), node_num=node_num)
             try:
@@ -96,6 +100,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if bridge.node_device_id is not None:
                     _LOGGER.debug(f"_test_connection_tibber_local(): Found device_id: {bridge.node_device_id} for node: {node_num}")
                     self._node_device_id = bridge.node_device_id
+                    self._node_eui_list = bridge.node_eui_list
                     await bridge.detect_com_mode()
                     if bridge._com_mode in ENUM_IMPLEMENTATIONS:
                         self._con_mode = bridge._com_mode
@@ -198,6 +203,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                           CONF_IGNORE_READING_ERRORS: ignore_errors,
                           CONF_ID: self._serial,
                           CONF_DEVICE_ID: self._node_device_id,
+                          CONF_EUI_LIST: self._node_eui_list,
                           CONF_MODE: self._con_mode}
 
                 # just store again the obis codes (that have been previously available in the config_entry)

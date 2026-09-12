@@ -28,9 +28,10 @@ DEFAULT_USE_POLLING: Final = False
 DEFAULT_SCAN_INTERVAL: Final = 10
 
 CONFIG_VERSION: Final = 2
-CONFIG_MINOR_VERSION: Final = 1
+CONFIG_MINOR_VERSION: Final = 2
 
 CONF_NODE_NUMBER: Final = "node_num"
+CONF_EUI_LIST: Final = "eui_list"
 CONF_USE_POLLING: Final = "use_polling"
 CONF_OBIS_CODES: Final = "obis_codes"
 CONF_IGNORE_READING_ERRORS: Final = "ignore_errors"
