@@ -88,10 +88,10 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
     def available(self):
         super_val = super().available
         if super_val:
-            if self.entity_description.tag == OBIS_DATA_KEY and len(self.coordinator.data.get(OBIS_DATA_KEY), {}) == 0:
+            if self.entity_description.tag.section == OBIS_DATA_KEY and len(self.coordinator.data.get(OBIS_DATA_KEY, {})) == 0:
                 return False
 
-            if self.entity_description.tag == METRICS_KEY and len(self.coordinator.data.get(METRICS_KEY), {}) == 0:
+            if self.entity_description.tag.section == METRICS_KEY and len(self.coordinator.data.get(METRICS_KEY, {})) == 0:
                 return False
 
         return super_val

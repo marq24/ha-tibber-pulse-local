@@ -84,6 +84,7 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._default_node_number = DEFAULT_NODE_NUMBER
         self._default_ignore_errors = False
         self._default_obis_codes = None
+        self._node_device_id = None
 
     async def _test_connection_tibber_local(self, host, pwd, node_num):
         self._errors = {}
