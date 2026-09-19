@@ -214,9 +214,9 @@ class TibberLocalBridge:
                                 self.node_device_id = a_eui
 
                 except Exception as exc:
-                    _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {type({exc}).__name__} - {exc}", stack_info=True)
+                    _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {type(exc).__name__} - {exc}", stack_info=True)
         except Exception as exc:
-            _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with OUTER exception: {type({exc}).__name__} - {exc}", stack_info=True)
+            _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with OUTER exception: {type(exc).__name__} - {exc}", stack_info=True)
 
     async def detect_com_mode(self):
         await self.detect_com_mode_from_node_param27()
@@ -274,9 +274,9 @@ class TibberLocalBridge:
                                             self._com_mode = MODE_UNKNOWN
                                         break
                 except Exception as exc:
-                    _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with INNER exception: {type({exc}).__name__} - {exc}", stack_info=True)
+                    _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with INNER exception: {type(exc).__name__} - {exc}", stack_info=True)
         except Exception as exc:
-            _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with OUTER exception: {type({exc}).__name__} - {exc}", stack_info=True)
+            _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with OUTER exception: {type(exc).__name__} - {exc}", stack_info=True)
 
     async def update(self):
         await self.read_tibber_local(mode=self._com_mode, retry_count=0)
