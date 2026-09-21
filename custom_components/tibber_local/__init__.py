@@ -46,13 +46,18 @@ from .const import (
 
     OBIS_DATA_KEY,
     METRICS_KEY,
-    NODE_METRICS,
+    NODE_METRICS_CLASSIC,
     NODE_METRIC_PREFIX,
-    NODE_METRIC_MAP,
-    HUB_METRICS,
+    NODE_METRIC_MAP_CLASSIC,
+    HUB_METRICS_CLASSIC,
     HUB_METRIC_PREFIX,
     SensorTag,
     UNKNOWN_SERIAL,
+
+    NODE_METRICS_2026_09,
+    IR_METRICS_2026_09,
+    HUB_METRICS_2026_09,
+    CLASSIC_HUB_METRIC_MAP
 )
 from .entity import CustomFriendlyNameEntity
 from .tibber_client import TibberLocalBridge
@@ -259,6 +264,11 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             self._device_info_model_raw = None
             self._update_device_registry_is_running = False
 
+            # currently the main differences in the new FW are in the metadata handling
+            # calling self.bridge.check_and_apply_fw_version() will evaluate if the NEW
+            # fw is active
+            self._use_classic = True
+
             super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)))
 
     async def call_later_update_device_registry(self, now:Any):
@@ -375,6 +385,11 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             except BaseException as exception:
                 _LOGGER.warning(f"init_on_load(): (self.bridge.get_eui_for_node) caused {exception}")
 
+        # we must check if the new FW is active (and we must use the adjusted URLs
+        _LOGGER.debug(f"init_on_load(): check the working URLs")
+        await self.bridge.check_and_apply_fw_version()
+        self._use_classic = self.bridge.use_classic
+
         bridge_data = self.bridge._obis_values
         if bridge_data is None or len(bridge_data) == 0:
             _LOGGER.info(f"init_on_load(): fetch initial data...")
@@ -488,18 +503,34 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         if self.data is None:
             return None
 
-        node_status = self.data.get(METRICS_KEY, {}).get(NODE_METRICS, {})
-        hub_attachments = self.data.get(METRICS_KEY, {}).get(HUB_METRICS, {})
+        # getting the data...
+        meta_dict = self.data.get(METRICS_KEY, {})
+        if meta_dict is not None and len(meta_dict) > 0:
+            if self._use_classic:
+                node_status = meta_dict.get(NODE_METRICS_CLASSIC, {})
+                hub_attachments = meta_dict.get(HUB_METRICS_CLASSIC, {})
+            else:
+                # joining the ir with the node status (to get the map of our classic keys)
+                node_status = meta_dict.get(IR_METRICS_2026_09, {}) | meta_dict.get(NODE_METRICS_2026_09, {})
+                hub_attachments = meta_dict.get(HUB_METRICS_2026_09, {})
 
-        if sensor_key in NODE_METRIC_MAP:
-            for mapped_metric_key in NODE_METRIC_MAP.get(sensor_key, []):
-                if mapped_metric_key in node_status:
-                    return node_status.get(mapped_metric_key)
+            # returning the main metric sensor data...
+            if sensor_key in NODE_METRIC_MAP_CLASSIC:
+                for mapped_metric_key in NODE_METRIC_MAP_CLASSIC.get(sensor_key, []):
+                    if mapped_metric_key in node_status:
+                        return node_status.get(mapped_metric_key)
 
-        if sensor_key.startswith(HUB_METRIC_PREFIX):
-            hub_key = sensor_key.removeprefix(HUB_METRIC_PREFIX)
-            if hub_key in hub_attachments:
-                return hub_attachments.get(hub_key)
+            if sensor_key.startswith(HUB_METRIC_PREFIX):
+                classic_hub_key = sensor_key.removeprefix(HUB_METRIC_PREFIX)
+                if self._use_classic:
+                    if classic_hub_key in hub_attachments:
+                        return hub_attachments.get(classic_hub_key)
+                else:
+                    # we must map the classic 'hub_attachments' keys to the new 'hub' keys
+                    if classic_hub_key in CLASSIC_HUB_METRIC_MAP:
+                        new_hub_key = CLASSIC_HUB_METRIC_MAP.get(classic_hub_key)
+                        if new_hub_key in hub_attachments:
+                            return hub_attachments.get(new_hub_key)
 
         return None
 

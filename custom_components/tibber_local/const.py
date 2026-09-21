@@ -69,12 +69,12 @@ OBIS_KEY_ALIASES: Final = {
     "01004c0700ff": ["01003d0700ff", "01003d07ffff", "01003e0700ff", "01004b0700ff"],
 }
 
-NODE_METRICS: Final = "node_status"
-HUB_METRICS: Final = "hub_attachments"
+NODE_METRICS_CLASSIC: Final = "node_status"
+HUB_METRICS_CLASSIC: Final = "hub_attachments"
 NODE_METRIC_PREFIX: Final = "node_"
 HUB_METRIC_PREFIX: Final = "hub_"
 
-NODE_METRIC_MAP: Final = {
+NODE_METRIC_MAP_CLASSIC: Final = {
     "node_battery_voltage": ["battery_voltage", "node_battery_voltage"],
     "node_temperature": ["temperature", "node_temperature"],
     "node_avg_rssi": ["avg_rssi", "node_avg_rssi"],
@@ -88,6 +88,35 @@ NODE_METRIC_MAP: Final = {
     "node_time_in_em2_ms": ["time_in_em2_ms"],
     "node_acmp_rx_autolevel_9600": ["acmp_rx_autolevel_9600"],
     "node_invalid_meter_readings_count": ["invalid_meter_readings_count"],
+}
+
+NODE_METRICS_2026_09: Final = "node"
+IR_METRICS_2026_09: Final = "ir"
+HUB_METRICS_2026_09: Final = "hub"
+
+# the content of the classic metrics node
+# "hub_attachments": {
+#     "signature": 12,
+#     "meter_pkg_count_recv": 132,
+#     "meter_reading_count_recv": 96,
+#     "meter_corrupt_reading_count_recv": 4,
+#     "compression_error_readings_count": 4,
+#     "node_version": "1235-57a088d2"
+# }
+# the content of the new FW metrics node
+# "hub": {
+#     "meter_pkg_count_received": 5763,
+#     "meter_msg_count_received": 1798,
+#     "meter_pkg_count_received_delta": 309,
+#     "meter_msg_count_received_delta": 95,
+#     "meter_corrupt_reading_count_received_delta": 0
+# }
+# mapping from the classic 'hub_attachments' keys to the new 'hub' keys
+CLASSIC_HUB_METRIC_MAP: Final = {
+    "meter_pkg_count_recv":             "meter_pkg_count_received",
+    "meter_reading_count_recv":         "meter_msg_count_received",
+    "meter_corrupt_reading_count_recv": "meter_corrupt_reading_count_received_delta",
+#    "compression_error_readings_count": "",
 }
 
 @dataclass(frozen=True)

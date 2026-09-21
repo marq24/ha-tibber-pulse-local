@@ -134,14 +134,22 @@ class TibberLocalBridge:
     # 'all' other modes have to be implemented... also it could be that the bridge does
     # not return a value for param_id=27
     def __init__(self, host, pwd, websession, node_num: int = 1, com_mode: int = MODE_3_SML_1_04, options: dict = None, coordinator: DataUpdateCoordinator = None):
-
+        self._use_classic = True
         if websession is not None:
             a_host = clean_host(host)
             _LOGGER.info(f"restarting TibberLocalBridge integration... for host: '{a_host}' node: '{node_num}' com_mode: '{com_mode}' with options: {options}")
             self.web_session = websession
             self.basic_auth = aiohttp.BasicAuth("admin", pwd)
-            self.url_data = f"http://{a_host}/data.json?node_id={node_num}"
-            self.url_metrics = f"http://{a_host}/metrics.json?node_id={node_num}"
+
+            # the 'old' tibber pulse FW URLs...
+            self.url_data_classic = f"http://{a_host}/data.json?node_id={node_num}"
+            self.url_metrics_classic = f"http://{a_host}/metrics.json?node_id={node_num}"
+
+            # the since FW '1794-03b6cbaf' URL's
+            self.url_data_2026_09 = f"http://{a_host}/node_data.json?node_id={node_num}"
+            self.url_metrics_2026_09 = f"http://{a_host}/node_metrics.json?node_id={node_num}"
+
+            # still existing also in new FW...
             self.url_mode = f"http://{a_host}/node_params.json?node_id={node_num}"
 
             # we must fetch the bridge nodes configuration (from all nodes) and get the one,
@@ -187,6 +195,29 @@ class TibberLocalBridge:
             self.MAX_READ_RETRIES = 1
 
         self._coordinator = coordinator
+
+    @property
+    def use_classic(self):
+        return self._use_classic
+
+    async def _check_api_endpoint(self, url):
+        try:
+            async with self.web_session.get(url, auth=self.basic_auth, ssl=False, timeout=10.0) as response:
+                if response.status < 400 or response.status in (401, 403):
+                    _LOGGER.debug(f"_check_api_endpoint(): NEW FW Endpoint {url} is up! Status: {response.status}")
+                    return True
+                else:
+                    _LOGGER.info(f"_check_api_endpoint(): NEW FW Endpoint {url} returned status: {response.status} - using CLASSIC")
+                    return False
+        except Exception as err:
+            _LOGGER.warning(f"_check_api_endpoint(): Failed to reach API endpoint {url}: {err}")
+            return False
+
+    async def check_and_apply_fw_version(self):
+        if await self._check_api_endpoint(self.url_metrics_2026_09):
+            self._use_classic = False
+        else:
+            self._use_classic = True
 
     async def get_eui_for_node(self):
         # this must be called when we need a device_id... (when we receive data via websocket)
@@ -286,10 +317,11 @@ class TibberLocalBridge:
         await self.read_tibber_local(mode=self._com_mode, retry_count=0, log_payload=True)
 
     async def read_tibber_local(self, mode: int, retry_count: int, log_payload: bool = False):
-        _LOGGER.debug(f"read_tibber_local(): start[{retry_count}] - mode: {mode} request: {self.url_data}")
+        f_url = self.url_data_classic if self._use_classic else self.url_data_2026_09
+        _LOGGER.debug(f"read_tibber_local(): start[{retry_count}] - mode: {mode} request: {f_url}")
         # on init we wait up to 60 seconds till we get a reply from the bridge (when HA is starting, plenty of
         # requests are running...
-        async with self.web_session.get(self.url_data, auth=self.basic_auth, ssl=False, timeout=60.0 if len(self._obis_values) == 0 else 10.0) as res:
+        async with self.web_session.get(f_url, auth=self.basic_auth, ssl=False, timeout=60.0 if len(self._obis_values) == 0 else 10.0) as res:
             try:
                 res.raise_for_status()
                 if res.status == 200:
@@ -523,8 +555,9 @@ class TibberLocalBridge:
 
         self._metrics_update_is_running = True
         try:
-            _LOGGER.debug(f"updated_tibber_metrics_if_needed(): request: {self.url_metrics}")
-            async with self.web_session.get(self.url_metrics, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
+            f_url = self.url_metrics_classic if self._use_classic else self.url_metrics_2026_09
+            _LOGGER.debug(f"updated_tibber_metrics_if_needed(): request: {f_url}")
+            async with self.web_session.get(f_url, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
                 res.raise_for_status()
                 try:
                     self._metrics_data = await res.json()
