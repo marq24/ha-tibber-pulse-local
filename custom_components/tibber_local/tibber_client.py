@@ -134,7 +134,9 @@ class TibberLocalBridge:
     # 'all' other modes have to be implemented... also it could be that the bridge does
     # not return a value for param_id=27
     def __init__(self, host, pwd, websession, node_num: int = 1, com_mode: int = MODE_3_SML_1_04, options: dict = None, coordinator: DataUpdateCoordinator = None):
+        self._fw_check_performed = False
         self._use_classic = True
+
         if websession is not None:
             a_host = clean_host(host)
             _LOGGER.info(f"restarting TibberLocalBridge integration... for host: '{a_host}' node: '{node_num}' com_mode: '{com_mode}' with options: {options}")
@@ -218,6 +220,9 @@ class TibberLocalBridge:
             self._use_classic = False
         else:
             self._use_classic = True
+
+        # keeping track, if we already called the fw check
+        self._fw_check_performed = True
 
     async def get_eui_for_node(self):
         # this must be called when we need a device_id... (when we receive data via websocket)
@@ -317,6 +322,8 @@ class TibberLocalBridge:
         await self.read_tibber_local(mode=self._com_mode, retry_count=0, log_payload=True)
 
     async def read_tibber_local(self, mode: int, retry_count: int, log_payload: bool = False):
+        if not self._fw_check_performed:
+            await self.check_and_apply_fw_version()
         f_url = self.url_data_classic if self._use_classic else self.url_data_2026_09
         _LOGGER.debug(f"read_tibber_local(): start[{retry_count}] - mode: {mode} request: {f_url}")
         # on init we wait up to 60 seconds till we get a reply from the bridge (when HA is starting, plenty of
@@ -555,6 +562,8 @@ class TibberLocalBridge:
 
         self._metrics_update_is_running = True
         try:
+            if not self._fw_check_performed:
+                await self.check_and_apply_fw_version()
             f_url = self.url_metrics_classic if self._use_classic else self.url_metrics_2026_09
             _LOGGER.debug(f"updated_tibber_metrics_if_needed(): request: {f_url}")
             async with self.web_session.get(f_url, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
