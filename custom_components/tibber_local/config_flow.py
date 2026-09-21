@@ -92,6 +92,11 @@ class TibberLocalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         try:
             bridge = TibberLocalBridge(host=host, pwd=pwd, websession=async_get_clientsession(self.hass), node_num=node_num)
             try:
+                # we must check first which set of URLs (classic vs. new FW) actually works on this
+                # bridge - otherwise the following calls would always use the classic (old) URLs
+                # and fail with 404 on bridges running the newer firmware
+                await bridge.check_and_apply_fw_version()
+
                 # we MUST init the device_id
                 await bridge.get_eui_for_node()
                 if bridge.node_device_id is not None:
