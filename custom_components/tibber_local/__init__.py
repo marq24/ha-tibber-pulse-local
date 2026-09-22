@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import timedelta
 from numbers import Number
 from typing import Final, Any
@@ -268,8 +269,8 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             # calling self.bridge.check_and_apply_fw_version() will evaluate if the NEW
             # fw is active
             self._use_classic = True
-
-            super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)))
+            self._integration_update_interval = config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=self._integration_update_interval))
 
     async def call_later_update_device_registry(self, now:Any):
         if not self._update_device_registry_is_running:
@@ -417,23 +418,32 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         try:
-            if self.bridge.ws_connected:
-                _LOGGER.debug("_async_update_data(): called (but websocket is active - no data will be requested!)")
-            else:
-                should_call_update = True
-                # we do not have an active websocket connection... but if the use of websocket is configured...
-                if self._use_websocket_in_config:
-                    # then check, if there has been at least ONE opdate of the websocket...
-                    if self.bridge._ws_LAST_UPDATE == 0:
-                        if self.bridge.ws_supported:
-                            # and if we have somehow already some data...
-                            if len(self.bridge._obis_values) > 0:
-                                should_call_update = False
-                                _LOGGER.info(f"_async_update_data(): skipping cause the use of websocket is configured, but we have not read yet a message from the socket yet (we are probably still in init)")
-
-                if should_call_update:
-                    _LOGGER.debug(f"_async_update_data(): called")
+            if not self._use_classic:
+                if self.bridge._ws_LAST_NEW_DATA_NOTIFY + self._integration_update_interval < time.time():
+                    # right now with new FW the websocket is not deliver any data - must check later how to solve this...
+                    _LOGGER.debug(f"_async_update_data(): called - new FW active websocket does not provide any data")
                     await self.bridge.update()
+                else:
+                    _LOGGER.debug(f"_async_update_data(): called - (but websocket is active - and data read is active)")
+            else:
+                # the old FW implementation from here...
+                if self.bridge.ws_connected:
+                    _LOGGER.debug("_async_update_data(): called (but websocket is active - no data will be requested!)")
+                else:
+                    should_call_update = True
+                    # we do not have an active websocket connection... but if the use of websocket is configured...
+                    if self._use_websocket_in_config:
+                        # then check, if there has been at least ONE update of the websocket...
+                        if self.bridge._ws_LAST_UPDATE == 0:
+                            if self.bridge.ws_supported:
+                                # and if we have somehow already some data...
+                                if len(self.bridge._obis_values) > 0:
+                                    should_call_update = False
+                                    _LOGGER.info(f"_async_update_data(): skipping cause the use of websocket is configured, but we have not read yet a message from the socket yet (we are probably still in init)")
+
+                    if should_call_update:
+                        _LOGGER.debug(f"_async_update_data(): called")
+                        await self.bridge.update()
 
             # we always return a DICT of the current data in the bridge objects...
             return {
