@@ -80,7 +80,7 @@ NODE_METRIC_MAP_CLASSIC: Final = {
     "node_avg_rssi": ["avg_rssi", "node_avg_rssi"],
     "node_avg_lqi": ["avg_lqi", "node_avg_lqi"],
     "node_radio_tx_power": ["radio_tx_power"],
-    "node_uptime_ms": ["node_uptime_ms"],
+    "node_uptime_ms": ["node_uptime","node_uptime_ms"],
     "node_meter_msg_count_sent": ["meter_msg_count_sent"],
     "node_meter_pkg_count_sent": ["meter_pkg_count_sent"],
     "node_time_in_em0_ms": ["time_in_em0_ms"],
