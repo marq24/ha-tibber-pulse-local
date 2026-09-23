@@ -153,6 +153,9 @@ class TibberLocalBridge:
             # the since FW '1794-03b6cbaf' URL's
             self.url_data_2026_09: Final = f"http://{a_host}/node_data.json?node_id={node_num}"
             self.url_metrics_2026_09: Final = f"http://{a_host}/node_metrics.json?node_id={node_num}"
+            self.url_test: Final = f"http://{a_host}/test.json"
+            self.url_status: Final = f"http://{a_host}/status.json"
+            self._test_data = None
 
             # still existing also in new FW...
             self.url_mode: Final = f"http://{a_host}/node_params.json?node_id={node_num}"
@@ -210,6 +213,17 @@ class TibberLocalBridge:
             async with self.web_session.get(url, auth=self.basic_auth, ssl=False, timeout=10.0) as response:
                 if response.status < 400 or response.status in (401, 403):
                     _LOGGER.debug(f"_check_api_endpoint(): NEW FW Endpoint {url} is up! Status: {response.status}")
+                    try:
+                        # for whatever reason the test.json endpoint is returning a plain-text that can't be read via
+                        # 'response.json()'
+                        resp_str = await response.text()
+                        while len(resp_str) > 1 and resp_str[0] != '{':
+                            resp_str = resp_str[1:]
+                        while len(resp_str) > 1 and resp_str[-1] != '}':
+                            resp_str = resp_str[:-1]
+                        self._test_data = json.loads(resp_str)
+                    except BaseException as exc:
+                        _LOGGER.debug(f"_check_api_endpoint(): could not read test data {type(exc).__name__}: {exc}")
                     return True
                 else:
                     _LOGGER.info(f"_check_api_endpoint(): NEW FW Endpoint {url} returned status: {response.status} - using CLASSIC")
@@ -219,7 +233,9 @@ class TibberLocalBridge:
             return False
 
     async def check_and_apply_fw_version(self):
-        if await self._check_api_endpoint(self.url_metrics_2026_09):
+        if await self._check_api_endpoint(self.url_test):
+            if self._test_data is not None and "esp32_fw_v" in self._test_data:
+                _LOGGER.debug(f"_check_and_apply_fw_version(): extracted esp32 FW version: {self._test_data.get('esp32_fw_v')} - {self._test_data}")
             self._use_classic = False
             self.url_data = self.url_data_2026_09
             self.url_metrics = self.url_metrics_2026_09
