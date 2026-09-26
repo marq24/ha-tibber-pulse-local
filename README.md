@@ -37,7 +37,7 @@ Please consider [using my personal Tibber invitation link to join Tibber today](
 
   If they happen the code will just try to load the data again for one time. Together with the message the actual payload (data that has been read from the Tibber Pulse Bridge) will also be logged. So you can verify that the data is indeed invalid.
 
-- During the setup the integration check/verify that there is at least one data field available that can be read. If the bridge does not provide any data (OBIS codes) then the setup will fail (with the message, that the connection could not be established). You might like to check if `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/data.json?node_id=1` will provide a data feed.
+- During the setup the integration check/verify that there is at least one data field available that can be read. If the bridge does not provide any data (OBIS codes) then the setup will fail (with the message, that the connection could not be established). You might like to check if `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/node_data.json?node_id=1` (old fw `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/data.json?node_id=1`) will provide a data feed.
 
 ## Preparation: The web frontend of the Tibber Pulse Bridge must be enabled permanently
 
@@ -127,7 +127,7 @@ Beside the data that the Tibber Pulse IR is reading from your electricity meter,
 
 ### REST-Template in your HA configuration.yaml
 
-requesting `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/metrics.json?node_id=1` will return a json like this one here
+requesting `http://admin:[BRIDGE_PASSWORD]@[YOUR_IP]/node_metrics.json?node_id=1` will return a json like this one here
 
 ```json
 {

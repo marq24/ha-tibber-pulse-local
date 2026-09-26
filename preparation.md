@@ -93,20 +93,20 @@ Now (when the frontend works for you) almost everything is prepared... Just one 
 
 ### Part II: Ensure that there is at least one node paired with the bridge
 
-For whatever reasons, there are experts out there, trying to use this integration _without having paired_ the Tibber Pulse reading head (the part is mounted at your power meter) with the Tibber Pulse Bridge. For sure, this is not going to work! The pairing procedure is part of the regular Tibber Pulse setup process with your Tibber app - so probably you have done this already - but just in case:
+For whatever reason, there are experts out there, trying to use this integration _without having paired_ the Tibber Pulse reading head (the part is mounted at your power meter) with the Tibber Pulse Bridge. For sure, this is not going to work! The pairing procedure is part of the regular Tibber Pulse setup process with your Tibber app - so probably you have done this already - but just in case:
 
-Please double-check by opening the `http://[YOUR_IP]/nodes/` section (you can select from the menu the 'NODES' entry) and ensure, that there is at least one node listed - which means that the bridge is connected with the reading-head-unit.
+Please double-check by opening the `http://[YOUR-IP]/pulse/` (old fw `http://[YOUR-IP]/nodes/`) section (you can select from the menu the 'Pulse' (old fw 'NODES' entry)) and ensure, that there is at least one node listed - which means that the bridge is connected with the reading-head-unit.
 
 Here you can also check, if the node is listed with the (expected) default NodeId value `1`. If you have a different NodeId, then you need to adjust the expert setting `Node Number (expert setting)` when configure this integration.
 
 ### Part III: Check 'Last seen' & 'Last data' [update frequency]
 
-1. Go to `http://[YOUR-IP]/nodes/` (just like in part II)
-2. Take a look at the value `Last data`
+1. Go to `http://[YOUR-IP]/pulse/` (old fw `http://[YOUR-IP]/nodes/`) (just like in part II)
+2. Take a look at the value `Last seen`/`Last data`
 
    This last data value is the last time (in seconds) the bridge has received a data update from the reading head. This value should not be higher than 2.5-5 seconds.
 
-   If your `Last data` is frequently recently greater than this, then this integration can't work in a reliable way.
+   If your `Last seen`/`Last data` is frequently recently greater than this, then this integration can't work in a reliable way.
 
    __Rotate the reading head few degrees anti-clock wise in order to check, if the update frequency will be better (smaller).__
 

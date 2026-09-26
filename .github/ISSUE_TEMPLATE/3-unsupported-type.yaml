@@ -19,7 +19,7 @@ body:
     id: system
     attributes:
       label: Meter type? |
-        check your http://[YOUR-PULSE-IP]/nodes/1/config
+        check your http://[YOUR-PULSE-IP]/pulse/1/config (old fw http://[YOUR-PULSE-IP]/nodes/1/config)
       multiple: false
       options:
         - Auto scan mode
@@ -34,8 +34,8 @@ body:
     id: data
     attributes:
       label: Output of the Tibber webfrontent data.json |
-        check http://[YOUR-PULSE-IP]/nodes/1/data or http://[YOUR-PULSE-IP]/data.json?node_id=1
-      placeholder: "Please copy and paste the output of your http://[YOUR-PULSE-IP]/data.json?node_id=1 - you might like to create/check the possible DEBUG log output of the home assistant integration"
+        check http://[YOUR-PULSE-IP]/pulse/1/data or http://[YOUR-PULSE-IP]/node_data.json?node_id=1 (old fw http://[YOUR-PULSE-IP]/nodes/1/data or http://[YOUR-PULSE-IP]/data.json?node_id=1)
+      placeholder: "Please copy and paste the output of your (old fw http://[YOUR-PULSE-IP]/node_data.json?node_id=1) - you might like to create/check the possible DEBUG log output of the home assistant integration"
       render: shell
   - type: textarea
     id: logs
