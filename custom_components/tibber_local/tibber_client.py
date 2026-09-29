@@ -267,10 +267,14 @@ class TibberLocalBridge:
                                 continue
 
                             if int(a_node_obj.get("node_id", -1)) == self.node_number:
+                                _LOGGER.debug(f"get_eui_for_node(): {a_node_obj} has the 'node_id' matching the one we are looking for: {self.node_number}")
                                 self.node_device_id = a_eui
 
                 except Exception as exc:
-                    _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {type(exc).__name__} - {exc}", stack_info=True)
+                    if res.status == 401:
+                        _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {type(exc).__name__} - {exc} - are you sure that you have provided the correct password for your bridge?", stack_info=True)
+                    else:
+                        _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {type(exc).__name__} - {exc}", stack_info=True)
         except Exception as exc:
             _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with OUTER exception: {type(exc).__name__} - {exc}", stack_info=True)
 
@@ -330,7 +334,12 @@ class TibberLocalBridge:
                                             self._com_mode = MODE_UNKNOWN
                                         break
                 except Exception as exc:
-                    _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with INNER exception: {type(exc).__name__} - {exc}", stack_info=True)
+                    if res.status == 401:
+                        _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with INNER exception: {type(exc).__name__} - {exc} - are you sure that you have provided the correct password for your bridge?", stack_info=True)
+                    elif res.status == 404:
+                        _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with INNER exception: {type(exc).__name__} - {exc} - are you sure that you have provided the correct node_id?", stack_info=True)
+                    else:
+                        _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with INNER exception: {type(exc).__name__} - {exc}", stack_info=True)
         except Exception as exc:
             _LOGGER.warning(f"detect_com_mode_from_node_param27(): access to bridge failed with OUTER exception: {type(exc).__name__} - {exc}", stack_info=True)
 
