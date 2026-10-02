@@ -269,8 +269,8 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             # calling self.bridge.check_and_apply_fw_version() will evaluate if the NEW
             # fw is active
             self._use_classic = True
-            self._integration_update_interval = config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-            super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=self._integration_update_interval))
+            self._integration_update_interval_in_seconds = config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(seconds=self._integration_update_interval_in_seconds))
 
     async def call_later_update_device_registry(self, now:Any):
         if not self._update_device_registry_is_running:
@@ -419,7 +419,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         try:
             if not self._use_classic:
-                if self.bridge._ws_LAST_NEW_DATA_NOTIFY + self._integration_update_interval < time.time():
+                if self.bridge._ws_LAST_NEW_DATA_NOTIFY + self._integration_update_interval_in_seconds < time.time():
                     # right now with new FW the websocket is not deliver any data - must check later how to solve this...
                     _LOGGER.debug(f"_async_update_data(): called - new FW active websocket does not provide any data")
                     await self.bridge.update()
