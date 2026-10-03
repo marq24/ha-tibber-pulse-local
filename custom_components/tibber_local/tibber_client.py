@@ -4,6 +4,7 @@ import logging
 import random
 import re
 import time
+import base64
 from asyncio import CancelledError
 from typing import Final
 
@@ -142,6 +143,9 @@ class TibberLocalBridge:
             self.web_session = websession
             self.basic_auth = aiohttp.BasicAuth("admin", pwd)
 
+            enc = base64.b64encode(f"admin:{pwd}".encode('utf-8')).decode('utf-8')
+            self.basic_auth_header = f"Basic {enc}"
+
             # the final URL's for data & metrics will be "auto-detected" via 'check_and_apply_fw_version'
             self.url_data = None
             self.url_metrics = None
@@ -167,6 +171,7 @@ class TibberLocalBridge:
 
             # websocket stuff...
             self.url_ws: Final = f"ws://{a_host}/ws"
+            self.url_ws_host: Final = a_host
 
         # The 'self.node_device_id' will be needed if multiple pulses are connected to the
         # bridge - and the websocket does not include the node_id (node nummer), instead
@@ -181,6 +186,8 @@ class TibberLocalBridge:
         self.ws_connected = False
         self.ws_supported = True
         self.ws_obj = None
+        self.ws_reader = None
+        self.ws_writer = None
         self._ws_LAST_UPDATE = 0
         self._ws_debounced_update_task: asyncio.Task | None = None
         self._ws_LAST_NEW_DATA_NOTIFY = 0
@@ -610,8 +617,7 @@ class TibberLocalBridge:
             self._LAST_METRICS_UPDATE = time.time()
             self._metrics_update_is_running = False
 
-    async def _ws_handle_binary_message(self, msg) -> bool:
-        binary_data = msg.data
+    async def _ws_handle_binary_message(self, binary_data) -> bool:
         if not isinstance(binary_data, (bytes, bytearray)) or len(binary_data) == 0:
             _LOGGER.debug(f"_ws_handle_binary_message(): WSMsgType.BINARY invalid payload type/len [type:{type(binary_data).__name__} len:{len(binary_data) if hasattr(binary_data, '__len__') else -1}]")
             return False
@@ -630,7 +636,7 @@ class TibberLocalBridge:
             return False
 
         return await self._ws_dispatch_payload(
-            source_type=msg.type,
+            source_type=aiohttp.WSMsgType.BINARY,
             topic=topic,
             body=binary_data[separator_pos + 1:],
             raw_payload=binary_data,
@@ -721,12 +727,24 @@ class TibberLocalBridge:
 
     # websocket implementation from here...
     async def ws_connect(self):
+        # make sure we have run the FW detection...
+        if self.url_data is None:
+            await self.check_and_apply_fw_version()
+
+        if self._use_classic:
+            _LOGGER.info(f"ws_connect(): will start the classic websocket implementation")
+            await self.ws_connect_classic()
+        else:
+            _LOGGER.info(f"ws_connect(): will start the self implemented websocket (plain reader/writer)")
+            await self.ws_connect_2026_09()
+
+    async def ws_connect_classic(self):
         try:
             #async with self.websession.ws_connect(self.url_ws, headers=self.REQ_HEADERS_WS, compress=0) as ws:
             async with self.web_session.ws_connect(self.url_ws, auth=self.basic_auth, compress=0) as ws:
                 self.ws_connected = True
                 self.ws_obj = ws
-                _LOGGER.info(f"ws_connect(): connected to websocket: {self.url_ws} - in COM MODE: {self._com_mode}")
+                _LOGGER.info(f"ws_connect_classic(): connected to websocket: {self.url_ws} - in COM MODE: {self._com_mode}")
                 async for msg in ws:
                     self._ws_LAST_UPDATE = time.time()
                     new_data_arrived = False
@@ -737,18 +755,18 @@ class TibberLocalBridge:
 
                     if msg.type == aiohttp.WSMsgType.BINARY:
                         try:
-                            new_data_arrived = await self._ws_handle_binary_message(msg)
+                            new_data_arrived = await self._ws_handle_binary_message(msg.data)
                         except Exception as e:
-                            _LOGGER.debug(f"ws_connect(): Could not read WSMsgType.BINARY from: {msg} - caused {type(e).__name__} {e}")
+                            _LOGGER.debug(f"ws_connect_classic(): Could not read WSMsgType.BINARY from: {msg} - caused {type(e).__name__} {e}")
 
                     elif msg.type == aiohttp.WSMsgType.TEXT:
                         try:
                             new_data_arrived = await self._ws_handle_text_message(msg)
                         except Exception as e:
-                            _LOGGER.debug(f"ws_connect(): Could not read WSMsgType.TEXT from: {msg} - caused {type(e).__name__} {e}")
+                            _LOGGER.debug(f"ws_connect_classic(): Could not read WSMsgType.TEXT from: {msg} - caused {type(e).__name__} {e}")
 
                     elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
-                        _LOGGER.debug(f"ws_connect(): received: {msg}")
+                        _LOGGER.debug(f"ws_connect_classic(): received: {msg}")
                         break
 
                     # do we need to push new data event to the coordinator?
@@ -758,29 +776,89 @@ class TibberLocalBridge:
 
         except ClientResponseError as cre:
             if hasattr(cre, "status") and cre.status == 404:
-                _LOGGER.info(f"ws_connect(): Could not connect to websocket at {self.url_ws} - [HTTP:404] - looks like bridge firmware update '1428-6debbaf6/795-379a5e21' not installed")
+                _LOGGER.info(f"ws_connect_classic(): Could not connect to websocket at {self.url_ws} - [HTTP:404] - looks like bridge firmware update '1428-6debbaf6/795-379a5e21' not installed")
                 self.ws_supported = False
             else:
-                _LOGGER.error(f"ws_connect(): Could not connect to websocket: {type(cre).__name__} - {cre}")
+                _LOGGER.error(f"ws_connect_classic(): Could not connect to websocket: {type(cre).__name__} - {cre}")
         except ClientConnectionError as err:
-            _LOGGER.error(f"ws_connect(): Could not connect to websocket: {type(err).__name__} - {err}")
+            _LOGGER.error(f"ws_connect_classic(): Could not connect to websocket: {type(err).__name__} - {err}")
         except asyncio.TimeoutError as time_exc:
-            _LOGGER.debug(f"ws_connect(): TimeoutError: No WebSocket message received within timeout period: {type(time_exc).__name__} - {time_exc}")
+            _LOGGER.debug(f"ws_connect_classic(): TimeoutError: No WebSocket message received within timeout period: {type(time_exc).__name__} - {time_exc}")
         except CancelledError as canceled:
-            _LOGGER.debug(f"ws_connect(): Terminated? - {type(canceled).__name__} - {canceled}")
+            _LOGGER.debug(f"ws_connect_classic(): Terminated? - {type(canceled).__name__} - {canceled}")
         except BaseException as x:
-            _LOGGER.error(f"ws_connect(): !!! {type(x).__name__} - {x}")
+            _LOGGER.error(f"ws_connect_classic(): !!! {type(x).__name__} - {x}")
 
-        _LOGGER.debug(f"ws_connect(): -- END HAS REACHED --")
+        _LOGGER.debug(f"ws_connect_classic(): -- END HAS REACHED --")
         try:
             await self.ws_close(ws)
         except UnboundLocalError as is_unbound:
-            _LOGGER.debug(f"ws_connect(): skipping ws_close() (since ws is unbound)")
+            _LOGGER.debug(f"ws_connect_classic(): skipping ws_close() (since ws is unbound)")
         except BaseException as e:
-            _LOGGER.error(f"ws_connect(): Error while calling ws_close(): {type(e).__name__} - {e}")
+            _LOGGER.error(f"ws_connect_classic(): Error while calling ws_close(): {type(e).__name__} - {e}")
 
         self.ws_connected = False
         self.ws_obj = None
+        return None
+
+    async def ws_connect_2026_09(self):
+        # We can't use a standard websocket lib here, since the Pulse sends always two bytes
+        # b'\x02%' that can't be ready with aiohttp :-/
+        self.ws_reader, self.ws_writer = await asyncio.open_connection(self.url_ws_host, 80)
+        request_lines = [
+            "GET /ws HTTP/1.1",
+            f"Authorization: {self.basic_auth_header}",
+#            "Connection: keep-alive",
+            "\r\n"
+        ]
+
+        raw_request = "\r\n".join(request_lines).encode('utf-8')
+        self.ws_writer.write(raw_request)
+        await self.ws_writer.drain()
+
+        # 1. Read and discard/verify the HTTP 101 handshake
+        #handshake = await self.ws_reader.read(1024)
+        #_LOGGER.debug(f"ws_connect_2026_09(): Handshake successful:\n{handshake.decode(errors='ignore')}")
+
+        self.ws_connected = True
+        _LOGGER.debug(f"ws_connect_2026_09(): connected to websocket: {self.url_ws} - in COM MODE: {self._com_mode}")
+
+        # 2. Continuous loop to read binary data from the WebSocket stream
+        try:
+            while True:
+                # Read chunks of raw binary data sent by the Tibber Pulse / device
+                data = await self.ws_reader.read(4096)
+                if not data:
+                    _LOGGER.info(f"ws_connect_2026_09(): Connection closed by server.")
+                    break
+
+                data_len = len(data)
+                if data_len > 2:
+                    self._ws_LAST_UPDATE = time.time()
+                    new_data_arrived = False
+
+                    try:
+                        new_data_arrived = await self._ws_handle_binary_message(data)
+                    except Exception as e:
+                        _LOGGER.debug(f"ws_connect_2026_09(): Could not read {data} - caused {type(e).__name__} {e}")
+
+                    if new_data_arrived:
+                        await self.updated_tibber_metrics_if_needed()
+                        self._ws_notify_for_new_data()
+                else:
+                    _LOGGER.debug(f"ws_connect_2026_09(): Received raw binary of ({data_len} bytes)")
+
+        except asyncio.CancelledError as cer:
+            _LOGGER.debug(f"ws_connect_2026_09(): CancelledError while stuff is going on: {type(cer).__name__} - {cer}")
+        except BaseException as ex:
+            _LOGGER.warning(f"ws_connect_2026_09(): Error while stuff is going on: {type(ex).__name__} - {ex}")
+        finally:
+            self.ws_writer.close()
+            await self.ws_writer.wait_closed()
+
+        self.ws_connected = False
+        self.ws_writer = None
+        self.ws_reader = None
         return None
 
     def _ws_notify_for_new_data(self):
@@ -849,6 +927,10 @@ class TibberLocalBridge:
                 #await self.websession.connector.close()
                 #self.websession.detach()
                 #_LOGGER.debug(f"ws_close_and_prepare_to_terminate(): websession is detached!")
+
+            if self.ws_reader is not None:
+                # TODO MUST IMPLEMENT SOMETHING ?!
+                pass
 
         except UnboundLocalError as is_unbound:
             _LOGGER.debug(f"ws_close_and_prepare_to_terminate(): skipping (since ws is unbound) {type(is_unbound).__name__} - {is_unbound}")
