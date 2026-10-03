@@ -825,6 +825,7 @@ class TibberLocalBridge:
 
         # 2. Continuous loop to read binary data from the WebSocket stream
         try:
+            buffer = b""
             while True:
                 # Read chunks of raw binary data sent by the Tibber Pulse / device
                 data = await self.ws_reader.read(4096)
@@ -834,19 +835,24 @@ class TibberLocalBridge:
 
                 data_len = len(data)
                 if data_len > 2:
+                    # on my windows WSL HA test instance I get the complete content of a websocket message in one step...
+                    # running on my linux I get a single message in up to three parts... and only once the b'\x02%'
+                    # is read, the complete package can be conusmed/parsed & handled...
+                    buffer += data
+                else:
                     self._ws_LAST_UPDATE = time.time()
                     new_data_arrived = False
-
                     try:
-                        new_data_arrived = await self._ws_handle_binary_message(data)
+                        new_data_arrived = await self._ws_handle_binary_message(buffer)
                     except Exception as e:
                         _LOGGER.debug(f"ws_connect_2026_09(): Could not read {data} - caused {type(e).__name__} {e}")
 
                     if new_data_arrived:
                         await self.updated_tibber_metrics_if_needed()
                         self._ws_notify_for_new_data()
-                else:
-                    _LOGGER.debug(f"ws_connect_2026_09(): Received raw binary of ({data_len} bytes)")
+
+                    buffer = b""
+                    #_LOGGER.debug(f"ws_connect_2026_09(): Received raw binary of ({data_len} bytes)")
 
         except asyncio.CancelledError as cer:
             _LOGGER.debug(f"ws_connect_2026_09(): CancelledError while stuff is going on: {type(cer).__name__} - {cer}")
