@@ -825,10 +825,10 @@ class TibberLocalBridge:
 
         # 2. Continuous loop to read binary data from the WebSocket stream
         try:
-            buffer = b""
+            buffer = b''
             while True:
                 # Read chunks of raw binary data sent by the Tibber Pulse / device
-                data = await self.ws_reader.read(4096)
+                data = await self.ws_reader.read(2048)
                 if not data:
                     _LOGGER.info(f"ws_connect_2026_09(): Connection closed by server.")
                     break
@@ -840,18 +840,31 @@ class TibberLocalBridge:
                     # is read, the complete package can be conusmed/parsed & handled...
                     buffer += data
                 else:
-                    self._ws_LAST_UPDATE = time.time()
-                    new_data_arrived = False
-                    try:
-                        new_data_arrived = await self._ws_handle_binary_message(buffer)
-                    except Exception as e:
-                        _LOGGER.debug(f"ws_connect_2026_09(): Could not read {data} - caused {type(e).__name__} {e}")
+                    # print(f"Raw Bytes : {data}")
+                    # print(f"Hex List  : {[hex(b) for b in data]}")
+                    # print(f"Dec Values: {list(data)}")
+                    # try:
+                    #     print(f"ASCII Text: {data.decode('ascii')}")
+                    # except UnicodeDecodeError:
+                    #     print("ASCII Text: Not pure ASCII")
 
-                    if new_data_arrived:
-                        await self.updated_tibber_metrics_if_needed()
-                        self._ws_notify_for_new_data()
+                    if len(buffer) > 0:
+                        # print(f"Buffer len: {len(buffer)} {buffer}")
+                        # print(f"Hex List Start: {[hex(b) for b in buffer[:15]]}")
+                        # print(f"Hex List End: {[hex(b) for b in buffer[-15:]]}")
 
-                    buffer = b""
+                        self._ws_LAST_UPDATE = time.time()
+                        new_data_arrived = False
+                        try:
+                            new_data_arrived = await self._ws_handle_binary_message(buffer)
+                        except Exception as e:
+                            _LOGGER.debug(f"ws_connect_2026_09(): Could not read {data} - caused {type(e).__name__} {e}")
+
+                        if new_data_arrived:
+                            await self.updated_tibber_metrics_if_needed()
+                            self._ws_notify_for_new_data()
+
+                    buffer = b''
                     #_LOGGER.debug(f"ws_connect_2026_09(): Received raw binary of ({data_len} bytes)")
 
         except asyncio.CancelledError as cer:
