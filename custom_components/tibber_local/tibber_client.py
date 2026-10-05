@@ -21,10 +21,11 @@ from .const import (
     ENUM_MODES,
     MODE_UNKNOWN,
     MODE_0_AutoScanMode,
+    MODE_1_IEC_62056_21,
+    MODE_2_Logarex,
     MODE_3_SML_1_04,
     MODE_10_ImpressionsAmbient,
     MODE_99_PLAINTEXT,
-    MODE_1_IEC_62056_21,
     ENUM_IMPLEMENTATIONS,
     OBIS_DATA_KEY,
     METRICS_KEY,
@@ -308,11 +309,16 @@ class TibberLocalBridge:
         # we want to check, if we can read plaintext?!
         if self._com_mode == MODE_UNKNOWN:
             await self._check_modes_internal(MODE_99_PLAINTEXT, MODE_3_SML_1_04)
+
         elif self._com_mode == MODE_0_AutoScanMode:
             await self._check_modes_internal(MODE_3_SML_1_04, MODE_99_PLAINTEXT)
-        elif self._com_mode == MODE_1_IEC_62056_21:
+
+        elif self._com_mode in [MODE_1_IEC_62056_21, MODE_2_Logarex]:
             # https://github.com/marq24/ha-tibber-pulse-local/issues/29
             # looks like we can parse 'IEC_62056_21' as plaintext?!
+
+            # https://github.com/marq24/ha-tibber-pulse-local/issues/136
+            # looks like we can parse 'Logarex' also as plaintext?!
             await self._check_modes_internal(MODE_99_PLAINTEXT, MODE_3_SML_1_04)
 
         # finally, raise value error if not implemented yet!
