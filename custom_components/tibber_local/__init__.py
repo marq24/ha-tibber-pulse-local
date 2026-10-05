@@ -360,7 +360,10 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                 self._a_task = self._config_entry.async_create_background_task(self.hass, self.bridge.ws_connect(), "ws_connection")
                 if self._a_task is not None:
                     _LOGGER.debug(f"_async_watchdog_check(): Watchdog: task created {self._a_task.get_coro()}")
-                    async_call_later(self.hass, 10, self.call_later_update_device_registry)
+                    # since the new tibber FW websocket is so flaky, we must have implemented
+                    # a check, if aiohttp client is supported, we must extend the delay from 10 to
+                    # 25 seconds in order to be sure, that our tests have passed...
+                    async_call_later(self.hass, 25, self.call_later_update_device_registry)
             else:
                 _LOGGER.debug(f"_async_watchdog_check(): Watchdog: websocket is connected")
                 if not self.bridge.ws_check_last_update():

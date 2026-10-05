@@ -141,10 +141,12 @@ class TibberLocalBridge:
             a_host = clean_host(host)
             _LOGGER.info(f"restarting TibberLocalBridge integration... for host: '{a_host}' node: '{node_num}' com_mode: '{com_mode}' with options: {options}")
             self.web_session = websession
-            self.basic_auth = aiohttp.BasicAuth("admin", pwd)
 
             enc = base64.b64encode(f"admin:{pwd}".encode('utf-8')).decode('utf-8')
-            self.basic_auth_header = f"Basic {enc}"
+            self.basic_auth_for_header = f"Basic {enc}"
+            self.REQ_HEADERS_BASIC_AUTH = {
+                "Authorization": self.basic_auth_for_header
+            }
 
             # the final URL's for data & metrics will be "auto-detected" via 'check_and_apply_fw_version'
             self.url_data = None
@@ -217,7 +219,7 @@ class TibberLocalBridge:
 
     async def _check_api_endpoint(self, url):
         try:
-            async with self.web_session.get(url, auth=self.basic_auth, ssl=False, timeout=10.0) as response:
+            async with self.web_session.get(url, headers=self.REQ_HEADERS_BASIC_AUTH, ssl=False, timeout=10.0) as response:
                 if response.status < 400 or response.status in (401, 403):
                     _LOGGER.debug(f"_check_api_endpoint(): NEW FW Endpoint {url} is up! Status: {response.status}")
                     try:
@@ -255,7 +257,7 @@ class TibberLocalBridge:
         # this must be called when we need a device_id... (when we receive data via websocket)
         self.node_eui_list = []
         try:
-            async with self.web_session.get(self.url_metadata, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
+            async with self.web_session.get(self.url_metadata, headers=self.REQ_HEADERS_BASIC_AUTH, ssl=False, timeout=10.0) as res:
                 try:
                     res.raise_for_status()
                     if res.status == 200:
@@ -326,7 +328,7 @@ class TibberLocalBridge:
         # {'param_id': 27, 'name': 'meter_mode', 'size': 1, 'type': 'uint8', 'help': '0:IEC 62056-21, 1:Count impressions', 'value': [3]}
         self._com_mode = MODE_UNKNOWN
         try:
-            async with self.web_session.get(self.url_mode, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
+            async with self.web_session.get(self.url_mode, headers=self.REQ_HEADERS_BASIC_AUTH, ssl=False, timeout=10.0) as res:
                 try:
                     res.raise_for_status()
                     if res.status == 200:
@@ -363,7 +365,7 @@ class TibberLocalBridge:
         _LOGGER.debug(f"read_tibber_local(): start[{retry_count}] - mode: {mode} request: {self.url_data}")
         # on init we wait up to 60 seconds till we get a reply from the bridge (when HA is starting, plenty of
         # requests are running...
-        async with self.web_session.get(self.url_data, auth=self.basic_auth, ssl=False, timeout=60.0 if len(self._obis_values) == 0 else 10.0) as res:
+        async with self.web_session.get(self.url_data, headers=self.REQ_HEADERS_BASIC_AUTH, ssl=False, timeout=60.0 if len(self._obis_values) == 0 else 10.0) as res:
             try:
                 res.raise_for_status()
                 if res.status == 200:
@@ -600,7 +602,7 @@ class TibberLocalBridge:
             if self.url_metrics is None:
                 await self.check_and_apply_fw_version()
             _LOGGER.debug(f"updated_tibber_metrics_if_needed(): request: {self.url_metrics}")
-            async with self.web_session.get(self.url_metrics, auth=self.basic_auth, ssl=False, timeout=10.0) as res:
+            async with self.web_session.get(self.url_metrics, headers=self.REQ_HEADERS_BASIC_AUTH, ssl=False, timeout=10.0) as res:
                 res.raise_for_status()
                 try:
                     self._metrics_data = await res.json()
@@ -731,17 +733,47 @@ class TibberLocalBridge:
         if self.url_data is None:
             await self.check_and_apply_fw_version()
 
-        if self._use_classic:
+        # we should always try first, if the default WebSocket implementation will
+        # work (could be that another FW update will bring that back to live) - and
+        # then for sure the aiohttp lib implementation is way more robust than anything
+        # marq24 had developed! - YES the additional check will take max 10 seconds!
+        if self._use_classic or await self.ws_check_implementation():
             _LOGGER.info(f"ws_connect(): will start the classic websocket implementation")
             await self.ws_connect_classic()
         else:
             _LOGGER.info(f"ws_connect(): will start the self implemented websocket (plain reader/writer)")
             await self.ws_connect_2026_09()
 
+    async def ws_check_implementation(self):
+        could_read_message_with_aiohttp = False
+        try:
+            async with self.web_session.ws_connect(self.url_ws, headers=self.REQ_HEADERS_BASIC_AUTH, compress=0) as ws:
+                _LOGGER.info(f"ws_check_implementation(): test aiohttp websocket with: {self.url_ws} (waiting max of 10 sec)")
+
+                # Wait up to 10 seconds for the next message from the websocket
+                msg = await asyncio.wait_for(ws.receive(timeout=10.0), timeout=10.5)
+                if msg.type in [aiohttp.WSMsgType.BINARY, aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR]:
+                    _LOGGER.debug(f"ws_check_implementation(): received: {msg} - all COOL - use real WebSocket implementation")
+                    could_read_message_with_aiohttp = True
+
+        except asyncio.TimeoutError as timeout:
+            _LOGGER.info(f"ws_check_implementation(): Timeout! No message from ws via aiohttp in 10 sec :-/")
+        except BaseException as x:
+            _LOGGER.error(f"ws_check_implementation(): Exception {type(x).__name__} - {x}")
+
+        finally:
+            try:
+                await self.ws_close(ws)
+            except BaseException:
+                #ignore any closing errors of our test...
+                pass
+
+        _LOGGER.debug(f"ws_check_implementation(): RESULT could_read_message_with_aiohttp ?: {could_read_message_with_aiohttp}")
+        return could_read_message_with_aiohttp
+
     async def ws_connect_classic(self):
         try:
-            #async with self.websession.ws_connect(self.url_ws, headers=self.REQ_HEADERS_WS, compress=0) as ws:
-            async with self.web_session.ws_connect(self.url_ws, auth=self.basic_auth, compress=0) as ws:
+            async with self.web_session.ws_connect(self.url_ws, headers=self.REQ_HEADERS_BASIC_AUTH, compress=0) as ws:
                 self.ws_connected = True
                 self.ws_obj = ws
                 _LOGGER.info(f"ws_connect_classic(): connected to websocket: {self.url_ws} - in COM MODE: {self._com_mode}")
@@ -807,7 +839,7 @@ class TibberLocalBridge:
         self.ws_reader, self.ws_writer = await asyncio.open_connection(self.url_ws_host, 80)
         request_lines = [
             "GET /ws HTTP/1.1",
-            f"Authorization: {self.basic_auth_header}",
+            f"Authorization: {self.basic_auth_for_header}",
 #            "Connection: keep-alive",
             "\r\n"
         ]
@@ -898,7 +930,7 @@ class TibberLocalBridge:
         try:
             new_data_arrived = await self._ws_handle_binary_message(buffer)
         except Exception as e:
-            _LOGGER.debug(f"ws_connect_2026_09(): Could not read {data} - caused {type(e).__name__} {e}")
+            _LOGGER.debug(f"ws_connect_2026_09(): Could not read {buffer} - caused {type(e).__name__} {e}")
 
         if new_data_arrived:
             await self.updated_tibber_metrics_if_needed()
