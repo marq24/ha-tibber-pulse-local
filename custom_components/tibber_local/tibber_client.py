@@ -88,7 +88,21 @@ class TibberLocalBridge:
         try:
             values = [int(part) for part in obis_src[1:6]]
             values.append(int(obis_src[6]) if obis_src[6] else 255)
-            return bytes(values).hex()
+
+            # in Logarex we can receive 81.7.2255 instead of 81.7.2*255
+            if values[4] > 255 and values[5] == 255:
+                string_val_4 = str(values[4])
+                # when the value[4] ends with '255'
+                if string_val_4[-3:] == "255":
+                    # strip the 255 (so a '12255' becomes just '12')
+                    values[4] = int(string_val_4[:-3])
+
+            # we might want to check, if any of the int values is larger than 255!
+            if any(x > 255 for x in values):
+                _LOGGER.info(f"obis_hex_from_parts(): the obis source: {obis_src} contains at least on value > 256, can not convert to hex representation")
+                return None
+            else:
+                return bytes(values).hex()
         except (ValueError, TypeError) as e:
             if do_log_output:
                 _LOGGER.warning(f"could not parse a value as int from list {obis_src} - ... - Exception: {e}")
