@@ -878,7 +878,7 @@ class TibberLocalBridge:
         # 2. Continuous loop to read binary data from the WebSocket stream
         try:
             buffer = b''
-            expected_data_len = float('inf')
+            expected_payload_len = float('inf')
             # ts = 0
             while True:
                 # Read chunks of raw binary data sent by the Tibber Pulse / device
@@ -888,48 +888,50 @@ class TibberLocalBridge:
                     break
 
                 data_len = len(data)
-                if data_len > 2:
-                    # on my windows WSL HA test instance I get the complete content of a websocket message in one step...
-                    # running on my linux I get a single message in up to three parts... and only once the b'\x02%'
-                    # is read, the complete package can be conusmed/parsed & handled...
-                    buffer += data
-                    if len(buffer) >= expected_data_len:
+
+                if data_len > 2 and data_len >= expected_payload_len:
+                    try:
+                        expected_payload_data = data[:expected_payload_len]
+                        buffer += expected_payload_data
+
+                        # Getting now the rest of the "not processed/read" bytes... This data
+                        # should be now a new FRAME starting with some frame header information.
+                        # When things goes well, then this is all the remaining data we must
+                        # read... but who knows?!
+                        new_frame_data = data[expected_payload_len:]
+
+                        # https://www.rfc-editor.org/rfc/rfc6455.html#section-5.2
+                        # we have the next frame and must/should inspect the first two bytes (after the payload)
+                        # if it's 0x80 and 0x7e - Bingo!
+                        # once again thanks @arrizer for your patience explaining a NOOB how all this is working!
+                        if new_frame_data[0] == 128 and new_frame_data[1] == 126:
+                            # the expected length is in the next two bytes!
+                            length_info_bytes = new_frame_data[2:4]
+                            frame_payload_len = int.from_bytes(length_info_bytes, byteorder='big')
+                            expected_payload_len += frame_payload_len
+
+                            # trimming the final data (remove the 4 bytes of the frame info)
+                            new_frame_data_without_header = new_frame_data[4:]
+                            if len(new_frame_data_without_header) >= frame_payload_len:
+                                expected_payload_data = new_frame_data_without_header[:frame_payload_len]
+                                buffer += expected_payload_data
+
+                    except BaseException as exc:
+                        _LOGGER.info(f"ws_connect_2026_09(): Exception in ws frame parser: {type(exc).__name__} - {exc}")
+
+                    if len(buffer) >= expected_payload_len:
                         await self.handle_buffer(buffer)
                         buffer = b''
-                        # ts = time.time()
-                else:
-                    # print(f"delay: {time.time()-ts}")
-                    # print(f"Raw Bytes : {data}")
-                    # print(f"Hex List  : {[hex(b) for b in data]}")
-                    # print(f"Dec Values: {list(data)}")
-                    # try:
-                    #     print(f"ASCII Text: {data.decode('ascii')}")
-                    # except UnicodeDecodeError:
-                    #     print("ASCII Text: Not pure ASCII")
 
+                elif data_len == 2:
                     # https://www.rfc-editor.org/rfc/rfc6455.html#section-5.2
-                    # ws definition say: 2'nd byte should indicate information about the
-                    # message length - but the tibber pulse just submit always x25 (37)
-                    # which does not match the actual length of the complete message
-                    # (321 bytes in my case)
-                    # So I will store the length of the first received message and use this
-                    # as the expected length of all messages - this is for sure not smart,
-                    # but the measured delay is approx. 2.5 - 3.5 seconds
-                    if len(buffer) > 0:
-                        if expected_data_len == float('inf'):
-                            # we assume, that all messages have the same buffer len... (at least that's the
-                            # case for my smartmeter / tibber pulse
-                            expected_data_len = len(buffer)
-                            _LOGGER.info(f"ws_connect_2026_09(): Using the length '{expected_data_len}' of the first message as length for all messages - yes this is a HACK!")
-
-                        # print(f"Buffer len: {len(buffer)} {buffer}")
-                        # print(f"Hex List Start: {[hex(b) for b in buffer[:15]]}")
-                        # print(f"Hex List End: {[hex(b) for b in buffer[-15:]]}")
-                        await self.handle_buffer(buffer)
-
+                    # we assume to receive a b'\x02%'
+                    if data[0] == 2:
+                        expected_payload_len = data[1]
+                        buffer = b''
+                else:
+                    expected_payload_len = float('inf')
                     buffer = b''
-                    #_LOGGER.debug(f"ws_connect_2026_09(): Received raw binary of ({data_len} bytes)")
-
 
         except asyncio.CancelledError as cer:
             _LOGGER.debug(f"ws_connect_2026_09(): CancelledError while stuff is going on: {type(cer).__name__} - {cer}")
