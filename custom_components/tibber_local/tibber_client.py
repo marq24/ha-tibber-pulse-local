@@ -826,6 +826,8 @@ class TibberLocalBridge:
         # 2. Continuous loop to read binary data from the WebSocket stream
         try:
             buffer = b''
+            expected_data_len = float('inf')
+            # ts = 0
             while True:
                 # Read chunks of raw binary data sent by the Tibber Pulse / device
                 data = await self.ws_reader.read(2048)
@@ -839,7 +841,12 @@ class TibberLocalBridge:
                     # running on my linux I get a single message in up to three parts... and only once the b'\x02%'
                     # is read, the complete package can be conusmed/parsed & handled...
                     buffer += data
+                    if len(buffer) >= expected_data_len:
+                        await self.handle_buffer(buffer)
+                        buffer = b''
+                        # ts = time.time()
                 else:
+                    # print(f"delay: {time.time()-ts}")
                     # print(f"Raw Bytes : {data}")
                     # print(f"Hex List  : {[hex(b) for b in data]}")
                     # print(f"Dec Values: {list(data)}")
@@ -848,24 +855,29 @@ class TibberLocalBridge:
                     # except UnicodeDecodeError:
                     #     print("ASCII Text: Not pure ASCII")
 
+                    # https://www.rfc-editor.org/rfc/rfc6455.html#section-5.2
+                    # ws definition say: 2'nd byte should indicate information about the
+                    # message length - but the tibber pulse just submit always x25 (37)
+                    # which does not match the actual length of the complete message
+                    # (321 bytes in my case)
+                    # So I will store the length of the first received message and use this
+                    # as the expected length of all messages - this is for sure not smart,
+                    # but the measured delay is approx. 2.5 - 3.5 seconds
                     if len(buffer) > 0:
+                        if expected_data_len == float('inf'):
+                            # we assume, that all messages have the same buffer len... (at least that's the
+                            # case for my smartmeter / tibber pulse
+                            expected_data_len = len(buffer)
+                            _LOGGER.info(f"ws_connect_2026_09(): Using the length '{expected_data_len}' of the first message as length for all messages - yes this is a HACK!")
+
                         # print(f"Buffer len: {len(buffer)} {buffer}")
                         # print(f"Hex List Start: {[hex(b) for b in buffer[:15]]}")
                         # print(f"Hex List End: {[hex(b) for b in buffer[-15:]]}")
-
-                        self._ws_LAST_UPDATE = time.time()
-                        new_data_arrived = False
-                        try:
-                            new_data_arrived = await self._ws_handle_binary_message(buffer)
-                        except Exception as e:
-                            _LOGGER.debug(f"ws_connect_2026_09(): Could not read {data} - caused {type(e).__name__} {e}")
-
-                        if new_data_arrived:
-                            await self.updated_tibber_metrics_if_needed()
-                            self._ws_notify_for_new_data()
+                        await self.handle_buffer(buffer)
 
                     buffer = b''
                     #_LOGGER.debug(f"ws_connect_2026_09(): Received raw binary of ({data_len} bytes)")
+
 
         except asyncio.CancelledError as cer:
             _LOGGER.debug(f"ws_connect_2026_09(): CancelledError while stuff is going on: {type(cer).__name__} - {cer}")
@@ -879,6 +891,18 @@ class TibberLocalBridge:
         self.ws_writer = None
         self.ws_reader = None
         return None
+
+    async def handle_buffer(self, buffer):
+        self._ws_LAST_UPDATE = time.time()
+        new_data_arrived = False
+        try:
+            new_data_arrived = await self._ws_handle_binary_message(buffer)
+        except Exception as e:
+            _LOGGER.debug(f"ws_connect_2026_09(): Could not read {data} - caused {type(e).__name__} {e}")
+
+        if new_data_arrived:
+            await self.updated_tibber_metrics_if_needed()
+            self._ws_notify_for_new_data()
 
     def _ws_notify_for_new_data(self):
         if self._ws_debounced_update_task is not None and not self._ws_debounced_update_task.done():
