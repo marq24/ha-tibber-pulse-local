@@ -857,146 +857,96 @@ class TibberLocalBridge:
         # We can't use a standard websocket lib here, since the Pulse sends always two bytes
         # b'\x02%' that can't be ready with aiohttp :-/
         self.ws_reader, self.ws_writer = await asyncio.open_connection(self.url_ws_host, 80)
-        request_lines = [
-            "GET /ws HTTP/1.1",
-            f"Authorization: {self.basic_auth_for_header}",
-#            "Connection: keep-alive",
-            "\r\n"
-        ]
 
-        raw_request = "\r\n".join(request_lines).encode('utf-8')
-        self.ws_writer.write(raw_request)
+        request = (
+            f"GET /ws HTTP/1.1\r\n"
+            f"Host: {self.url_ws_host}\r\n"
+            f"Authorization: {self.basic_auth_for_header}\r\n"
+            "\r\n"
+        )
+        self.ws_writer.write(request.encode("utf-8"))
         await self.ws_writer.drain()
 
-        # 1. Read and discard/verify the HTTP 101 handshake
-        #handshake = await self.ws_reader.read(1024)
-        #_LOGGER.debug(f"ws_connect_2026_09(): Handshake successful:\n{handshake.decode(errors='ignore')}")
+        # # Consume HTTP handshake until double CRLF (prevents frame offset errors)
+        # try:
+        #     handshake = await self.ws_reader.readuntil(b"\r\n\r\n")
+        #     _LOGGER.debug(f"Handshake response received:\n{handshake.decode(errors='ignore')}")
+        # except (asyncio.IncompleteReadError, asyncio.LimitOverrunError) as err:
+        #     _LOGGER.error(f"Failed to complete WS handshake: {err}")
+        #     return
 
         self.ws_connected = True
-        _LOGGER.debug(f"ws_connect_2026_09(): connected to websocket: {self.url_ws} - in COM MODE: {self._com_mode}")
+        _LOGGER.debug(f"ws_connect_2026_09(): connected to websocket: {self.url_ws} in COM MODE: {self._com_mode}")
 
-        # 2. Continuous loop to read binary data from the WebSocket stream
+        # our data container
+        message_buffer = bytearray()
+
         try:
-            buffer = b''
-            expected_next_payload_len = float('inf')
-            expected_total_payload_len = float('inf')
-            is_last_frame_of_message = False
-            # ts = 0
+            # Framing Loop using exact byte reading
+            # https://www.rfc-editor.org/rfc/rfc6455.html#section-5.2
+            # once again thanks @arrizer for your patience explaining a NOOB how all this is working!
             while True:
-                # Read chunks of raw binary data sent by the Tibber Pulse / device
-                data = await self.ws_reader.read(2048)
-                if not data:
-                    _LOGGER.info(f"ws_connect_2026_09(): Connection closed by server.")
+                # Read exactly the 2-byte WebSocket frame header
+                header = await self.ws_reader.readexactly(2)
+                byte1, byte2 = header[0], header[1]
+
+                is_fin = bool(byte1 & 0x80)
+                opcode = byte1 & 0x0F
+                is_masked = bool(byte2 & 0x80)
+                payload_len = byte2 & 0x7F
+
+                # RFC 6455 extended payload length handling
+                if payload_len >= 126:
+                    bytes_to_read = 2
+                    if payload_len == 127:
+                        # RFC specifies an 8-byte (64-bit) length field for 127
+                        bytes_to_read = 8
+                    ext_bytes = await self.ws_reader.readexactly(bytes_to_read)
+                    payload_len = int.from_bytes(ext_bytes, byteorder="big")
+
+                # Read masking key if present
+                mask_key = await self.ws_reader.readexactly(4) if is_masked else None
+
+                # Read the frame payload
+                payload = await self.ws_reader.readexactly(payload_len) if payload_len > 0 else b""
+                #_LOGGER.debug(f"ws_connect_2026_09(): read {payload_len} bytes for frame {payload}")
+
+                # Unmask payload if server set the mask bit
+                if is_masked and payload:
+                    payload = bytes(b ^ mask_key[i % 4] for i, b in enumerate(payload))
+
+                # Handle control frames (Ping/Pong/Close) or accumulate data frames
+                if opcode == 0x8:  # Connection Close
+                    _LOGGER.info("ws_connect_2026_09(): Server sent close frame.")
                     break
+                elif opcode == 0x9:  # Ping -> Respond with Pong (0xA)
+                    pong_frame = bytes([0x8A, len(payload)]) + payload
+                    self.ws_writer.write(pong_frame)
+                    await self.ws_writer.drain()
+                    continue
+                elif opcode == 0xA:  # Pong
+                    continue
 
-                data_len = len(data)
-                if data_len > 2:
+                message_buffer.extend(payload)
 
-                    # is there any expected payload data that we should & could read?
-                    # WHAT IF the expected payload is larger and not completely available yet?
-                    if 0 < expected_next_payload_len <= data_len:
-                        expected_payload_data = data[:expected_next_payload_len]
-                        buffer += expected_payload_data
+                # If FIN bit is set, the full message has been received
+                if is_fin:
+                    await self.handle_buffer(bytes(message_buffer))
+                    message_buffer.clear()
 
-                        # Getting now the rest of the "not processed/read" bytes... This data
-                        # should be now a new FRAME starting with some frame header information.
-                        # When things goes well, then this is all the remaining data we must
-                        # read... but who knows?!
-                        new_frame_data = data[expected_next_payload_len:]
-                    else:
-                        # we have no 'not-read-yet' payload data... so we can take
-                        # the full arrived data as our new frame input...
-                        new_frame_data = data
-
-                    # we have processed fully the expected payload or it's a new frame of the same
-                    # websocket message
-                    if len(new_frame_data) == 0:
-                        # ok there is no remaining data to process in the current read
-                        # data.. so let's wait for the next frame!
-                        expected_next_payload_len = 0
-
-                        # ok skipping the rest of the handling - since our remaining data is
-                        # empty...
-                        continue
-
-                    try:
-                        # https://www.rfc-editor.org/rfc/rfc6455.html#section-5.2
-                        # we have the next frame and must/should inspect the first two bytes
-                        # (after a previous payload have been processed)
-                        # once again thanks @arrizer for your patience explaining a NOOB how all this is working!
-
-                        # if this is the last frame of the websocket message, then the FIN-bit is set - and this
-                        # means, that the first byte >= 128
-                        is_last_frame_of_message = new_frame_data[0] >= 128
-
-                        # handling the payload length of the frame...
-                        frame_payload_len = new_frame_data[1]
-                        frame_header_len = 2
-                        # are we dealing with an 'Extended payload length' ?
-                        if frame_payload_len >= 126:
-                            frame_header_len += 2 # = 4
-                            if frame_payload_len == 127:
-                                frame_header_len += 2 # = 6
-                            # the expected length is in the next two or four bytes!
-                            payload_length_info_bytes = new_frame_data[2:frame_header_len]
-                            frame_payload_len = int.from_bytes(payload_length_info_bytes, byteorder='big')
-
-                        # finally we know the total size of the message?!
-                        expected_total_payload_len += frame_payload_len
-
-                        # trimming the final data (remove the 2, 4 or 6 bytes of the frame info)
-                        new_frame_data_without_header = new_frame_data[frame_header_len:]
-
-                        # and check, if we might already can read the data?!
-                        # WHAT IF this is only partial available ?!...
-                        if len(new_frame_data_without_header) >= frame_payload_len:
-                            expected_payload_data = new_frame_data_without_header[:frame_payload_len]
-                            buffer += expected_payload_data
-                        else:
-                            # this is not correct here... we must calculate, the remaining data, that's
-                            # not transferred into the buffer yet!
-                            # It's late - tomorrow is my last day at the beach - so I go to bed now
-                            # might be that @orangecoding is in the right mood to create a PR that's
-                            # going to fix the situation, when 'len(new_frame_data_without_header)' is
-                            # smaller than the expected/required payload data.
-                            expected_next_payload_len = frame_payload_len
-
-                    except BaseException as exc:
-                        _LOGGER.info(f"ws_connect_2026_09(): Exception in ws frame parser: {type(exc).__name__} - {exc}")
-
-                    if is_last_frame_of_message and len(buffer) >= expected_next_payload_len:
-                        await self.handle_buffer(buffer)
-                        expected_next_payload_len = float('inf')
-                        expected_total_payload_len = float('inf')
-                        is_last_frame_of_message = False
-                        buffer = b''
-
-                elif data_len == 2:
-                    # https://www.rfc-editor.org/rfc/rfc6455.html#section-5.2
-                    # expecting opcode 2 -> denotes a binary frame
-                    if data[0] == 2:
-                        expected_next_payload_len = data[1]
-                        expected_total_payload_len = expected_next_payload_len
-                        is_last_frame_of_message = False
-                        buffer = b''
-                else:
-                    expected_next_payload_len = float('inf')
-                    expected_total_payload_len = float('inf')
-                    is_last_frame_of_message = False
-                    buffer = b''
-
-        except asyncio.CancelledError as cer:
-            _LOGGER.debug(f"ws_connect_2026_09(): CancelledError while stuff is going on: {type(cer).__name__} - {cer}")
-        except BaseException as ex:
-            _LOGGER.warning(f"ws_connect_2026_09(): Error while stuff is going on: {type(ex).__name__} - {ex}")
+        except asyncio.IncompleteReadError:
+            _LOGGER.info("ws_connect_2026_09(): WebSocket connection closed cleanly by remote host.")
+        except asyncio.CancelledError:
+            _LOGGER.debug("ws_connect_2026_09(): WebSocket reader task cancelled.")
+        except Exception as ex:
+            _LOGGER.warning(f"ws_connect_2026_09(): Error parsing WebSocket stream: {type(ex).__name__}: {ex}")
         finally:
-            self.ws_writer.close()
-            await self.ws_writer.wait_closed()
-
-        self.ws_connected = False
-        self.ws_writer = None
-        self.ws_reader = None
-        return None
+            self.ws_connected = False
+            if self.ws_writer:
+                self.ws_writer.close()
+                await self.ws_writer.wait_closed()
+                self.ws_writer = None
+                self.ws_reader = None
 
     async def handle_buffer(self, buffer):
         self._ws_LAST_UPDATE = time.time()
