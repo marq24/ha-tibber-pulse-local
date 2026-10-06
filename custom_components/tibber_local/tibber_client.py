@@ -880,6 +880,7 @@ class TibberLocalBridge:
             buffer = b''
             expected_next_payload_len = float('inf')
             expected_total_payload_len = float('inf')
+            is_last_frame_of_message = False
             # ts = 0
             while True:
                 # Read chunks of raw binary data sent by the Tibber Pulse / device
@@ -889,8 +890,11 @@ class TibberLocalBridge:
                     break
 
                 data_len = len(data)
-                if data_len > 2 and data_len >= expected_next_payload_len:
-                    if expected_next_payload_len > 0:
+                if data_len > 2:
+
+                    # is there any expected payload data that we should & could read?
+                    # WHAT IF the expected payload is larger and not completely available yet?
+                    if 0 < expected_next_payload_len <= data_len:
                         expected_payload_data = data[:expected_next_payload_len]
                         buffer += expected_payload_data
 
@@ -900,61 +904,85 @@ class TibberLocalBridge:
                         # read... but who knows?!
                         new_frame_data = data[expected_next_payload_len:]
                     else:
-                        # we have no open payload data that should be read... so we can take
-                        # the full arrived data as our frame input...
+                        # we have no 'not-read-yet' payload data... so we can take
+                        # the full arrived data as our new frame input...
                         new_frame_data = data
 
+                    # we have processed fully the expected payload or it's a new frame of the same
+                    # websocket message
                     if len(new_frame_data) == 0:
                         # ok there is no remaining data to process in the current read
                         # data.. so let's wait for the next frame!
                         expected_next_payload_len = 0
 
-                    else:
-                        try:
-                            # https://www.rfc-editor.org/rfc/rfc6455.html#section-5.2
-                            # we have the next frame and must/should inspect the first two bytes (after the payload)
-                            # if it's 0x80 and 0x7e - Bingo!
-                            # once again thanks @arrizer for your patience explaining a NOOB how all this is working!
-                            if new_frame_data[0] == 128 and new_frame_data[1] == 126:
-                                # the expected length is in the next two bytes!
-                                payload_length_info_bytes = new_frame_data[2:4]
-                                frame_payload_len = int.from_bytes(payload_length_info_bytes, byteorder='big')
-                                expected_total_payload_len += frame_payload_len
+                        # ok skipping the rest of the handling - since our remaining data is
+                        # empty...
+                        continue
 
-                                # trimming the final data (remove the 4 bytes of the frame info)
-                                new_frame_data_without_header = new_frame_data[4:]
+                    try:
+                        # https://www.rfc-editor.org/rfc/rfc6455.html#section-5.2
+                        # we have the next frame and must/should inspect the first two bytes
+                        # (after a previous payload have been processed)
+                        # once again thanks @arrizer for your patience explaining a NOOB how all this is working!
 
-                                # and check, if we might already can read the data?!
-                                # WHAT IF this is only partial available ?!...
-                                if len(new_frame_data_without_header) >= frame_payload_len:
-                                    expected_payload_data = new_frame_data_without_header[:frame_payload_len]
-                                    buffer += expected_payload_data
-                                else:
-                                    # this is not correct here... we must calculate, the remaining data, that's
-                                    # not transferred into the buffer yet!
-                                    # It's late - tomorrow is my last day at the beach - so I go to bed now
-                                    # might be that @orangecoding is in the right mood to create a PR that's
-                                    # going to fix the situation, when 'len(new_frame_data_without_header)' is
-                                    # smaller than the expected/required payload data.
-                                    expected_next_payload_len = frame_payload_len
+                        # if this is the last frame of the websocket message, then the FIN-bit is set - and this
+                        # means, that the first byte >= 128
+                        is_last_frame_of_message = new_frame_data[0] >= 128
 
-                        except BaseException as exc:
-                            _LOGGER.info(f"ws_connect_2026_09(): Exception in ws frame parser: {type(exc).__name__} - {exc}")
+                        # handling the payload length of the frame...
+                        frame_payload_len = new_frame_data[1]
+                        frame_header_len = 2
+                        # are we dealing with an 'Extended payload length' ?
+                        if frame_payload_len >= 126:
+                            frame_header_len += 2 # = 4
+                            if frame_payload_len == 127:
+                                frame_header_len += 2 # = 6
+                            # the expected length is in the next two or four bytes!
+                            payload_length_info_bytes = new_frame_data[2:frame_header_len]
+                            frame_payload_len = int.from_bytes(payload_length_info_bytes, byteorder='big')
 
-                        if len(buffer) >= expected_next_payload_len:
-                            await self.handle_buffer(buffer)
-                            buffer = b''
+                        # finally we know the total size of the message?!
+                        expected_total_payload_len += frame_payload_len
+
+                        # trimming the final data (remove the 2, 4 or 6 bytes of the frame info)
+                        new_frame_data_without_header = new_frame_data[frame_header_len:]
+
+                        # and check, if we might already can read the data?!
+                        # WHAT IF this is only partial available ?!...
+                        if len(new_frame_data_without_header) >= frame_payload_len:
+                            expected_payload_data = new_frame_data_without_header[:frame_payload_len]
+                            buffer += expected_payload_data
+                        else:
+                            # this is not correct here... we must calculate, the remaining data, that's
+                            # not transferred into the buffer yet!
+                            # It's late - tomorrow is my last day at the beach - so I go to bed now
+                            # might be that @orangecoding is in the right mood to create a PR that's
+                            # going to fix the situation, when 'len(new_frame_data_without_header)' is
+                            # smaller than the expected/required payload data.
+                            expected_next_payload_len = frame_payload_len
+
+                    except BaseException as exc:
+                        _LOGGER.info(f"ws_connect_2026_09(): Exception in ws frame parser: {type(exc).__name__} - {exc}")
+
+                    if is_last_frame_of_message and len(buffer) >= expected_next_payload_len:
+                        await self.handle_buffer(buffer)
+                        expected_next_payload_len = float('inf')
+                        expected_total_payload_len = float('inf')
+                        is_last_frame_of_message = False
+                        buffer = b''
 
                 elif data_len == 2:
                     # https://www.rfc-editor.org/rfc/rfc6455.html#section-5.2
-                    # we assume to receive a b'\x02%'
+                    # expecting opcode 2 -> denotes a binary frame
                     if data[0] == 2:
                         expected_next_payload_len = data[1]
                         expected_total_payload_len = expected_next_payload_len
+                        is_last_frame_of_message = False
                         buffer = b''
                 else:
                     expected_next_payload_len = float('inf')
                     expected_total_payload_len = float('inf')
+                    is_last_frame_of_message = False
                     buffer = b''
 
         except asyncio.CancelledError as cer:
