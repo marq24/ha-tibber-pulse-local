@@ -236,7 +236,7 @@ class TibberLocalBridge:
         try:
             async with self.web_session.get(url, headers=self.REQ_HEADERS_BASIC_AUTH, ssl=False, timeout=10.0) as response:
                 if response.status < 400 or response.status in (401, 403):
-                    _LOGGER.debug(f"_check_api_endpoint(): NEW FW Endpoint {url} is up! Status: {response.status}")
+                    _LOGGER.debug(f"_check_api_endpoint(): read endpoint {url} is up! Status: {response.status}")
                     try:
                         # for whatever reason the test.json endpoint is returning a plain-text that can't be read via
                         # 'response.json()'
@@ -257,13 +257,25 @@ class TibberLocalBridge:
             return False
 
     async def check_and_apply_fw_version(self):
+        use_new_fw_code = False
         if await self._check_api_endpoint(self.url_test):
             if self._test_data is not None and "esp32_fw_v" in self._test_data:
-                _LOGGER.debug(f"_check_and_apply_fw_version(): extracted esp32 FW version: {self._test_data.get('esp32_fw_v')} - {self._test_data}")
+                fw_version_str = self._test_data.get("esp32_fw_v")
+                _LOGGER.debug(f"_check_and_apply_fw_version(): extracted esp32 FW version: {fw_version_str} - {self._test_data}")
+                try:
+                    # the first fw we are aware of that use the new URLs is 1794-03b6cbaf
+                    if int(fw_version_str.split("-")[0]) > 1793:
+                        use_new_fw_code = True
+                except BaseException as exc:
+                    _LOGGER.debug(f"_check_and_apply_fw_version() could not extract fw number from '{fw_version_str}' - {type(exc).__name__}: {exc}")
+
+        if use_new_fw_code:
+            _LOGGER.debug(f"_check_and_apply_fw_version(): RESULT using 2026_09-FW code")
             self._use_classic = False
             self.url_data = self.url_data_2026_09
             self.url_metrics = self.url_metrics_2026_09
         else:
+            _LOGGER.debug(f"_check_and_apply_fw_version(): RESULT using CLASSIC-FW code")
             self._use_classic = True
             self.url_data = self.url_data_classic
             self.url_metrics = self.url_metrics_classic
