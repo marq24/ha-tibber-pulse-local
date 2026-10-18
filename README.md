@@ -4,6 +4,8 @@ If you like to access the data of your Tibber Pulse IR directly (instead of the 
 
 This integration will work __only__ with the __IR__ Version of the Tibber Pulse. There are other versions: P1, HAN or KM (sold in countries like Sweden, Norway or the Netherlands) that __are not compatible__ with this integration. If you are not sure what Tibber Pulse version you have, just check if you have an additional 'Bridge' device – which is basically an additional thing that you have to plug into a power outlet (see the picture below).
 
+For Tibber Pulse P1, HAN or KM you might like to check out, if the [ha-tibber-pulse-mqtt by mrhedstrom](https://github.com/mrhedstrom/ha-tibber-pulse-mqtt) will satisfy your needs.
+
 __Please note__, _that this integration is not official and not supported by the tibber development team. I am not affiliated with tibber in any way._
 
 [![hacs_badge][hacsbadge]][hacs] [![hainstall][hainstallbadge]][hainstall] [![Wero][werobadge]][wero] [![wise][wisebadge]][wise] [![Revolut][revolutbadge]][revolut] [![PayPal][paypalbadge]][paypal] [![github][ghsbadge]][ghs] [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
