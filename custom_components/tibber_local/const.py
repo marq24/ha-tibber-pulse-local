@@ -510,7 +510,7 @@ SENSOR_TYPES = [
         suggested_display_precision=3,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         icon="mdi:battery",
-        device_class=None,
+        device_class=SensorDeviceClass.VOLTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC
     ),
@@ -520,7 +520,7 @@ SENSOR_TYPES = [
         suggested_display_precision=2,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         icon="mdi:thermometer",
-        device_class=None,
+        device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC
     ),
@@ -530,7 +530,7 @@ SENSOR_TYPES = [
         suggested_display_precision=3,
         native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
         icon="mdi:wifi-strength-4",
-        device_class=None,
+        device_class=SensorDeviceClass.SIGNAL_STRENGTH,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC
     ),
@@ -549,7 +549,7 @@ SENSOR_TYPES = [
         suggested_display_precision=3,
         native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
         icon="mdi:lightning-bolt-circle",
-        device_class=None,
+        device_class=SensorDeviceClass.SIGNAL_STRENGTH,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
