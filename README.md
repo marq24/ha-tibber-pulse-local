@@ -31,6 +31,7 @@ Please consider [using my personal Tibber invitation link to join Tibber today](
    - SML 1.04
    - Plaintext
    - IEC-62056.21
+   - Logarex
    - Impressions (Blinks / kwh) using ambient
 
   The Tibber Bridge additionally offers the modes: _AutoScanMode, IEC-62056.21, Logarex and Impressions (Blinks / kwh) using IR sensors_. To support these other modes, I would need sample data from you. If your Tibber Pulse IR using one of these communications protocols, please be so kind and create here an issue in github - TIA!
