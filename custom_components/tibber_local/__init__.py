@@ -4,7 +4,6 @@ from datetime import timedelta
 from numbers import Number
 from typing import Final, Any
 
-import voluptuous as vol
 from aiohttp import ClientConnectionError
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -64,7 +63,6 @@ from .entity import CustomFriendlyNameEntity
 from .tibber_client import TibberLocalBridge
 
 _LOGGER = logging.getLogger(__name__)
-CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS: Final = [Platform.SENSOR]
 WEBSOCKET_WATCHDOG_INTERVAL: Final = timedelta(seconds=64)
