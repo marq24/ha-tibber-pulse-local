@@ -144,5 +144,8 @@ When part I, II & III are completed/confirmed, __then__ you can install and use 
 [revolut]: https://revolut.me/marq24
 [revolutbadge]: https://img.shields.io/badge/_revolut-me_-blue.svg?style=for-the-badge&logo=revolut&logoColor=ccc&link=https%3A%2F%2Frevolut.me%2Fmarq24
 
+[applepay]: https://revolut.me/marq24
+[applepaybadge]: https://img.shields.io/badge/_apple-pay_-blue.svg?style=for-the-badge&logo=applepay&logoColor=ccc&link=https%3A%2F%2Frevolut.me%2Fmarq24
+
 [wise]: https://wise.com/pay/me/matthiasm1046
 [wisebadge]: https://img.shields.io/badge/_wise-me_-blue.svg?style=for-the-badge&logo=wise&logoColor=ccc&link=https%3A%2F%2Fwise.com%2Fpay%2Fme%2Fmatthiasm1046
