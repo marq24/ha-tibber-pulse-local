@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Final
 
+from homeassistant.components.binary_sensor import BinarySensorEntityDescription
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntityDescription,
@@ -17,6 +18,7 @@ from homeassistant.const import (
     UnitOfTemperature,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     UnitOfTime,
+    PERCENTAGE,
 )
 
 DOMAIN: Final = "tibber_local"
@@ -57,6 +59,7 @@ ENUM_IMPLEMENTATIONS: Final = [MODE_3_SML_1_04, MODE_10_ImpressionsAmbient, MODE
 
 OBIS_DATA_KEY: Final = "obis_data"
 METRICS_KEY: Final = "metrics"
+NODES_KEY: Final = "nodes"
 
 UNKNOWN_SERIAL: Final = "UNKNOWN_SERIAL"
 
@@ -93,6 +96,11 @@ NODE_METRIC_MAP_CLASSIC: Final = {
 NODE_METRICS_2026_09: Final = "node"
 IR_METRICS_2026_09: Final = "ir"
 HUB_METRICS_2026_09: Final = "hub"
+
+BATTERY_LEVEL_ESTIMATED: Final = "battery_estimated"
+# PURLY GUESSED VALUES!!
+BATTERY_MAX_VOLTS: Final = 3.2
+BATTERY_MIN_VOLTS: Final = 2.4
 
 # the content of the classic metrics node
 # "hub_attachments": {
@@ -134,7 +142,16 @@ class ExtSensorEntityDescription(SensorEntityDescription):
     @classmethod
     def from_tag(cls, tag: SensorTag, **kwargs):
         return cls(key=f"{tag.key}_in_k" if tag.divide_by_1000 else tag.key, tag=tag, **kwargs)
-    
+
+@dataclass(frozen=True)
+class ExtBinarySensorEntityDescription(BinarySensorEntityDescription):
+    tag: SensorTag | None = None
+    icon_off: str | None = None
+
+    @classmethod
+    def from_tag(cls, tag: SensorTag, **kwargs):
+        return cls(key=f"{tag.key}_in_k" if tag.divide_by_1000 else tag.key, tag=tag, **kwargs)
+
 
 SENSOR_TYPES = [
 
@@ -142,97 +159,97 @@ SENSOR_TYPES = [
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100010800ff", section=OBIS_DATA_KEY),
         name="Import total",
-        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     # Zählerstand Tarif 1
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100010801ff", section=OBIS_DATA_KEY),
         name="Import tariff 1",
-        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     # Zählerstand Tarif 2
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100010802ff", section=OBIS_DATA_KEY),
         name="Import tariff 2",
-        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     # Zählerstand Tarif 3
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100010803ff", section=OBIS_DATA_KEY),
         name="Import tariff 3",
-        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     # Zählerstand Tarif 4
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100010804ff", section=OBIS_DATA_KEY),
         name="Import tariff 4",
-        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     # Wirkenergie Total
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100020800ff", section=OBIS_DATA_KEY),
         name="Export total",
-        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100020801ff", section=OBIS_DATA_KEY),
         name="Export tariff 1",
-        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100020802ff", section=OBIS_DATA_KEY),
         name="Export tariff 2",
-        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100020803ff", section=OBIS_DATA_KEY),
         name="Export tariff 3",
-        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100020804ff", section=OBIS_DATA_KEY),
         name="Export tariff 4",
-        entity_registry_enabled_default=False,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100010800ff", section=OBIS_DATA_KEY, divide_by_1000=True),
@@ -246,42 +263,42 @@ SENSOR_TYPES = [
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100010801ff", section=OBIS_DATA_KEY, divide_by_1000=True),
         name="Import tariff 1 (kWh)",
-        entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100010802ff", section=OBIS_DATA_KEY, divide_by_1000=True),
         name="Import tariff 2 (kWh)",
-        entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100010803ff", section=OBIS_DATA_KEY, divide_by_1000=True),
         name="Import tariff 3 (kWh)",
-        entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100010804ff", section=OBIS_DATA_KEY, divide_by_1000=True),
         name="Import tariff 4 (kWh)",
-        entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-import-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100020800ff", section=OBIS_DATA_KEY, divide_by_1000=True),
@@ -295,42 +312,42 @@ SENSOR_TYPES = [
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100020801ff", section=OBIS_DATA_KEY, divide_by_1000=True),
         name="Export tariff 1 (kWh)",
-        entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100020802ff", section=OBIS_DATA_KEY, divide_by_1000=True),
         name="Export tariff 2 (kWh)",
-        entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100020803ff", section=OBIS_DATA_KEY, divide_by_1000=True),
         name="Export tariff 3 (kWh)",
-        entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     ExtSensorEntityDescription.from_tag(
         tag=SensorTag(key="0100020804ff", section=OBIS_DATA_KEY, divide_by_1000=True),
         name="Export tariff 4 (kWh)",
-        entity_registry_enabled_default=False,
         suggested_display_precision=5,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:home-export-outline",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_registry_enabled_default=False,
     ),
     # aktuelle Wirkleistung
     ExtSensorEntityDescription.from_tag(
@@ -529,7 +546,7 @@ SENSOR_TYPES = [
         name="node_avg_rssi",
         suggested_display_precision=3,
         native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
-        icon="mdi:wifi-strength-4",
+        icon="mdi:wifi",
         device_class=SensorDeviceClass.SIGNAL_STRENGTH,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC
@@ -538,7 +555,7 @@ SENSOR_TYPES = [
         tag=SensorTag(key="node_avg_lqi", section=METRICS_KEY),
         name="node_avg_lqi",
         suggested_display_precision=3,
-        icon="mdi:signal-variant",
+        icon="mdi:wifi-strength-4",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC
@@ -664,6 +681,80 @@ SENSOR_TYPES = [
         icon="mdi:counter",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC
+    ),
+
+    ExtSensorEntityDescription.from_tag(
+        tag=SensorTag(key=BATTERY_LEVEL_ESTIMATED, section=METRICS_KEY),
+        name="estimated_battery",
+        suggested_display_precision=0,
+        icon="mdi:battery",
+        device_class=SensorDeviceClass.BATTERY,
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC
+    ),
+    ExtSensorEntityDescription.from_tag(
+        tag=SensorTag(key="last_seen_ms", section=NODES_KEY),
+        name="last_seen_ms",
+        suggested_display_precision=0,
+        icon="mdi:clock-check-outline",
+        device_class=None,
+        native_unit_of_measurement=UnitOfTime.MILLISECONDS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC
+    ),
+    ExtSensorEntityDescription.from_tag(
+        tag=SensorTag(key="last_data_ms", section=NODES_KEY),
+        name="last_data_ms",
+        suggested_display_precision=0,
+        icon="mdi:database-check-outline",
+        device_class=None,
+        native_unit_of_measurement=UnitOfTime.MILLISECONDS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False
+    ),
+    ExtSensorEntityDescription.from_tag(
+        tag=SensorTag(key="average_rssi", section=NODES_KEY),
+        name="average_rssi",
+        suggested_display_precision=0,
+        icon="mdi:signal-variant",
+        device_class=None,
+        native_unit_of_measurement=SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False
+    ),
+    ExtSensorEntityDescription.from_tag(
+        tag=SensorTag(key="pdr", section=NODES_KEY),
+        name="pdr",
+        suggested_display_precision=0,
+        icon="mdi:signal",
+        device_class=None,
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False
+    ),
+    ExtSensorEntityDescription.from_tag(
+        tag=SensorTag(key="lqi", section=NODES_KEY),
+        name="lqi",
+        suggested_display_precision=0,
+        icon="mdi:broadcast",
+        device_class=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False
+    ),
+]
+
+BINARY_SENSOR_TYPES = [
+    ExtBinarySensorEntityDescription.from_tag(
+        tag=SensorTag(key="available", section=NODES_KEY),
+        name="available",
+        icon="mdi:lan-connect",
+        icon_off="mdi:lan-disconnect",
         entity_category=EntityCategory.DIAGNOSTIC
     ),
 ]

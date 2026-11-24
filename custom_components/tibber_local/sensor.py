@@ -14,6 +14,7 @@ from .const import (
     SENSOR_TYPES,
     DEFAULT_OBIS_CODES,
     OBIS_DATA_KEY,
+    NODES_KEY,
     METRICS_KEY,
 )
 
@@ -23,6 +24,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
     coordinator = hass.data[DOMAIN][config_entry.entry_id]
     entities = []
     obis_values = coordinator.data.get(OBIS_DATA_KEY, {}) if coordinator.data else {}
+    nodes_values = coordinator.data.get(NODES_KEY, {}) if coordinator.data else {}
     metrics_values = coordinator.data.get(METRICS_KEY, {}) if coordinator.data else {}
 
     available_sensors = list(obis_values.keys()) if obis_values else None
@@ -44,7 +46,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
             continue
 
         should_add = False
-        if description.tag.section == METRICS_KEY:
+        if description.tag.section == NODES_KEY:
+            should_add = bool(nodes_values)
+        elif description.tag.section == METRICS_KEY:
             should_add = bool(metrics_values)
         elif description.tag.section == OBIS_DATA_KEY:
             keys_to_check = [description.tag.key]
@@ -83,15 +87,3 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
         if self.coordinator.data is not None:
             return self.coordinator.get_sensor_value(self.entity_description.tag)
         return None
-
-    @property
-    def available(self):
-        super_val = super().available
-        if super_val:
-            if self.entity_description.tag.section == OBIS_DATA_KEY and len(self.coordinator.data.get(OBIS_DATA_KEY, {})) == 0:
-                return False
-
-            if self.entity_description.tag.section == METRICS_KEY and len(self.coordinator.data.get(METRICS_KEY, {})) == 0:
-                return False
-
-        return super_val
