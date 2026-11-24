@@ -45,6 +45,7 @@ from .const import (
     CONFIG_MINOR_VERSION,
 
     OBIS_DATA_KEY,
+    NODES_KEY,
     METRICS_KEY,
     NODE_METRICS_CLASSIC,
     NODE_METRIC_PREFIX,
@@ -57,14 +58,17 @@ from .const import (
     NODE_METRICS_2026_09,
     IR_METRICS_2026_09,
     HUB_METRICS_2026_09,
-    CLASSIC_HUB_METRIC_MAP
+    CLASSIC_HUB_METRIC_MAP,
+    BATTERY_MIN_VOLTS,
+    BATTERY_MAX_VOLTS,
+    BATTERY_LEVEL_ESTIMATED
 )
 from .entity import CustomFriendlyNameEntity
 from .tibber_client import TibberLocalBridge
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: Final = [Platform.SENSOR]
+PLATFORMS: Final = [Platform.BINARY_SENSOR, Platform.SENSOR]
 WEBSOCKET_WATCHDOG_INTERVAL: Final = timedelta(seconds=64)
 MASKED_KEYS: Final = ("host", "password")
 
@@ -403,6 +407,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
                 # make sure that the data coordinator has also the data...
                 self.async_set_updated_data({
                     OBIS_DATA_KEY: self.bridge._obis_values,
+                    NODES_KEY: self.bridge._nodes_data,
                     METRICS_KEY: self.bridge._metrics_data
                 })
 
@@ -450,6 +455,7 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             # we always return a DICT of the current data in the bridge objects...
             return {
                 OBIS_DATA_KEY: self.bridge._obis_values,
+                NODES_KEY: self.bridge._nodes_data,
                 METRICS_KEY: self.bridge._metrics_data,
             }
 
@@ -510,6 +516,16 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
             return f"{meter_id_new}"
         else:
             return UNKNOWN_SERIAL
+
+    def _get_node_value_internal(self, sensor_key: str):
+        if self.data is None:
+            return None
+        # getting the data...
+        meta_dict = self.data.get(NODES_KEY, {})
+        if meta_dict is not None and len(meta_dict) > 0:
+            if sensor_key in meta_dict:
+                return meta_dict[sensor_key]
+        return None
 
     def _get_metric_value_internal(self, sensor_key: str):
         if self.data is None:
@@ -582,8 +598,18 @@ class TibberLocalDataUpdateCoordinator(DataUpdateCoordinator):
         if tag is None:
             return None
 
+        if tag.section == NODES_KEY:
+            return self._get_node_value_internal(tag.key)
+
         if tag.section == METRICS_KEY:
-            return self._get_metric_value_internal(tag.key)
+            if tag.key == BATTERY_LEVEL_ESTIMATED:
+                # special handling for self-calculated battery level ESTIMATE
+                bat_volts = self._get_metric_value_internal("node_battery_voltage")
+                if bat_volts and isinstance(bat_volts, Number):
+                    ratio = (bat_volts - BATTERY_MIN_VOLTS) / (BATTERY_MAX_VOLTS - BATTERY_MIN_VOLTS)
+                    return round(max(0.0, min(1.0, ratio)) * 100)
+            else:
+                return self._get_metric_value_internal(tag.key)
 
         if tag.section == OBIS_DATA_KEY:
             obis_candidates = [tag.key]
@@ -619,8 +645,18 @@ class TibberLocalEntity(CustomFriendlyNameEntity):
 
     @property
     def available(self):
-        """Return True if entity is available."""
-        return self.coordinator.last_update_success and self.coordinator.data is not None and len(self.coordinator.data) > 0
+        super_val = self.coordinator.last_update_success and self.coordinator.data is not None and len(self.coordinator.data) > 0
+        if super_val:
+            if self.entity_description.tag.section == OBIS_DATA_KEY and len(self.coordinator.data.get(OBIS_DATA_KEY, {})) == 0:
+                return False
+
+            if self.entity_description.tag.section == NODES_KEY and len(self.coordinator.data.get(NODES_KEY, {})) == 0:
+                return False
+
+            if self.entity_description.tag.section == METRICS_KEY and len(self.coordinator.data.get(METRICS_KEY, {})) == 0:
+                return False
+
+        return super_val
 
     @property
     def unique_id(self):

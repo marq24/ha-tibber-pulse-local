@@ -28,6 +28,7 @@ from .const import (
     MODE_99_PLAINTEXT,
     ENUM_IMPLEMENTATIONS,
     OBIS_DATA_KEY,
+    NODES_KEY,
     METRICS_KEY,
 )
 
@@ -213,9 +214,12 @@ class TibberLocalBridge:
         self.ignore_parse_errors = False
         if options is not None and "ignore_parse_errors" in options:
             self.ignore_parse_errors = options["ignore_parse_errors"]
-        self._metrics_update_is_running = False
-        self._LAST_METRICS_UPDATE = 0
+        self._node_metrics_update_is_running = False
+        self._LAST_NODE_METRICS_UPDATE = 0
+        self.nodes_update_is_running = False
+        self._LAST_NODES_UPDATE = 0
         self._metrics_data = {}
+        self._nodes_data = {}
         self._obis_values = {}
         #self._obis_values_by_short = {}
 
@@ -306,6 +310,10 @@ class TibberLocalBridge:
                                 _LOGGER.debug(f"get_eui_for_node(): {a_node_obj} has the 'node_id' matching the one we are looking for: {self.node_number}")
                                 self.node_device_id = a_eui
 
+                                # storing the values for later use...
+                                self._nodes_data = a_node_obj
+                                self._LAST_NODES_UPDATE = time.time()
+
                 except Exception as exc:
                     if res.status == 401:
                         _LOGGER.warning(f"get_eui_for_node(): access to bridge failed with INNER exception: {type(exc).__name__} - {exc} - are you sure that you have provided the correct password for your bridge?", stack_info=True)
@@ -386,7 +394,8 @@ class TibberLocalBridge:
 
     async def update(self):
         await self.read_tibber_local(mode=self._com_mode, retry_count=0)
-        await self.updated_tibber_metrics_if_needed()
+        await self.updated_tibber_nodes_if_needed()
+        await self.updated_tibber_nodes_metrics_if_needed()
 
     async def update_and_log(self):
         await self.read_tibber_local(mode=self._com_mode, retry_count=0, log_payload=True)
@@ -619,37 +628,75 @@ class TibberLocalBridge:
             await asyncio.sleep(random.uniform(MIN_RETRY_DELAY, MAX_RETRY_DELAY))
             await self.read_tibber_local(mode=mode, retry_count=new_retry_count)
 
-    async def updated_tibber_metrics_if_needed(self, log_payload: bool = False):
-        if self._metrics_update_is_running:
+    async def updated_tibber_nodes_metrics_if_needed(self, log_payload: bool = False):
+        if self._node_metrics_update_is_running:
             return
 
         # only request every 30 minutes (= 30 * 60sec) for new meta_data...
-        to_wait_till = self._LAST_METRICS_UPDATE + 1800
+        to_wait_till = self._LAST_NODE_METRICS_UPDATE + 1800
         if to_wait_till > time.time():
             #_LOGGER.debug(f"updated_tibber_metrics_if_needed(): no update required [wait for: {round((to_wait_till - time.time())/60, 1)} min]")
             return
 
-        self._metrics_update_is_running = True
+        self._node_metrics_update_is_running = True
         try:
             if self.url_metrics is None:
                 await self.check_and_apply_fw_version()
-            _LOGGER.debug(f"updated_tibber_metrics_if_needed(): request: {self.url_metrics}")
+            _LOGGER.debug(f"updated_tibber_nodes_metrics_if_needed(): request: {self.url_metrics}")
             async with self.web_session.get(self.url_metrics, headers=self.REQ_HEADERS_BASIC_AUTH, ssl=False, timeout=10.0) as res:
                 res.raise_for_status()
                 try:
                     self._metrics_data = await res.json()
                     if log_payload:
-                        _LOGGER.debug(f"updated_tibber_metrics_if_needed(): metrics response: {self._metrics_data}")
+                        _LOGGER.debug(f"updated_tibber_nodes_metrics_if_needed(): metrics response: {self._metrics_data}")
                 except BaseException as exc:
-                    _LOGGER.warning(f"updated_tibber_metrics_if_needed(): failed to parse metrics JSON: {type(exc).__name__} - {exc}")
+                    _LOGGER.warning(f"updated_tibber_nodes_metrics_if_needed(): failed to parse metrics JSON: {type(exc).__name__} - {exc}")
+
         except BaseException as exc:
-            _LOGGER.warning(f"updated_tibber_metrics_if_needed(): access to bridge failed with exception: {type(exc).__name__} - {exc}")
+            _LOGGER.warning(f"updated_tibber_nodes_metrics_if_needed(): access to bridge failed with exception: {type(exc).__name__} - {exc}")
 
         finally:
             # we also mark failed attempts - so a bridge that does not provide any metrics will not be
             # requested with every update cycle
-            self._LAST_METRICS_UPDATE = time.time()
-            self._metrics_update_is_running = False
+            self._LAST_NODE_METRICS_UPDATE = time.time()
+            self._node_metrics_update_is_running = False
+
+    async def updated_tibber_nodes_if_needed(self, log_payload: bool = False):
+        if self.nodes_update_is_running:
+            return
+
+        # only request every 2 minutes (= 2 * 60sec) for new meta_data...
+        to_wait_till = self._LAST_NODES_UPDATE + 120
+        if to_wait_till > time.time():
+            #_LOGGER.debug(f"updated_tibber_metrics_if_needed(): no update required [wait for: {round((to_wait_till - time.time())/60, 1)} min]")
+            return
+
+        self.nodes_update_is_running = True
+        try:
+            _LOGGER.debug(f"updated_tibber_nodes_if_needed(): request: {self.url_metadata}")
+            async with self.web_session.get(self.url_metadata, headers=self.REQ_HEADERS_BASIC_AUTH, ssl=False, timeout=10.0) as res:
+                res.raise_for_status()
+                try:
+                    json_resp = await res.json()
+                    for a_node_obj in json_resp:
+                        a_eui = a_node_obj.get("eui", None)
+                        if a_eui and self.node_device_id == a_eui:
+                            self._nodes_data = a_node_obj
+                            break
+
+                    if log_payload:
+                        _LOGGER.debug(f"updated_tibber_nodes_if_needed(): metrics response: {self._nodemetrics_data}")
+                except BaseException as exc:
+                    _LOGGER.warning(f"updated_tibber_nodes_if_needed(): failed to parse metrics JSON: {type(exc).__name__} - {exc}")
+
+        except BaseException as exc:
+            _LOGGER.warning(f"updated_tibber_nodes_if_needed(): access to bridge failed with exception: {type(exc).__name__} - {exc}")
+
+        finally:
+            # we also mark failed attempts - so a bridge that does not provide any metrics will not be
+            # requested with every update cycle
+            self._LAST_NODES_UPDATE = time.time()
+            self.nodes_update_is_running = False
 
     async def _ws_handle_binary_message(self, binary_data) -> bool:
         if not isinstance(binary_data, (bytes, bytearray)) or len(binary_data) == 0:
@@ -835,7 +882,8 @@ class TibberLocalBridge:
 
                     # do we need to push new data event to the coordinator?
                     if new_data_arrived:
-                        await self.updated_tibber_metrics_if_needed()
+                        await self.updated_tibber_nodes_if_needed()
+                        await self.updated_tibber_nodes_metrics_if_needed()
                         self._ws_notify_for_new_data()
 
         except ClientResponseError as cre:
@@ -969,7 +1017,8 @@ class TibberLocalBridge:
             _LOGGER.debug(f"ws_connect_2026_09(): Could not read {buffer} - caused {type(e).__name__} {e}")
 
         if new_data_arrived:
-            await self.updated_tibber_metrics_if_needed()
+            await self.updated_tibber_nodes_if_needed()
+            await self.updated_tibber_nodes_metrics_if_needed()
             self._ws_notify_for_new_data()
 
     def _ws_notify_for_new_data(self):
@@ -995,6 +1044,7 @@ class TibberLocalBridge:
                 _LOGGER.debug(f"{self.url_ws} received: {gen_log_list(self._obis_values)}")
             self._coordinator.async_set_updated_data({
                 OBIS_DATA_KEY: self._obis_values,
+                NODES_KEY: self._nodes_data,
                 METRICS_KEY: self._metrics_data
             })
             self._ws_LAST_NEW_DATA_NOTIFY = time.time()

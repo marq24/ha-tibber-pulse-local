@@ -147,23 +147,37 @@
         "name": "Current/Potential L3 Phase deviation"
       },
 
-      "node_battery_voltage": {"name":  "Node Battery"},
-      "node_temperature": {"name":  "Node Temperature"},
-      "node_avg_rssi": {"name":  "Node Ø RSSI"},
-      "node_avg_lqi": {"name":  "Node Ø signal quality"},
-      "node_radio_tx_power": {"name":  "Node tx power"},
-      "node_uptime_ms": {"name":  "Node Uptime"},
-      "node_meter_msg_count_sent": {"name":  "Counter: Node messages sent"},
-      "node_meter_pkg_count_sent": {"name":  "Counter: Node packages sent"},
-      "node_time_in_em0_ms": {"name":  "Node EM0 Time"},
-      "node_time_in_em1_ms": {"name":  "Node EM1 Time"},
-      "node_time_in_em2_ms": {"name":  "Node EM2 Time"},
-      "node_acmp_rx_autolevel_9600": {"name":  "Node ACMP rx (9600 Baud)"},
-      "node_invalid_meter_readings_count": {"name":  "Counter: Node invalid readings"},
-      "hub_meter_pkg_count_recv": {"name":  "Counter: Hub packages received"},
-      "hub_meter_reading_count_recv": {"name":  "Counter: Hub messages received"},
-      "hub_meter_corrupt_reading_count_recv": {"name":  "Counter: Hub corrupted readings received"},
-      "hub_compression_error_readings_count": {"name":  "Counter: Hub compression errors"}
+      "node_battery_voltage": {"name": "Node Battery"},
+      "node_temperature": {"name": "Node Temperature"},
+      "node_avg_rssi": {"name": "Node WiFi Ø RSSI"},
+      "node_avg_lqi": {"name": "Node WiFi Ø signal quality"},
+      "node_radio_tx_power": {"name": "Node tx power"},
+      "node_uptime_ms": {"name": "Node Uptime"},
+      "node_meter_msg_count_sent": {"name": "Counter: Node messages sent"},
+      "node_meter_pkg_count_sent": {"name": "Counter: Node packages sent"},
+      "node_time_in_em0_ms": {"name": "Node EM0 Time"},
+      "node_time_in_em1_ms": {"name": "Node EM1 Time"},
+      "node_time_in_em2_ms": {"name": "Node EM2 Time"},
+      "node_acmp_rx_autolevel_9600": {"name": "Node ACMP rx (9600 Baud)"},
+      "node_invalid_meter_readings_count": {"name": "Counter: Node invalid readings"},
+      "hub_meter_pkg_count_recv": {"name": "Counter: Hub packages received"},
+      "hub_meter_reading_count_recv": {"name": "Counter: Hub messages received"},
+      "hub_meter_corrupt_reading_count_recv": {"name": "Counter: Hub corrupted readings received"},
+      "hub_compression_error_readings_count": {"name": "Counter: Hub compression errors"},
+
+      "battery_estimated": {"name": "Node Battery level (estimated)"},
+      "last_seen_ms": {"name": "Node last seen"},
+      "last_data_ms": {"name": "Node last data"},
+      "average_rssi": {"name": "Node Ø RSSI"},
+      "pdr": {"name": "Node Packet Delivery Rate (PDR)"},
+      "lqi": {"name": "Node Link Quality Indicator (LQI)"}
+    },
+    "binary_sensor": {
+      "available": {"name": "Node Status",
+                    "state": {
+                      "on": "Connected",
+                      "off": "Disconnected"
+                    }}
     }
   }
 }
