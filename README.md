@@ -103,7 +103,13 @@ However, **please note that the integration currently supports only one WebSocke
 
 More about [multiple Pulse devices can be found in the Issue #120](https://github.com/marq24/ha-tibber-pulse-local/issues/120).
 
-## Want to report an issue?
+## Contributing
+
+Bug reports, technical findings and contributions are welcome.
+
+Before opening a feature request or pull request, please read my [contribution guidelines](CONTRIBUTING.md).
+
+### Want to report an issue?
 
 Please use the [GitHub Issues](https://github.com/marq24/ha-tibber-pulse-local/issues) for reporting any issues you encounter with this integration. Please be so kind before creating a new issue, check the closed ones if your problem has been already reported (& solved).
 
